@@ -22,6 +22,7 @@ ADCMask       =   0x00000FFF     # 0000 0000 0000 0000 0000 1111 1111 1111
 TimeStampMask =   0x3FFFFFFF     # 0011 1111 1111 1111 1111 1111 1111 1111
 
 NbrWordsMask  =   0x00000FFF     # 0000 0000 0000 0000 0000 1111 1111 1111
+GateStartMask =   0x0000FFFF     # 0000 0000 0000 0000 1111 1111 1111 1111
 
 
 # =======  DICTONARY  ======= #
@@ -54,13 +55,13 @@ def import_data(filename):
         start = content.find(b'}\n}\n')
         content = content[start+7:]
         
-        #Group data into uint-words of 4 bytes length
+        #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(content)//4), content)
         
         #Remove invalid and non-relevant words
         s = pd.Series(np.array(data))
         s_red = s[   ((s & TypeMask) == Header)
-                   | ((s & (TypeMask + DataMask)) == DataPart2)                        
+                   | ((s & (TypeMask | DataMask)) == DataPart2)                        
                    | ((s & TypeMask) == EoE)  
                  ]
         s_red.reset_index(drop=True, inplace=True)  
@@ -87,7 +88,7 @@ def cluster_data(data):
         if (word & TypeMask) == Header:
             isOpen = True
         
-        elif ((word & (TypeMask + DataMask)) == DataPart2) & isOpen:
+        elif ((word & (TypeMask | DataMask)) == DataPart2) & isOpen:
             Bus = (word & BusMask) >> BusShift
             Channel = ((word & ChannelMask) >> ChannelShift)
             ADC = (word & ADCMask)
