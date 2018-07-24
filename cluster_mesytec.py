@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import numpy as np
 import struct
+import re
 
 # =======    MASKS    ======= #
 TypeMask      =   0xC0000000     # 1100 0000 0000 0000 0000 0000 0000 0000
@@ -50,10 +51,13 @@ def import_data(filename):
     filepath = os.path.join(dirname, '../Data/' + filename)
     with open(filepath, mode='rb') as binfile:
         content = binfile.read()
-        
+                
         #Skip configuration text
-        start = content.find(b'}\n}\n')
-        content = content[start+7:]
+        match = re.search(b'}\n}\n[ ]*', content)
+        start = match.span()[1]
+        print(content[match.span()[0]:match.span()[1]])
+        content = content[start:]
+        print(content[0:50])
         
         #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(content)//4), content)
@@ -121,6 +125,44 @@ def cluster_data(data):
                 clusters['Time'][index-i] = Time
             nbrBuses = 0
             tempBus = -1
+            isOpen = False
+    
+    df = pd.DataFrame(clusters)
+    df = df.drop(range(index, size, 1))
+    
+    return df
+
+def cluster_data_ind_ch(data):
+    
+    size = data.size
+    parameters = ['Bus', 'Time', 'Bus', 'Channel', 'ADC']
+    clusters = create_dict(size, parameters)
+    index = -1
+    
+    isOpen = False
+    eventCount = 0
+    for i, word in enumerate(data):
+        if (word & TypeMask) == Header:
+            isOpen = True
+        
+        elif ((word & (TypeMask | DataMask)) == DataPart2) & isOpen:
+            index += 1
+            eventCount += 1
+            clusters['Bus'][index] = (word & BusMask) >> BusShift
+            clusters['ADC'][index] = (word & ADCMask)
+            
+            Channel = ((word & ChannelMask) >> ChannelShift)
+            if Channel < 80:
+                clusters['Channel'][index] = Channel ^ 1 #Shift odd and even Ch
+            else:
+                clusters['Channel'][index] = Channel
+
+            
+        elif ((word & TypeMask) == EoE) & isOpen:
+            Time = (word & TimeStampMask)
+            for i in range(0,eventCount):
+                clusters['Time'][index-i] = Time
+            eventCount = 0
             isOpen = False
     
     df = pd.DataFrame(clusters)
