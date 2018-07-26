@@ -24,6 +24,7 @@ TimeStampMask =   0x3FFFFFFF     # 0011 1111 1111 1111 1111 1111 1111 1111
 
 NbrWordsMask  =   0x00000FFF     # 0000 0000 0000 0000 0000 1111 1111 1111
 GateStartMask =   0x0000FFFF     # 0000 0000 0000 0000 1111 1111 1111 1111
+ExTsMask      =   0x0000FFFF     # 0000 0000 0000 0000 1111 1111 1111 1111
 
 
 # =======  DICTONARY  ======= #
@@ -37,8 +38,9 @@ DataExTs      =   0x20000000     # 0010 0000 0000 0000 0000 0000 0000 0000
 
 
 # =======  BIT-SHIFTS  ======= #
-ChannelShift = 12
-BusShift = 24
+ChannelShift  =   12
+BusShift      =   24
+ExTsShift     =   30
 
 
 
@@ -55,9 +57,7 @@ def import_data(filename):
         #Skip configuration text
         match = re.search(b'}\n}\n[ ]*', content)
         start = match.span()[1]
-        print(content[match.span()[0]:match.span()[1]])
         content = content[start:]
-        print(content[0:50])
         
         #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(content)//4), content)
@@ -69,7 +69,7 @@ def import_data(filename):
                    | ((s & TypeMask) == EoE)  
                  ]
         s_red.reset_index(drop=True, inplace=True)  
-    return s_red
+    return s
 
 
 # =============================================================================
@@ -83,6 +83,8 @@ def cluster_data(data):
     clusters = create_dict(size, parameters)
     
     isOpen = False
+    isData = False
+    Time = 0
     index = -1
     tempBus = -1
     maxADCw = -1
@@ -93,6 +95,7 @@ def cluster_data(data):
             isOpen = True
         
         elif ((word & (TypeMask | DataMask)) == DataPart2) & isOpen:
+            isData = True
             Bus = (word & BusMask) >> BusShift
             Channel = ((word & ChannelMask) >> ChannelShift)
             ADC = (word & ADCMask)
@@ -118,21 +121,26 @@ def cluster_data(data):
                 if ADC > maxADCg:
                     clusters['gCh'][index] = Channel
                     maxADCg = ADC
+        
+        elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & isData:
+            Time = (word & ExTsMask) << ExTsShift
             
         elif ((word & TypeMask) == EoE) & isOpen:
-            Time = (word & TimeStampMask)
+            Time = Time | (word & TimeStampMask)
             for i in range(0,nbrBuses):
                 clusters['Time'][index-i] = Time
             nbrBuses = 0
             tempBus = -1
             isOpen = False
+            isData = False
+            Time = 0
     
     df = pd.DataFrame(clusters)
     df = df.drop(range(index, size, 1))
     
     return df
 
-def cluster_data_ind_ch(data):
+def cluster_data_ch(data):
     
     size = data.size
     parameters = ['Bus', 'Time', 'Bus', 'Channel', 'ADC']
