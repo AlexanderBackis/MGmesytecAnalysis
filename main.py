@@ -51,13 +51,13 @@ print(clusters)
 
 
 
-#clusters = clu.cluster_data_ch(data)
-#thresADC = 0
-#bus_vec = [0, 1, 2]
-##pl.plot_2D_hit_buses(clusters, bus_vec, thresADC)
-#
-#pl.plot_PHS_buses(clusters, bus_vec)
-#pl.plot_PHS_several_channels(clusters, 3, [22,97], [1,1e5])
+clusters = clu.cluster_data_ch(data)
+thresADC = 0
+bus_vec = [0, 1, 2]
+#pl.plot_2D_hit_buses(clusters, bus_vec, thresADC)
+
+pl.plot_PHS_buses(clusters, bus_vec)
+pl.plot_PHS_several_channels(clusters, 1, [22,97], [1,1e5])
 
 
 

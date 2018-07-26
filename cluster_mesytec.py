@@ -90,7 +90,7 @@ def cluster_data(data):
     maxADCw = -1
     maxADCg = -1
     nbrBuses = 0
-    for i, word in enumerate(data):
+    for word in data:
         if (word & TypeMask) == Header:
             isOpen = True
         
