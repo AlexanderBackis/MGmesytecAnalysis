@@ -213,14 +213,14 @@ def plot_PHS_several_channels(df, bus, ChVec, ylim):
     
     for Channel in ChVec:
         df_ch = df_red[df_red.Channel == Channel]
-        plt.hist(df_ch.ADC, bins=100, range=[0,4400], log=True, alpha = 1, 
+        plt.hist(df_ch.ADC, bins=100, range=[0,4400], log=False, alpha = 1, 
                  label = 'Channel ' + str(Channel), histtype='step')
     
     plt.legend(loc='upper right')
     plt.xlabel("Charge  [ADC channels]")
     plt.ylabel("Counts")
     name = 'PHS for several channels, Bus ' + str(bus) + '\nChannels: ' + str(ChVec)
-    plt.ylim(ylim)
+    #plt.ylim(ylim)
     plt.title(name)
     plot_path = get_plot_path() + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
@@ -230,9 +230,9 @@ def plot_PHS_several_channels(df, bus, ChVec, ylim):
 # Plot 2D Pulse Height Spectrum, Channel VS Charge
 # =============================================================================
 
-def plot_PHS(df, bus, loc, fig):
+def plot_PHS(df, bus, loc, number_of_detectors, fig):
     df_red = df[df.Bus == bus]
-    plt.subplot(1,3,loc+1)
+    plt.subplot(1*number_of_detectors,3,loc+1)
     plt.hist2d(df_red.Channel, df_red.ADC, bins=[120, 120], norm=LogNorm(), 
                range=[[0, 120], [0, 4400]], vmin=1, vmax=3000, cmap='jet')
     plt.ylabel("Charge [ADC channels]")
@@ -243,12 +243,13 @@ def plot_PHS(df, bus, loc, fig):
     
 def plot_PHS_buses(df, bus_vec):
     fig = plt.figure()
+    number_of_detectors = len(bus_vec) // 3
     fig.suptitle('2D-Histogram of Channel vs Charge',x=0.5,
-                 y=1)
-    fig.set_figheight(4)
+                 y=1.02, fontweight="bold")
+    fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_vec):
-        plot_PHS(df, bus, loc, fig)
+        plot_PHS(df, bus, loc, number_of_detectors, fig)
     name = '2D-Histogram of Channel vs Charge all buses'
     plt.tight_layout()
     plt.show()
