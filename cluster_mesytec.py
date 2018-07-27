@@ -101,16 +101,17 @@ def cluster_data(data):
     for word in data:
         if (word & TypeMask) == Header:
             isOpen = True
-            if (word & (TypeMask | TriggerMask)) == Trigger:
-                isTrigger = True
-               
+            isTrigger = (word & (TypeMask | TriggerMask)) == Trigger
+              
         elif ((word & (TypeMask | DataMask)) == DataEvent) & isOpen:
             isData = True
+            
             Bus = (word & BusMask) >> BusShift
             Channel = ((word & ChannelMask) >> ChannelShift)
             ADC = (word & ADCMask)
+            
+            #Create new event if different buses
             if tempBus != Bus:
-                #Initialize temporary variables
                 tempBus = Bus
                 maxADCw = -1
                 maxADCg = -1
@@ -134,32 +135,22 @@ def cluster_data(data):
                     clusters['gCh'][index] = Channel
                     maxADCg = ADC
         
-        elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & isData:
-            Time = (word & ExTsMask) << ExTsShift
-        
-        elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & isTrigger:
-            TriggerTime = (word & ExTsMask) << ExTsShift
-        
+        elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & (isData | isTrigger):
+            extended_time_stamp = (word & ExTsMask) << ExTsShift
+         
         elif ((word & TypeMask) == EoE) & isOpen:
-            Time = Time | (word & TimeStampMask)
-#            print('Time: ' + str(Time))
+            time_stamp = (word & TimeStampMask)
+            Time = extended_time_stamp | time_stamp
+            
             if isTrigger:
-                TriggerTime = TriggerTime | (word & TimeStampMask)
-#                print('TriggerTime: ' + str(TriggerTime))
-          #  print('Number of buses: ' + str(nbrBuses))
+                TriggerTime = Time
+            
+            #Assign timestamp to coindicent events
             for i in range(0,nbrBuses):
-#                print('Count' + str(i))
                 clusters['Time'][index-i] = Time
-                ToF = (Time - TriggerTime)
-#                print('Time: ' + str(Time))
-#                print('TriggerTime: ' + str(TriggerTime))
-#                print('ToF: ' + str(ToF))
-                clusters['ToF'][index-i] = ToF
-            
-#            print('ToF: ' + str(Time - TriggerTime))
-#            print('ToF in Clusters: ' + str(clusters['ToF'][index]))
-            
-            
+                clusters['ToF'][index-i] = Time - TriggerTime
+    
+    
             #Reset temporary variables
             nbrBuses  = 0
             tempBus   = -1

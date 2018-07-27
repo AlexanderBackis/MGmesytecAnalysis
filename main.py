@@ -112,7 +112,7 @@ clusters = clu.cluster_data(data)
 #indices = np.arange(0,clusters.shape[0],1)
 #print(clusters)
 ##
-plt.plot(clusters.Time,clusters.ToF)
+plt.hist(clusters.ToF)
 plt.title('Time vs ToF')
 plt.xlabel('Time')
 plt.ylabel('ToF')
