@@ -13,6 +13,17 @@ import numpy as np
 import cluster_mesytec as clu
 import plot_mesytec as pl
 
+def initialise_detector_types(number_of_detectors):
+    print('Enter detector types ("ESS" or "ILL"), press "Enter" after each one.')
+    detector_types = ''
+    for i in range(0,number_of_detectors):
+        detector_type = input('>>')
+        detector_types += detector_type
+        if i < (number_of_detectors - 1):
+            detector_types += ', '
+    
+    return detector_types
+    
 
 def choose_data_set():
     not_int = True
@@ -63,7 +74,7 @@ def choose_number_modules():
         if not_int or not_in_range:
             print('\nThat is not a valid number.\n')
     
-    return modules[0:3*number_of_detectors]
+    return number_of_detectors, modules[0:3*number_of_detectors]
 
 def choose_analysis_type():
 
@@ -89,7 +100,8 @@ def main_meny(data_set):
        # print('*************************************************')
         print('-------------------------------------------------')
         print('Current data set: ' + data_set)
-        print('Module order: ' + str(module_order))
+        print('Module order    : ' + str(module_order))
+        print('Detector type(s): ' + detector_types)
         print('-------------------------------------------------')
         print('1. Change data set')
         print('2. Change module order')
@@ -129,8 +141,10 @@ folder = os.path.join(dirname, '../Data/')
 files = os.listdir(folder)
 files = [file for file in files if file[-9:] != '.DS_Store']
 
+
+number_of_detectors, module_order = choose_number_modules()
+detector_types = initialise_detector_types(number_of_detectors)
 clusters, data_set = choose_data_set()
-module_order = choose_number_modules()
 
 not_done = True
 while not_done:
