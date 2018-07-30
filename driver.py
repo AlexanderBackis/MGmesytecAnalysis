@@ -120,6 +120,9 @@ def choose_analysis_type():
     if analysis_type == 6:
         pl.plot_2D_multiplicity_buses(coincident_events, module_order, 
                                       number_of_detectors, thresADC)
+    
+    if analysis_type == 7:
+        pl.plot_all_sides(module_order, coincident_events, thresADC)
 
 def main_meny(data_set):
     not_int = True
@@ -144,6 +147,7 @@ def main_meny(data_set):
         print('     3.4 2D coincidence histogram')
         print('     3.5 3D coincidence histogram')
         print('     3.6 2D multiplicity histogram')
+        print('     3.7 2D histogram, different perspectives')
         print('4. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +

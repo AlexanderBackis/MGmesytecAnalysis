@@ -164,7 +164,7 @@ def plot_2D_side_3(bus_vec, df, fig):
     plt.colorbar()
     plt.title(name)
     
-def plot_all_sides(bus_vec, df, ADCthreshold):
+def plot_all_sides(bus_vec, df, ADCthreshold = 0):
     fig = plt.figure()
     
     fig.set_figheight(4)
@@ -409,7 +409,7 @@ def plot_3D_new(df, bus):
     xlimVec =  [ [0, 80], [80, 120]]
   #  zlimVec =   [[0,500], [0,3000]]
     
-    plt.clf()
+    plt.close()
     
     fig = plt.figure()
     fig.set_size_inches(15, 6)
