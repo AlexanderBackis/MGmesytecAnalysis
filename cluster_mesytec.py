@@ -92,14 +92,15 @@ def cluster_data(data):
     index       =   -1
     
     #Declare temporary variables
-    isOpen      =    False
-    isData      =    False
-    isTrigger   =    False
-    tempBus     =   -1
-    maxADCw     =   -1
-    maxADCg     =   -1
-    nbrBuses    =   -1
-    Time        =    0
+    isOpen              =    False
+    isData              =    False
+    isTrigger           =    False
+    tempBus             =   -1
+    maxADCw             =   -1
+    maxADCg             =   -1
+    nbrBuses            =   -1
+    Time                =    0
+    extended_time_stamp =    None
     
     number_words = len(data)
     #Four possibilities in each word: Header, DataEvent, DataExTs or EoE
@@ -145,7 +146,11 @@ def cluster_data(data):
          
         elif ((word & TypeMask) == EoE) & isOpen:
             time_stamp = (word & TimeStampMask)
-            Time = extended_time_stamp | time_stamp
+            
+            if extended_time_stamp != None:
+                Time = extended_time_stamp | time_stamp
+            else:
+                Time = time_stamp
             
             if isTrigger:
                 TriggerTime = Time
