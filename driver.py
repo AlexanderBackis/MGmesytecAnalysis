@@ -14,18 +14,24 @@ import cluster_mesytec as clu
 import plot_mesytec as pl
 
 def initialise_detector_types(number_of_detectors):
-    print('Enter detector types ("ESS" or "ILL"), press "Enter" after each one.')
-    detector_types = ''
-    for i in range(0,number_of_detectors):
-        detector_type = input('>>')
-        detector_types += detector_type
-        if i < (number_of_detectors - 1):
-            detector_types += ', '
+    print('Enter detector types ("ESS" or "ILL") from\n' + 
+          'left to right, use spaces to separate.')
+    detector_types = [x for x in input('>>').split()]
+    
+#    detector_types_string = ''
+#    detector_types = []
+#    for i in range(0,number_of_detectors):
+#        detector_type = input('>>')
+#        detector_types.append(detector_type)
+#        
+#        detector_types_string += detector_type
+#        if i < (number_of_detectors - 1):
+#            detector_types_string += ', '
     
     return detector_types
     
 
-def choose_data_set():
+def choose_data_set(detector_types):
     not_int = True
     not_in_range = True
     while (not_int or not_in_range):
@@ -48,13 +54,13 @@ def choose_data_set():
         if not_int or not_in_range:
             print('\nThat is not a valid number.')
     
-    data_set = files[int(file_number)-1]
+    data_set = files[int(file_number) - 1]
     
     data = clu.import_data(data_set)
     
-    clusters = clu.cluster_data(data)
+    coincident_events, events = clu.cluster_data(data, detector_types)
     
-    return clusters, data_set
+    return coincident_events, events, data_set
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -78,16 +84,42 @@ def choose_number_modules():
 
 def choose_analysis_type():
 
-    analysis_type = input('Which one? Insert a number between 1-4.\n>> ')
+    analysis_type = input('Which one? Enter a number between 1-5.\n>> ')
 
     try:
         analysis_type = int(analysis_type)
     except ValueError:
         print("That's not an int!")
-
+        
     if analysis_type == 1:
-        print()
+        bus = input('Which module? Enter a number between 1-' + 
+                    str(number_of_detectors*3 - 1) + '\n>>')
+        bus = int(bus)
+        ChVec = [int(x) for x in input('Which Channels? Enter numbers ' +
+                 'between 0-119, separated by spaces.\n>>').split()]
+        
+        pl.plot_PHS_several_channels(events, bus, ChVec)
+        
+    if analysis_type == 2:
+        pl.plot_PHS_buses(events, module_order)
     
+    if analysis_type == 3:
+        bus = input('Which module? Enter a number between 0-' + 
+                    str(number_of_detectors*3 - 1) + '\n>>')
+        bus = int(bus)
+        pl.plot_3D_new(events, bus)
+
+    if analysis_type == 4:
+        pl.plot_2D_hit_buses(coincident_events, module_order, 
+                             number_of_detectors, thresADC)
+    if analysis_type == 5:
+        count_thres = input('Insert count threshold.\n>> ')
+        count_thres = int(count_thres)
+        pl.plot_all_sides_3D(coincident_events, module_order, count_thres)
+    
+    if analysis_type == 6:
+        pl.plot_2D_multiplicity_buses(coincident_events, module_order, 
+                                      number_of_detectors, thresADC)
 
 def main_meny(data_set):
     not_int = True
@@ -101,15 +133,17 @@ def main_meny(data_set):
         print('-------------------------------------------------')
         print('Current data set: ' + data_set)
         print('Module order    : ' + str(module_order))
-        print('Detector type(s): ' + detector_types)
+        print('Detector type(s): ' + str(detector_types))
         print('-------------------------------------------------')
         print('1. Change data set')
         print('2. Change module order')
         print('3. Perform an analysis')
         print('     3.1 1D Pulse Height Spectrum')
         print('     3.2 2D Pulse Height Spectrum')
-        print('     3.3 2D coincidence histogram')
-        print('     3.4 3D coincidence histogram')
+        print('     3.3 3D Pulse Height Spectrum')
+        print('     3.4 2D coincidence histogram')
+        print('     3.5 3D coincidence histogram')
+        print('     3.6 2D multiplicity histogram')
         print('4. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
@@ -144,13 +178,14 @@ files = [file for file in files if file[-9:] != '.DS_Store']
 
 number_of_detectors, module_order = choose_number_modules()
 detector_types = initialise_detector_types(number_of_detectors)
-clusters, data_set = choose_data_set()
+coincident_events, events, data_set = choose_data_set(detector_types)
+thresADC = 0
 
 not_done = True
 while not_done:
     choice = main_meny(data_set)
     if choice == 1:
-        clusters, data_set = choose_data_set()
+        coincident_events, events, data_set = choose_data_set(detector_types)
     elif choice == 2:
         pass
     elif choice == 3:

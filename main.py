@@ -81,25 +81,34 @@ ExTsShift     =   30
 
 
 start_time = time.time()
-file_name = 'mvmelst_061_180628_140303.mvmelst'
+file_name = 'mvmelst_048.mvmelst'
 data = clu.import_data(file_name)
+data = data
 
-#for word in data.head(200):
-#    if (word & TypeMask) == Header:
-#        print('Header')
-#    if (word & (TypeMask | TriggerMask)) == Trigger:
-#        print('Trigger')
-#    if ((word & (TypeMask | DataMask)) == DataEvent):
-#        print('Data')
-#        print('Channel: ' + str(((word & ChannelMask) >> ChannelShift)))
-#        print('Bus: ' + str((word & BusMask) >> BusShift))
-#        print('ADC: ' + str((word & ADCMask)))
-#    if ((word & (TypeMask | DataMask)) == DataExTs):
-#        print('ExTs: ' + str(word))
-#    if (word & TypeMask) == EoE:
-#        print('Time: ' + str((word & TimeStampMask)))
-#        print('EoE')
-
+for word in data.head(30000):
+    if (word & TypeMask) == Header:
+        print()
+        print('**************')
+        print('*** Header ***')
+        print('**************')
+    if (word & (TypeMask | TriggerMask)) == Trigger:
+        print('Trigger')
+    if ((word & (TypeMask | DataMask)) == DataEvent):
+        print('Data')
+        print('---')
+        print('Channel: ' + str(((word & ChannelMask) >> ChannelShift)))
+        print('Bus: ' + str((word & BusMask) >> BusShift))
+        print('ADC: ' + str((word & ADCMask)))
+    if ((word & (TypeMask | DataMask)) == DataExTs):
+        print('- - -')
+        print('ExTs: ' + str(word))
+        print('- - -')
+    if (word & TypeMask) == EoE:
+        print('Time: ' + str((word & TimeStampMask)))
+        print('**************')
+        print('***** EoE ****')
+        print('**************')
+        print()
 #
 #clusters = clu.cluster_data(data)
 ##clustersCh = clu.cluster_data_ch(data)

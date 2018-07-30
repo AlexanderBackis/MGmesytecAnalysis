@@ -79,17 +79,27 @@ def import_data(filename):
 #                               CLUSTER DATA
 # =============================================================================
 
-def cluster_data(data):
+def cluster_data(data, detector_types = None):
     print('Clustering...')
     
+    exceptions = []
+    
+    if detector_types != None:
+        for i, detector in enumerate(detector_types):
+            if detector == "ILL":
+                exceptions.append(i * 3 + 1)
+            
     size = data.size
-    parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 'wADC', 'gADC', 'wM', 
-                  'gM']
-    clusters = create_dict(size, parameters)
+    coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
+                                    'wADC', 'gADC', 'wM', 'gM']
+    event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
+    coincident_events = create_dict(size, coincident_event_parameters)
+    events = create_dict(size, event_parameters)
     
     #Declare variables
     TriggerTime =    0
     index       =   -1
+    index_event =   -1
     
     #Declare temporary variables
     isOpen              =    False
@@ -98,7 +108,8 @@ def cluster_data(data):
     tempBus             =   -1
     maxADCw             =   -1
     maxADCg             =   -1
-    nbrBuses            =   -1
+    nbrBuses            =    0
+    nbrEvents           =    0
     Time                =    0
     extended_time_stamp =    None
     
@@ -116,30 +127,39 @@ def cluster_data(data):
             Channel = ((word & ChannelMask) >> ChannelShift)
             ADC = (word & ADCMask)
             
-            #Create new event if different buses
-            if tempBus != Bus:
+            index_event += 1
+            events['Bus'][index_event] = Bus
+            events['ADC'][index_event] = ADC
+            
+            #Create new coincident event if different buses (exception for ILL)
+            ILL_exception = (Bus in exceptions) and Channel > 79
+            if tempBus != Bus and not ILL_exception:
                 tempBus = Bus
                 maxADCw = -1
                 maxADCg = -1
                 nbrBuses += 1
                 index += 1
                 
-                clusters['wCh'][index] = -1
-                clusters['gCh'][index] = -1
-                clusters['Bus'][index] = Bus
+                coincident_events['wCh'][index] = -1
+                coincident_events['gCh'][index] = -1
+                coincident_events['Bus'][index] = Bus
             
             if Channel < 80:
-                clusters['wADC'][index] += ADC
-                clusters['wM'][index] += 1
+                coincident_events['wADC'][index] += ADC
+                coincident_events['wM'][index] += 1
                 if ADC > maxADCw:
-                    clusters['wCh'][index] = Channel ^ 1 #Shift odd and even Ch
+                    coincident_events['wCh'][index] = Channel ^ 1 #Shift odd and even Ch
                     maxADCw = ADC
+                
+                events['Channel'][index_event] = Channel ^ 1 #Shift odd and even Ch
             else:
-                clusters['gADC'][index] += ADC
-                clusters['gM'][index] += 1
+                coincident_events['gADC'][index] += ADC
+                coincident_events['gM'][index] += 1
                 if ADC > maxADCg:
-                    clusters['gCh'][index] = Channel
+                    coincident_events['gCh'][index] = Channel
                     maxADCg = ADC
+                
+                events['Channel'][index_event] = Channel
         
         elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & (isData | isTrigger):
             extended_time_stamp = (word & ExTsMask) << ExTsShift
@@ -157,12 +177,17 @@ def cluster_data(data):
             
             #Assign timestamp to coindicent events
             for i in range(0,nbrBuses):
-                clusters['Time'][index-i] = Time
-                clusters['ToF'][index-i] = Time - TriggerTime
+                coincident_events['Time'][index-i] = Time
+                coincident_events['ToF'][index-i] = Time - TriggerTime
+            
+            #Assign timestamp to events
+            for i in range(0,nbrEvents):
+                events['Time'][index-i] = Time
     
     
             #Reset temporary variables
             nbrBuses  = 0
+            nbrEvents = 0
             tempBus   = -1
             isOpen    = False
             isData    = False
@@ -170,13 +195,19 @@ def cluster_data(data):
             Time      = 0
         
         if count % 1000000 == 1:
-            print(str(round((count/number_words)*100)) + '%')
+            percentage_finished = str(round((count/number_words)*100)) + '%'
+            print(percentage_finished)
     
-    print('100%')
-    df = pd.DataFrame(clusters)
-    df = df.drop(range(index, size, 1))
+    if percentage_finished != '100%':
+        print('100%')
     
-    return df
+    coincident_events_df = pd.DataFrame(coincident_events)
+    coincident_events_df = coincident_events_df.drop(range(index, size, 1))
+    
+    events_df = pd.DataFrame(events)
+    events_df = events_df.drop(range(index, size, 1))
+    
+    return coincident_events_df, events_df
 
 def cluster_data_ch(data):
     
