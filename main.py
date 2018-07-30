@@ -81,7 +81,7 @@ ExTsShift     =   30
 
 
 start_time = time.time()
-file_name = 'mvmelst_015.mvmelst'
+file_name = 'mvmelst_061_180628_140303.mvmelst'
 data = clu.import_data(file_name)
 
 #for word in data.head(200):
@@ -101,7 +101,7 @@ data = clu.import_data(file_name)
 #        print('EoE')
 
 #
-clusters = clu.cluster_data(data)
+#clusters = clu.cluster_data(data)
 ##clustersCh = clu.cluster_data_ch(data)
 #thresADC = 0
 #bus_vec = [0, 1, 2, 3, 4, 5]
@@ -112,11 +112,11 @@ clusters = clu.cluster_data(data)
 #indices = np.arange(0,clusters.shape[0],1)
 #print(clusters)
 ##
-plt.hist(clusters.ToF)
-plt.title('Time vs ToF')
-plt.xlabel('Time')
-plt.ylabel('ToF')
-plt.show()
+#plt.hist(clusters.ToF)
+#plt.title('Time vs ToF')
+#plt.xlabel('Time')
+#plt.ylabel('ToF')
+#plt.show()
 #    print('Time: ' + str(event.Time))
 #    print('ToF: ' + str(event.ToF))
     

@@ -48,10 +48,12 @@ ExTsShift     =   30
 # =============================================================================
 
 def import_data(filename):
+    print('\nImporting...')
+    print('0%')
     dirname = os.path.dirname(__file__)
     filepath = os.path.join(dirname, '../Data/' + filename)
     with open(filepath, mode='rb') as binfile:
-        content = binfile.read()
+        content = binfile.read()      
                 
         #Skip configuration text
         match = re.search(b'}\n}\n[ ]*', content)
@@ -68,7 +70,8 @@ def import_data(filename):
                    | ((s & (TypeMask | DataMask)) == DataExTs)
                    | ((s & TypeMask) == EoE)  
                  ]
-        s_red.reset_index(drop=True, inplace=True)  
+        s_red.reset_index(drop=True, inplace=True) 
+    print('100%')
     return s_red
 
 
@@ -77,6 +80,7 @@ def import_data(filename):
 # =============================================================================
 
 def cluster_data(data):
+    print('Clustering...')
     
     size = data.size
     parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 'wADC', 'gADC', 'wM', 
@@ -97,8 +101,9 @@ def cluster_data(data):
     nbrBuses    =   -1
     Time        =    0
     
+    number_words = len(data)
     #Four possibilities in each word: Header, DataEvent, DataExTs or EoE
-    for word in data:
+    for count, word in enumerate(data):
         if (word & TypeMask) == Header:
             isOpen = True
             isTrigger = (word & (TypeMask | TriggerMask)) == Trigger
@@ -158,7 +163,11 @@ def cluster_data(data):
             isData    = False
             isTrigger = False
             Time      = 0
+        
+        if count % 1000000 == 1:
+            print(str(round((count/number_words)*100)) + '%')
     
+    print('100%')
     df = pd.DataFrame(clusters)
     df = df.drop(range(index, size, 1))
     
