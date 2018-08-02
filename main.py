@@ -75,42 +75,44 @@ ExTsShift     =   30
 #          + '2. Max value)
    
 
+#arr = np.arange(0,3,1)
+#print(arr)
+#print(5 in arr)
 
 
-
-
-
-start_time = time.time()
-file_name = 'mvmelst_048.mvmelst'
-data = clu.import_data(file_name)
-data = data
-
-for word in data.head(30000):
-    if (word & TypeMask) == Header:
-        print()
-        print('**************')
-        print('*** Header ***')
-        print('**************')
-    if (word & (TypeMask | TriggerMask)) == Trigger:
-        print('Trigger')
-    if ((word & (TypeMask | DataMask)) == DataEvent):
-        print('Data')
-        print('---')
-        print('Channel: ' + str(((word & ChannelMask) >> ChannelShift)))
-        print('Bus: ' + str((word & BusMask) >> BusShift))
-        print('ADC: ' + str((word & ADCMask)))
-    if ((word & (TypeMask | DataMask)) == DataExTs):
-        print('- - -')
-        print('ExTs: ' + str(word))
-        print('- - -')
-    if (word & TypeMask) == EoE:
-        print('Time: ' + str((word & TimeStampMask)))
-        print('**************')
-        print('***** EoE ****')
-        print('**************')
-        print()
 #
-#clusters = clu.cluster_data(data)
+#
+#start_time = time.time()
+#file_name = 'mvmelst_048.mvmelst'
+data = clu.import_data(file_name)
+##data = data
+##
+#for word in data.head(30000):
+#    if (word & TypeMask) == Header:
+#        print()
+#        print('**************')
+#        print('*** Header ***')
+#        print('**************')
+#    if (word & (TypeMask | TriggerMask)) == Trigger:
+#        print('Trigger')
+#    if ((word & (TypeMask | DataMask)) == DataEvent):
+#        print('Data')
+#        print('---')
+#        print('Channel: ' + str(((word & ChannelMask) >> ChannelShift)))
+#        print('Bus: ' + str((word & BusMask) >> BusShift))
+#        print('ADC: ' + str((word & ADCMask)))
+#    if ((word & (TypeMask | DataMask)) == DataExTs):
+#        print('- - -')
+#        print('ExTs: ' + str(word))
+#        print('- - -')
+#    if (word & TypeMask) == EoE:
+#        print('Time: ' + str((word & TimeStampMask)))
+#        print('**************')
+#        print('***** EoE ****')
+#        print('**************')
+#        print()
+##
+clusters = clu.cluster_data(data)
 ##clustersCh = clu.cluster_data_ch(data)
 #thresADC = 0
 #bus_vec = [0, 1, 2, 3, 4, 5]

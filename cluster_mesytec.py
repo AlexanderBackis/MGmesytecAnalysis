@@ -79,16 +79,10 @@ def import_data(filename):
 #                               CLUSTER DATA
 # =============================================================================
 
-def cluster_data(data, detector_types = None):
+def cluster_data(data, ILL_exceptions = [-1]):
     print('Clustering...')
-    
-    exceptions = []
-    
-    if detector_types != None:
-        for i, detector in enumerate(detector_types):
-            if detector == "ILL":
-                exceptions.append(i * 3 + 1)
-            
+        
+
     size = data.size
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
                                     'wADC', 'gADC', 'wM', 'gM']
@@ -112,6 +106,7 @@ def cluster_data(data, detector_types = None):
     nbrEvents           =    0
     Time                =    0
     extended_time_stamp =    None
+
     
     number_words = len(data)
     #Four possibilities in each word: Header, DataEvent, DataExTs or EoE
@@ -121,7 +116,6 @@ def cluster_data(data, detector_types = None):
             isTrigger = (word & (TypeMask | TriggerMask)) == Trigger
               
         elif ((word & (TypeMask | DataMask)) == DataEvent) & isOpen:
-            isData = True
             
             Bus = (word & BusMask) >> BusShift
             Channel = ((word & ChannelMask) >> ChannelShift)
@@ -131,8 +125,10 @@ def cluster_data(data, detector_types = None):
             events['Bus'][index_event] = Bus
             events['ADC'][index_event] = ADC
             
-            #Create new coincident event if different buses (exception for ILL)
-            ILL_exception = (Bus in exceptions) and Channel > 79
+
+            ILL_exception = Bus in ILL_exceptions and isData == True
+
+                
             if tempBus != Bus and not ILL_exception:
                 tempBus = Bus
                 maxADCw = -1
@@ -143,8 +139,10 @@ def cluster_data(data, detector_types = None):
                 coincident_events['wCh'][index] = -1
                 coincident_events['gCh'][index] = -1
                 coincident_events['Bus'][index] = Bus
+                
             
             if Channel < 80:
+                coincident_events['Bus'][index] = Bus #Remove if trigger is on wire
                 coincident_events['wADC'][index] += ADC
                 coincident_events['wM'][index] += 1
                 if ADC > maxADCw:
@@ -160,11 +158,14 @@ def cluster_data(data, detector_types = None):
                     maxADCg = ADC
                 
                 events['Channel'][index_event] = Channel
+            
+            isData = True
         
         elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & (isData | isTrigger):
             extended_time_stamp = (word & ExTsMask) << ExTsShift
          
         elif ((word & TypeMask) == EoE) & isOpen:
+            
             time_stamp = (word & TimeStampMask)
             
             if extended_time_stamp != None:
@@ -193,6 +194,7 @@ def cluster_data(data, detector_types = None):
             isData    = False
             isTrigger = False
             Time      = 0
+
         
         if count % 1000000 == 1:
             percentage_finished = str(round((count/number_words)*100)) + '%'
@@ -205,7 +207,9 @@ def cluster_data(data, detector_types = None):
     coincident_events_df = coincident_events_df.drop(range(index, size, 1))
     
     events_df = pd.DataFrame(events)
-    events_df = events_df.drop(range(index, size, 1))
+    events_df = events_df.drop(range(index_event, size, 1))
+    
+ 
     
     return coincident_events_df, events_df
 

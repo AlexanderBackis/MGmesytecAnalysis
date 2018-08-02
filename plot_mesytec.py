@@ -39,7 +39,8 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig):
     name = 'Bus ' + str(bus) + '\n(' + str(df_clu_red.shape[0]) + ' events)'
     plt.title(name)
     
-def plot_2D_hit_buses(clusters, bus_vec, number_of_detectors, thresADC = 0):
+def plot_2D_hit_buses(clusters, bus_vec, number_of_detectors, data_set, 
+                      thresADC = 0):
     fig = plt.figure()
     fig.suptitle('2D-Histogram of hit position (Threshold: ' 
                  + str(thresADC) + ' ADC channels)', x=0.5, y=1.05, 
@@ -53,37 +54,49 @@ def plot_2D_hit_buses(clusters, bus_vec, number_of_detectors, thresADC = 0):
                                            ' ADC channels)')
     plt.tight_layout()
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
 
 # =============================================================================
-# Plot 2D Histogram of collected charge, individual channel
+# Plot 2D Histogram of collected charge
 # =============================================================================
 
-def charge_scatter(df, bus, Channel, maxWM, maxGM, minGM):
-    if Channel < 80:
-        df_red = df[(df.wCh == Channel) & (df.Bus == bus) &
-                    (df.wM <= maxWM) & (df.gM <= maxGM) & (df.gM > minGM)]
-    else:
-        df_red = df[(df.gCh == Channel) & (df.Bus == bus) &
-                    (df.wM <= maxWM) & (df.gM <= maxGM) & (df.gM > minGM)]
+def charge_scatter(df, bus, number_of_detectors, loc, fig, minWM = 0, maxWM = 100, minGM = 0, maxGM = 100 ):
+
+    df_red = df[(df.Bus == bus) & (df.gM >= minWM) &
+                    (df.wM <= maxWM) & (df.gM >= minGM) & (df.gM <= maxGM)]
     
-    fig = plt.figure()
-    name = ('Scatter map collected charge, Channel ' + str(Channel) 
-            + ', Bus ' + str(bus) + '\n' 
-            + '(Max wire multiplicity: ' + str(maxWM) + 
-            ', max grid multiplicity: ' + str(maxGM) + ')' + '\n' +
-            'min grid multiplicity: ' + str(minGM)) 
-    
-    plt.title(name)
+    plt.subplot(number_of_detectors,3,loc+1)
+
     plt.hist2d(df_red.wADC, df_red.gADC, bins=[200, 200], 
                norm=LogNorm(),range=[[0, 5000], [0, 5000]], vmin=1, vmax=10000,
                cmap='jet')
     plt.xlabel("wADC [ADC channels]")
     plt.ylabel("gADC [ADC channels]")
     plt.colorbar()
+    name = 'Bus ' + str(bus) + '\n(' + str(df_red.shape[0]) + ' events)'
+    plt.title(name)
+    
+def plot_charge_scatter_buses(df, bus_order, number_of_detectors, data_set, 
+                              minWM = 0, maxWM = 100, minGM = 0, maxGM = 100):
+    fig = plt.figure()
+    name = ('Scatter map collected charge\n' 
+            + '(Min wire multiplicity: ' + str(minWM) + 
+            ', max wire multiplicity: ' + str(maxWM) +
+            ', min grid multiplicity: ' + str(minGM) +
+            ', max grid multiplicity: ' + str(maxGM) + ')')
+    fig.suptitle(name, x=0.5, y=1.05, 
+                 fontweight="bold")
+    fig.set_figheight(4 * number_of_detectors)
+    fig.set_figwidth(14)
+    for loc, bus in enumerate(bus_order):
+        df_clu = df[df.Bus == bus]
+        charge_scatter(df_clu, bus, number_of_detectors, loc, fig, minWM, maxWM, 
+                       minGM, maxGM)
+
+    plt.tight_layout()
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
     
     
@@ -164,7 +177,7 @@ def plot_2D_side_3(bus_vec, df, fig):
     plt.colorbar()
     plt.title(name)
     
-def plot_all_sides(bus_vec, df, ADCthreshold = 0):
+def plot_all_sides(bus_vec, df, data_set, ADCthreshold = 0):
     fig = plt.figure()
     
     fig.set_figheight(4)
@@ -182,7 +195,7 @@ def plot_all_sides(bus_vec, df, ADCthreshold = 0):
     fig.suptitle(name, x=0.5, y=1.05, fontweight="bold")
     plt.tight_layout()
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
 
 
@@ -207,7 +220,7 @@ def plot_PHS_bus_channel(df, bus, Channel):
     df_red = df[df.Channel == Channel]
     plt.hist(df_red.ADC, bins=50, range=[0,4400])  
     
-def plot_PHS_several_channels(df, bus, ChVec):
+def plot_PHS_several_channels(df, bus, ChVec, data_set):
     fig = plt.figure()
     df_red = df[df.Bus == bus]
     
@@ -222,7 +235,7 @@ def plot_PHS_several_channels(df, bus, ChVec):
     name = 'PHS for several channels, Bus ' + str(bus) + '\nChannels: ' + str(ChVec)
     plt.title(name)
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
     
     
@@ -230,18 +243,20 @@ def plot_PHS_several_channels(df, bus, ChVec):
 # Plot 2D Pulse Height Spectrum, Channel VS Charge
 # =============================================================================
 
-def plot_PHS(df, bus, loc, number_of_detectors, fig):
+def plot_PHS(df, bus, loc, number_of_detectors, fig, count_limit = 3000):
     df_red = df[df.Bus == bus]
     plt.subplot(1*number_of_detectors,3,loc+1)
     plt.hist2d(df_red.Channel, df_red.ADC, bins=[120, 120], norm=LogNorm(), 
-               range=[[0, 120], [0, 4400]], vmin=1, vmax=3000, cmap='jet')
+               range=[[0, 120], [0, 4400]], vmin=1, vmax=count_limit, cmap='jet')
     plt.ylabel("Charge [ADC channels]")
     plt.xlabel("Channel [a.u.]")
     plt.colorbar()
-    name = 'Bus ' + str(bus)
+    name = ('Bus ' + str(bus) + ', ' + str(df_red.shape[0]) + ' events\n' + 
+            'Wire events = ' + str(df_red[df_red.Channel < 80].shape[0]) + 
+            ', Grid events = ' + str(df_red[df_red.Channel >= 80].shape[0]))
     plt.title(name)
     
-def plot_PHS_buses(df, bus_vec):
+def plot_PHS_buses(df, bus_vec, data_set, count_limit = 3000):
     fig = plt.figure()
     number_of_detectors = len(bus_vec) // 3
     fig.suptitle('2D-Histogram of Channel vs Charge',x=0.5,
@@ -249,41 +264,43 @@ def plot_PHS_buses(df, bus_vec):
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_vec):
-        plot_PHS(df, bus, loc, number_of_detectors, fig)
+        plot_PHS(df, bus, loc, number_of_detectors, fig , count_limit)
     name = '2D-Histogram of Channel vs Charge all buses'
     plt.tight_layout()
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path)
     
 # =============================================================================
 # Plot 2D Histogram of Multiplicity
 # =============================================================================       
     
-def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, fig, 
-                         thresADC=0):
+def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
+                         fig, m_range=8, count_limit = 1e6, thresADC=0):
     df_clu = coincident_events[coincident_events.Bus == bus]
     df_clu = df_clu[df_clu.wADC > thresADC]
     plt.subplot(number_of_detectors,3,loc+1)
-    hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[8, 8], 
-                                        range=[[0,8],[0,8]],
-                                        norm=LogNorm(), vmin=1, vmax=1000000, 
+    hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[m_range+1, m_range+1], 
+                                        range=[[0,m_range+1],[0,m_range+1]],
+                                        norm=LogNorm(), vmin=1, vmax=count_limit, 
                                         cmap = 'jet')
     tot = df_clu.shape[0]
+    font_size = 50 / m_range
     for i in range(len(ybins)-1):
         for j in range(len(xbins)-1):
             if hist[j,i] > 0:
                 text = plt.text(xbins[j]+0.5,ybins[i]+0.5, 
                          str(format(100*(round((hist[j,i]/tot),3)),'.1f')) + 
                          "%", color="w", ha="center", va="center", 
-                         fontweight="bold", fontsize=7)
+                         fontweight="bold", fontsize=font_size)
                 text.set_path_effects([path_effects.Stroke(linewidth=1, foreground='black'),
                        path_effects.Normal()])
+        
+    ticks = np.arange(0,m_range+1,1)
+    locs = np.arange(0.5, m_range+1.5,1)
     
-    plt.xticks([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5],['0','1','2','3','4','5','6',
-               '7'])
-    plt.yticks([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5],['0','1','2','3','4','5','6',
-               '7'])
+    plt.xticks(locs,ticks)
+    plt.yticks(locs,ticks)
     plt.xlabel("Wire Multiplicity")
     plt.ylabel("Grid Multiplicity")
     plt.colorbar()
@@ -292,7 +309,8 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, fig,
     plt.title(name)
 
 def plot_2D_multiplicity_buses(coincident_events, module_order, 
-                               number_of_detectors, thresADC=0):
+                               number_of_detectors, data_set, m_range = 8, 
+                               count_limit = 1e6, thresADC=0):
     fig = plt.figure()
     fig.suptitle('2D-Histogram of multiplicity within a time cluster (Threshold: ' 
                  + str(thresADC) + ' ADC channels)', x=0.5, y=1.05, 
@@ -301,12 +319,12 @@ def plot_2D_multiplicity_buses(coincident_events, module_order,
     fig.set_figwidth(14)
     for loc, bus in enumerate(module_order):
         plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                             fig, thresADC)
+                             fig, m_range, count_limit, thresADC)
     name = ('2D-Histogram of multiplicity within a time cluster (Threshold: ' 
             + str(thresADC) + ' ADC channels)')
     plt.tight_layout()
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
     
 
@@ -314,7 +332,7 @@ def plot_2D_multiplicity_buses(coincident_events, module_order,
 # Plot 3D Histogram of hit location
 # =============================================================================  
     
-def plot_all_sides_3D(coincident_events, bus_order, countThres):
+def plot_all_sides_3D(coincident_events, bus_order, countThres, data_set):
     df_tot = pd.DataFrame()
     
     for i, bus in enumerate(bus_order):
@@ -347,10 +365,10 @@ def plot_all_sides_3D(coincident_events, bus_order, countThres):
                     hist[3][loc] = H[i,j-80,k]
                     loc = loc + 1
                         
-    scatter3d(hist[0], hist[2], hist[1], hist[3], countThres)
+    scatter3d(hist[0], hist[2], hist[1], hist[3], countThres, data_set)
 
     
-def scatter3d(x,y,z, cs, countThres, colorsMap='jet'):
+def scatter3d(x,y,z, cs, countThres, data_set, colorsMap='jet'):
     cm = plt.get_cmap(colorsMap)
    # cNorm = Normalize(vmin=min(cs), vmax=max(cs))
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
@@ -360,7 +378,7 @@ def scatter3d(x,y,z, cs, countThres, colorsMap='jet'):
             + str(countThres) + ' counts)')
     fig.suptitle(name ,x=0.5, y=1.03, fontweight="bold")
     ax = Axes3D(fig)
-    ax.scatter(x, y, z, c=scalarMap.to_rgba(cs), marker= "o", alpha = 1)
+    ax.scatter(x, y, z, c=scalarMap.to_rgba(cs), marker= "o", s=50, alpha = 1)
    
     ax.set_xlabel('Layer')
     ax.set_ylabel('Wire')
@@ -384,7 +402,7 @@ def scatter3d(x,y,z, cs, countThres, colorsMap='jet'):
     
     plt.show()
     
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
 
 # =============================================================================
@@ -392,7 +410,7 @@ def scatter3d(x,y,z, cs, countThres, colorsMap='jet'):
 # =============================================================================  
 
     
-def plot_3D_new(df, bus):    
+def plot_3D_new(df, bus, data_set):    
     df_red = df[df.Bus == bus]
                     
     histW, xbinsW, ybinsW, imW = plt.hist2d(df_red.Channel, df_red.ADC,
@@ -442,15 +460,35 @@ def plot_3D_new(df, bus):
         plt.title(nameVec[i], x=0.5, y=1.05, fontweight="bold")
         
     plt.show()
-    plot_path = get_plot_path() + name  + '.pdf'
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
+    
+
+# =============================================================================
+# Plot ToF histogram
+# =============================================================================
+    
+def plot_ToF_histogram(df, data_set, number_bins = None, rnge=None):
+    fig = plt.figure()
+    plt.hist(df.ToF, bins=number_bins, range=rnge)
+    name = 'ToF histogram'
+    plt.title(name)
+    plt.xlabel('ToF [TDC channels]')
+    plt.ylabel('Counts  [a.u.]')
+    plt.show()
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    fig.savefig(plot_path, bbox_inches='tight')
+    
+    
+    
+
     
 
 # =============================================================================
 # Helper Functions
 # ============================================================================= 
     
-def get_plot_path():
+def get_plot_path(data_set):
     dirname = os.path.dirname(__file__)
-    folder = os.path.join(dirname, '../Plot/')
+    folder = os.path.join(dirname, '../Plot/' + data_set + '/')
     return folder
