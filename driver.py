@@ -108,7 +108,8 @@ def choose_analysis_type(module_order, data_set):
                          'Coincidence Histogram (3D)', 
                          'Coincidence Histogram (Front, Top, Side)',
                          'Multiplicity',
-                         'Scatter Map Collected Charge', 'ToF Histogram']
+                         'Scatter Map (collected charge in wires and grids)', 
+                         'ToF Histogram']
     
     while(not finished_with_analysis):
         print()
@@ -125,6 +126,10 @@ def choose_analysis_type(module_order, data_set):
             analysis_type = int(analysis_type)
         except ValueError:
             print("That's not an int!")
+        
+        name = (str(analysis_type) + '. ' 
+                + analysis_name_vec[analysis_type-1] + '\nData set: ' 
+                + data_set)
     
         if analysis_type == 0:
             finished_with_analysis = True
@@ -137,35 +142,44 @@ def choose_analysis_type(module_order, data_set):
             ChVec = [int(x) for x in input('Which Channels? Enter numbers ' +
                      'between 0-119, separated by spaces.\n>>').split()]
         
-            pl.plot_PHS_several_channels(events, bus, ChVec, data_set)
+            pl.plot_PHS_several_channels(name, events, bus, ChVec, data_set)
         
         if analysis_type == 2:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
                 count_limit = input('Count limit: ')
                 count_limit = int(count_limit)
-                pl.plot_PHS_buses(events, module_order, data_set, count_limit)
+                pl.plot_PHS_buses(name, events, module_order, data_set, count_limit)
             else:
-                pl.plot_PHS_buses(events, module_order, data_set)
+                pl.plot_PHS_buses(name, events, module_order, data_set)
     
         if analysis_type == 3:
             bus = input('Which module? Enter a number between ' 
                         + str(min(module_order)) + '-' +
                         str(max(module_order)) + '\n>>')
             bus = int(bus)
-            pl.plot_3D_new(events, bus, data_set)
+            pl.plot_3D_new(name, events, bus, data_set)
 
         if analysis_type == 4:
-            pl.plot_2D_hit_buses(coincident_events, module_order, 
+            pl.plot_2D_hit_buses(name, coincident_events, module_order, 
                              number_of_detectors, data_set, thresADC)
         if analysis_type == 5:
-            count_thres = input('Insert count threshold.\n>> ')
-            count_thres = int(count_thres)
-            pl.plot_all_sides_3D(coincident_events, module_order, count_thres, 
-                                 data_set)
+            choice = input('Further specifications? (y/n).\n>> ')
+            if choice == 'y':
+                count_thres = input('Minmum count threshold: ')
+                count_thres = int(count_thres)
+                alpha = input('Insert transparancy factor (0 minimum, 1 maximum): ')
+                alpha = float(alpha)    
+                pl.plot_all_sides_3D(name, coincident_events, module_order, count_thres, 
+                                     alpha, data_set)
+            else:
+                count_thres = 0
+                alpha = 1
+                pl.plot_all_sides_3D(name, coincident_events, module_order, count_thres, 
+                                     alpha, data_set)
         
         if analysis_type == 6:
-            pl.plot_all_sides(module_order, coincident_events, data_set, 
+            pl.plot_all_sides(name, module_order, coincident_events, data_set, 
                               thresADC)
     
         if analysis_type == 7:
@@ -175,11 +189,11 @@ def choose_analysis_type(module_order, data_set):
                 m_range = int(m_range)
                 count_limit = input('Count limit: ')
                 count_limit = int(count_limit)
-                pl.plot_2D_multiplicity_buses(coincident_events, module_order, 
+                pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
                                       number_of_detectors, data_set, m_range, 
                                       count_limit, thresADC)
             else:
-                pl.plot_2D_multiplicity_buses(coincident_events, module_order, 
+                pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
                                               number_of_detectors, data_set)
     
         if analysis_type == 8:
@@ -193,11 +207,15 @@ def choose_analysis_type(module_order, data_set):
                 maxWM = int(maxWM)
                 minGM = int(minGM)
                 maxGM = int(maxGM)
-                pl.plot_charge_scatter_buses(coincident_events, module_order, 
+                exclude_channels = [int(x) for x in 
+                                    input('Enter channels to exclude, ' +
+                                          'use spaces to separate ' + 
+                                          '(insert "-1" if none should be omitted): ').split()]
+                pl.plot_charge_scatter_buses(name, coincident_events, module_order, 
                                      number_of_detectors, data_set, minWM, maxWM, minGM, 
-                                     maxGM)
+                                     maxGM, exclude_channels)
             else:
-                pl.plot_charge_scatter_buses(coincident_events, module_order, 
+                pl.plot_charge_scatter_buses(name, coincident_events, module_order, 
                                              number_of_detectors, data_set)
 
         if analysis_type == 9:
@@ -206,10 +224,10 @@ def choose_analysis_type(module_order, data_set):
                 number_bins = input('Number of bins: ')
                 rnge = [int(x) for x in input('Range (use a space to separate between min and max): ').split()]
                 number_bins = int(number_bins)
-                pl.plot_ToF_histogram(coincident_events, data_set, number_bins, 
+                pl.plot_ToF_histogram(name, coincident_events, data_set, number_bins, 
                                       rnge)
             else:
-                pl.plot_ToF_histogram(coincident_events, data_set)
+                pl.plot_ToF_histogram(name, coincident_events, data_set)
 
 def main_meny(data_set):
     not_int = True
