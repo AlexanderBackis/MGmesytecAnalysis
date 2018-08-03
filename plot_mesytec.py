@@ -27,7 +27,7 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig):
     
     plt.subplot(number_of_detectors,3,loc+1)
     plt.hist2d(df_clu_red.wCh, df_clu_red.gCh, bins=[80, 40], 
-               range=[[0,80],[80,120]], norm=LogNorm(), vmin=1, vmax=10000,
+               range=[[-0.5,79.5],[79.5,119.5]], norm=LogNorm(), vmin=1, vmax=10000,
                cmap='jet')
     plt.xlabel("Wire [Channel number]")
     plt.ylabel("Grid [Channel number]")
@@ -111,7 +111,7 @@ def plot_charge_scatter_buses(name, df, bus_order, number_of_detectors, data_set
 # Plot 2D Histogram of Hit Position with a specific side
 # =============================================================================
     
-def plot_2D_side_1(bus_vec, df, fig):
+def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range):
     name = 'Front view'
     df_tot = pd.DataFrame()
     
@@ -119,26 +119,19 @@ def plot_2D_side_1(bus_vec, df, fig):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
         df_clu['wCh'] += (80 * i)
+        df_clu['gCh'] += (-80 + 1)
         df_tot = pd.concat([df_tot, df_clu])        
     
-    plt.hist2d(df_tot.wCh, df_tot.gCh, bins=[12, 40], 
-               range=[[0,240],[80,120]], norm=LogNorm(), vmin=100, vmax=30000,
+    plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot.gCh, bins=[12*number_of_detectors, 40], 
+               range=[[0.5,12*number_of_detectors + 0.5],[0.5,40.5]], norm=LogNorm(), vmin=count_range[0], vmax=count_range[1],
                cmap = 'jet')
-    
-    loc = np.arange(0, 260, step=40)
-    ticks = np.arange(0, 14, step = 2)
-    plt.xticks(loc, ticks)
-    
-    loc = np.arange(80, 130, step=10)
-    ticks = np.arange(0, 50, step=10)
-    plt.yticks(loc, ticks)
     
     plt.xlabel("Layer")
     plt.ylabel("Grid")
     plt.colorbar()
     plt.title(name)
     
-def plot_2D_side_2(bus_vec, df, fig):
+def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range):
     name = 'Top view'
     df_tot = pd.DataFrame()
     
@@ -148,76 +141,56 @@ def plot_2D_side_2(bus_vec, df, fig):
         df_clu['wCh'] += (80 * i)
         df_tot = pd.concat([df_tot, df_clu])  
         
-    plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int), df_tot['wCh'] % 20, 
-               bins=[12, 20], range=[[0,12],[0,20]], norm=LogNorm(), vmin=100, 
-               vmax=30000, cmap = 'jet')
-    
-    loc = np.arange(0, 25, step=5)
-    plt.yticks(loc, loc)
+    plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot['wCh'] % 20 + 1, 
+               bins=[12*number_of_detectors, 20], range=[[0.5,12*number_of_detectors + 0.5],[0.5,20.5]], norm=LogNorm(), vmin=count_range[0], 
+               vmax=count_range[1], cmap = 'jet')
     
     plt.xlabel("Layer")
     plt.ylabel("Wire")
     plt.colorbar()
     plt.title(name)
     
-def plot_2D_side_3(bus_vec, df, fig):
+def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range):
     name = 'Side view'
     df_tot = pd.DataFrame()
     
     for i, bus in enumerate(bus_vec):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+        df_clu['gCh'] += (-80 + 1)
         df_tot = pd.concat([df_tot, df_clu])
     
         
-    plt.hist2d(df_tot['wCh'] % 20, df_tot['gCh'],
-               bins=[20, 40], range=[[0,20],[80,120]], norm=LogNorm(), 
-               vmin=100, vmax=30000, cmap = 'jet')
-    
-    
-    loc = np.arange(80, 130, step=10)
-    ticks = np.arange(0, 50, step=10)
-    plt.yticks(loc, ticks)
+    plt.hist2d(df_tot['wCh'] % 20 + 1, df_tot['gCh'],
+               bins=[20, 40], range=[[0.5,20.5],[0.5,40.5]], norm=LogNorm(), 
+               vmin=count_range[0], vmax=count_range[1], cmap = 'jet')
     
     plt.xlabel("Wire")
     plt.ylabel("Grid")
     plt.colorbar()
     plt.title(name)
     
-def plot_all_sides(name, bus_vec, df, data_set, ADCthreshold = 0):
+def plot_all_sides(name, bus_vec, df, data_set, number_of_detectors, count_range = [1e2, 3e4], 
+                   ADCthreshold = 0):
     fig = plt.figure()
     
     fig.set_figheight(4)
     fig.set_figwidth(14)
     
     plt.subplot(1,3,1)
-    plot_2D_side_1(bus_vec, df, fig)
+    plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range)
     plt.subplot(1,3,2)
-    plot_2D_side_2(bus_vec, df, fig)
+    plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range)
     plt.subplot(1,3,3)
-    plot_2D_side_3(bus_vec, df, fig)
+    plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range)
     
-    name = (name + '\n' +
-            'ADC threshold: ' + str(ADCthreshold))
+    name = (name)
     fig.suptitle(name, x=0.5, y=1.05, fontweight="bold")
     plt.tight_layout()
     plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     fig.savefig(plot_path, bbox_inches='tight')
 
-
-#def plot_perspectives(bus_order, df):
-#    fig = plt.figure()
-#    fig.set_figheight(4)
-#    fig.set_figwidth(14)
-#    df = df[(df.wCh != -1) & (df.gCh != -1)]
-#    df_front_tot 
-#    df_top_tot
-#    df
-#    for i, bus in enumerate(bus_order):
-#        df_front = df[df.Bus == bus]
-#        df_front['wCh'] += (80 * i)
-#        df_front = 
     
 # =============================================================================
 # Plot 1D Pulse Height Spectrum, Channel VS Charge
@@ -254,20 +227,21 @@ def plot_PHS(df, bus, loc, number_of_detectors, fig, count_limit = 3000):
     df_red = df[df.Bus == bus]
     plt.subplot(1*number_of_detectors,3,loc+1)
     plt.hist2d(df_red.Channel, df_red.ADC, bins=[120, 120], norm=LogNorm(), 
-               range=[[0, 120], [0, 4400]], vmin=1, vmax=count_limit, cmap='jet')
+               range=[[-0.5, 119.5], [0, 4400]], vmin=1, vmax=count_limit, cmap='jet')
     plt.ylabel("Charge [ADC channels]")
     plt.xlabel("Channel [a.u.]")
     plt.colorbar()
     name = ('Bus ' + str(bus) + ', ' + str(df_red.shape[0]) + ' events\n' + 
             'Wire events = ' + str(df_red[df_red.Channel < 80].shape[0]) + 
             ', Grid events = ' + str(df_red[df_red.Channel >= 80].shape[0]))
+    
+    #plt.grid(axis='x')
     plt.title(name)
     
 def plot_PHS_buses(name, df, bus_vec, data_set, count_limit = 3000):
     fig = plt.figure()
     number_of_detectors = len(bus_vec) // 3
-    fig.suptitle(name,x=0.5,
-                 y=1.02, fontweight="bold")
+    fig.suptitle(name + '\n\n', x=0.5, y=1.05)
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_vec):
@@ -282,13 +256,13 @@ def plot_PHS_buses(name, df, bus_vec, data_set, count_limit = 3000):
 # =============================================================================       
     
 def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                         fig, m_range=8, count_limit = 1e6, thresADC=0):
+                         fig, m_range=8, count_range =  [1, 1e6], thresADC=0):
     df_clu = coincident_events[coincident_events.Bus == bus]
     df_clu = df_clu[df_clu.wADC > thresADC]
     plt.subplot(number_of_detectors,3,loc+1)
     hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[m_range+1, m_range+1], 
                                         range=[[0,m_range+1],[0,m_range+1]],
-                                        norm=LogNorm(), vmin=1, vmax=count_limit, 
+                                        norm=LogNorm(), vmin=count_range[0], vmax=count_range[1], 
                                         cmap = 'jet')
     tot = df_clu.shape[0]
     font_size = 50 / m_range
@@ -316,7 +290,7 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc,
 
 def plot_2D_multiplicity_buses(name, coincident_events, module_order, 
                                number_of_detectors, data_set, m_range = 8, 
-                               count_limit = 1e6, thresADC=0):
+                               count_limit = [1,1e6], thresADC=0):
     fig = plt.figure()
     name = (name + ' (Threshold: ' 
             + str(thresADC) + ' ADC channels)')
@@ -338,7 +312,7 @@ def plot_2D_multiplicity_buses(name, coincident_events, module_order,
 # =============================================================================  
     
 def plot_all_sides_3D(name, coincident_events, bus_order, countThres, alpha, 
-                      data_set):
+                      data_set, number_of_detectors):
     
     df_tot = pd.DataFrame()
     
@@ -349,7 +323,7 @@ def plot_all_sides_3D(name, coincident_events, bus_order, countThres, alpha,
         df_tot = pd.concat([df_tot, df_clu])
     
     x = np.floor(df_tot['wCh'] / 20).astype(int)
-    y = df_tot['gCh']
+    y = df_tot['gCh'] - 80
     z = df_tot['wCh'] % 20
     
     df_3d = pd.DataFrame()
@@ -357,32 +331,33 @@ def plot_all_sides_3D(name, coincident_events, bus_order, countThres, alpha,
     df_3d['y'] = y
     df_3d['z'] = z
         
-    H, edges = np.histogramdd(df_3d.values, bins=(12, 40, 20), range=((0,12), 
-                                             (80,120), (0,20)))
+    H, edges = np.histogramdd(df_3d.values, bins=(12*number_of_detectors, 40, 20), range=((0,12*number_of_detectors), 
+                                             (0,40), (0,20)))
 
-    hist = np.empty([4, H.shape[0]*H.shape[1]*H.shape[2]],dtype=int)
+    hist = np.empty([4, H.shape[0]*H.shape[1]*H.shape[2]], dtype='int')
     loc = 0
-    for i in range(0,12):
-        for j in range(80,120):
+    for i in range(0,12*number_of_detectors):
+        for j in range(0,40):
             for k in range(0,20):
-                if H[i,j-80,k] > countThres:
-                    hist[0][loc] = i
-                    hist[1][loc] = j
-                    hist[2][loc] = k
-                    hist[3][loc] = H[i,j-80,k]
+                if H[i,j,k] > countThres:
+                    hist[0][loc] = i + 1
+                    hist[1][loc] = j + 1
+                    hist[2][loc] = k + 1
+                    hist[3][loc] = H[i,j,k]
                     loc = loc + 1
                         
-    scatter3d(hist[0], hist[2], hist[1], hist[3], countThres, data_set, alpha, 
-              name)
+    scatter3d(hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], hist[3][0:loc], countThres, data_set, alpha, 
+              name, number_of_detectors)
 
     
-def scatter3d(x,y,z, cs, countThres, data_set, alpha, name, colorsMap='jet'):
+def scatter3d(x,y,z, cs, countThres, data_set, alpha, name, 
+              number_of_detectors, colorsMap='jet'):
     cm = plt.get_cmap(colorsMap)
    # cNorm = Normalize(vmin=min(cs), vmax=max(cs))
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
     fig = plt.figure()
-    fig.set_size_inches(4.5, 5)
-    name = (name + 'Lower threshold: ' 
+    #fig.set_size_inches(4.5, 5)
+    name = (name + '\nLower threshold: ' 
             + str(countThres) + ' counts')
     fig.suptitle(name ,x=0.5, y=1.03, fontweight="bold")
     ax = Axes3D(fig)
@@ -393,17 +368,17 @@ def scatter3d(x,y,z, cs, countThres, data_set, alpha, name, colorsMap='jet'):
     ax.set_ylabel('Wire')
     ax.set_zlabel('Grid')
     
-    ax.set_xticks(np.arange(0, 14, step=2))
-    ax.set_xticklabels(np.arange(0, 14, step=2))
-    ax.set_xlim([0,12])
-    
+    ax.set_xticks(np.arange(0, 12*number_of_detectors + 2, step=2))
+    ax.set_xticklabels(np.arange(0, 12*number_of_detectors + 2, step=2))
+    ax.set_xlim([0,12*number_of_detectors])
+#    
     ax.set_yticks(np.arange(0, 25, step=5))
     ax.set_yticklabels(np.arange(0, 25, step=5))
     ax.set_ylim([0,20])
-    
-    ax.set_zticks(np.arange(80, 130, step=10))
-    ax.set_zticklabels(np.arange(80, 130, step=10))
-    ax.set_zlim([80,120])
+#    
+    ax.set_zticks(np.arange(0, 50, step=10))
+    ax.set_zticklabels(np.arange(0, 50, step=10))
+    ax.set_zlim([0,40])
     
     
     scalarMap.set_array(cs)
@@ -443,7 +418,7 @@ def plot_3D_new(name, df, bus, data_set):
 #    fig = plt.figure('position', [0, 0, 200, 500])
 
     name = name + '\nBus: ' + str(bus)
-    plt.suptitle(name, x=0.5, y=1, fontweight="bold")
+    plt.suptitle(name, x=0.5, y=1)
     for i in range(0,2):
         ax = fig.add_subplot(1, 2, i+1, projection='3d')
         Z = histVec[i].T
@@ -466,7 +441,7 @@ def plot_3D_new(name, df, bus, data_set):
 #        ax.set_yticklabels(ticks[::-1])
         #fig.colorbar(m)
     
-        plt.title(nameVec[i], x=0.5, y=1.05, fontweight="bold")
+        plt.title(nameVec[i], x=0.5, y=1.02)
         
     plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'

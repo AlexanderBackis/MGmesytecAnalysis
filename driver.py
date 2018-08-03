@@ -13,8 +13,6 @@ import numpy as np
 import cluster_mesytec as clu
 import plot_mesytec as pl
 
-
-
 def create_plot_folder(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
@@ -166,32 +164,39 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 5:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
-                count_thres = input('Minmum count threshold: ')
+                count_thres = input('Minimum count threshold: ')
                 count_thres = int(count_thres)
                 alpha = input('Insert transparancy factor (0 minimum, 1 maximum): ')
                 alpha = float(alpha)    
                 pl.plot_all_sides_3D(name, coincident_events, module_order, count_thres, 
-                                     alpha, data_set)
+                                     alpha, data_set, number_of_detectors)
             else:
                 count_thres = 0
                 alpha = 1
                 pl.plot_all_sides_3D(name, coincident_events, module_order, count_thres, 
-                                     alpha, data_set)
+                                     alpha, data_set, number_of_detectors)
         
         if analysis_type == 6:
-            pl.plot_all_sides(name, module_order, coincident_events, data_set, 
-                              thresADC)
+            choice = input('Further specifications? (y/n).\n>> ')
+            if choice == 'y':
+                count_range = [int(x) for x in input('Count range on colour bar, ' +
+                               'use a space to separate between min and max: ').split()]
+                pl.plot_all_sides(name, module_order, coincident_events, 
+                                  data_set, number_of_detectors, count_range)
+            else:
+                pl.plot_all_sides(name, module_order, coincident_events,
+                                  data_set, number_of_detectors)
     
         if analysis_type == 7:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
                 m_range = input('Multiplicity limit: ')
                 m_range = int(m_range)
-                count_limit = input('Count limit: ')
-                count_limit = int(count_limit)
+                count_range = [int(x) for x in input('Count range on colour bar, ' +
+                               'use a space to separate between min and max: ').split()]
                 pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
                                       number_of_detectors, data_set, m_range, 
-                                      count_limit, thresADC)
+                                      count_range, thresADC)
             else:
                 pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
                                               number_of_detectors, data_set)
