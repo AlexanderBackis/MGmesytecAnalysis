@@ -17,6 +17,29 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.cm as cmx
 import matplotlib.patheffects as path_effects
 
+# =============================================================================
+# Plot event count vs Channel
+# =============================================================================
+
+def plot_event_count(name, module_order, number_of_detectors, data_set, events, 
+                     log=False, v_range=[1,100000]):
+    fig = plt.figure()
+    fig.suptitle(name, x=0.5, y=1.02)
+    fig.set_figheight(4 * number_of_detectors)
+    fig.set_figwidth(14)
+    for i, bus in enumerate(module_order):
+        plt.subplot(number_of_detectors, 3, i+1)
+        plt.title('Bus ' + str(bus))
+        plt.hist(events[events.Bus == bus].Channel, range= [-0.5,119.5], 
+                 bins=120, log=log)
+        plt.xlabel('Channel [a.u.]')
+        plt.ylabel('Number of events [a.u.]')
+        plt.ylim(v_range)
+    plt.tight_layout()
+    plt.show()
+    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    fig.savefig(plot_path, bbox_inches='tight')
+
 
 # =============================================================================
 # Plot 2D Histogram of hit location (channels)
@@ -39,10 +62,8 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig):
 def plot_2D_hit_buses(name, clusters, bus_vec, number_of_detectors, data_set, 
                       thresADC = 0):
     fig = plt.figure()
-    name = (name + ' (Threshold: '  + str(thresADC) + ' ADC channels)')
-    fig.suptitle(name + '\n(Threshold: ' 
-                 + str(thresADC) + ' ADC channels)', x=0.5, y=1.05, 
-                 fontweight="bold")
+    name = (name)
+    fig.suptitle(name, x=0.5, y=1.05)
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_vec):
@@ -92,8 +113,7 @@ def plot_charge_scatter_buses(name, df, bus_order, number_of_detectors, data_set
             ', gm_max: ' + str(maxGM) +
             ', excluded channels: ' + str(exclude_channels) +
             ')')
-    fig.suptitle(name, x=0.5, y=1.05, 
-                 fontweight="bold")
+    fig.suptitle(name, x=0.5, y=1.05)
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_order):
@@ -185,7 +205,7 @@ def plot_all_sides(name, bus_vec, df, data_set, number_of_detectors, count_range
     plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range)
     
     name = (name)
-    fig.suptitle(name, x=0.5, y=1.05, fontweight="bold")
+    fig.suptitle(name, x=0.5, y=1.05)
     plt.tight_layout()
     plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
@@ -223,11 +243,12 @@ def plot_PHS_several_channels(name, df, bus, ChVec, data_set):
 # Plot 2D Pulse Height Spectrum, Channel VS Charge
 # =============================================================================
 
-def plot_PHS(df, bus, loc, number_of_detectors, fig, count_limit = 3000):
+def plot_PHS(df, bus, loc, number_of_detectors, fig, count_range = [1, 3000]):
     df_red = df[df.Bus == bus]
     plt.subplot(1*number_of_detectors,3,loc+1)
     plt.hist2d(df_red.Channel, df_red.ADC, bins=[120, 120], norm=LogNorm(), 
-               range=[[-0.5, 119.5], [0, 4400]], vmin=1, vmax=count_limit, cmap='jet')
+               range=[[-0.5, 119.5], [0, 4400]], vmin=count_range[0], 
+               vmax=count_range[1], cmap='jet')
     plt.ylabel("Charge [ADC channels]")
     plt.xlabel("Channel [a.u.]")
     plt.colorbar()
@@ -238,14 +259,14 @@ def plot_PHS(df, bus, loc, number_of_detectors, fig, count_limit = 3000):
     #plt.grid(axis='x')
     plt.title(name)
     
-def plot_PHS_buses(name, df, bus_vec, data_set, count_limit = 3000):
+def plot_PHS_buses(name, df, bus_vec, data_set, count_range = [1, 3000]):
     fig = plt.figure()
     number_of_detectors = len(bus_vec) // 3
     fig.suptitle(name + '\n\n', x=0.5, y=1.05)
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_vec):
-        plot_PHS(df, bus, loc, number_of_detectors, fig , count_limit)
+        plot_PHS(df, bus, loc, number_of_detectors, fig , count_range)
     plt.tight_layout()
     plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
@@ -292,9 +313,8 @@ def plot_2D_multiplicity_buses(name, coincident_events, module_order,
                                number_of_detectors, data_set, m_range = 8, 
                                count_limit = [1,1e6], thresADC=0):
     fig = plt.figure()
-    name = (name + ' (Threshold: ' 
-            + str(thresADC) + ' ADC channels)')
-    fig.suptitle(name, x=0.5, y=1.05, fontweight="bold")
+    name = (name)
+    fig.suptitle(name, x=0.5, y=1.05)
     fig.set_figheight(4*number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(module_order):
@@ -346,8 +366,8 @@ def plot_all_sides_3D(name, coincident_events, bus_order, countThres, alpha,
                     hist[3][loc] = H[i,j,k]
                     loc = loc + 1
                         
-    scatter3d(hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], hist[3][0:loc], countThres, data_set, alpha, 
-              name, number_of_detectors)
+    scatter3d(hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], hist[3][0:loc], 
+              countThres, data_set, alpha, name, number_of_detectors)
 
     
 def scatter3d(x,y,z, cs, countThres, data_set, alpha, name, 
@@ -359,7 +379,7 @@ def scatter3d(x,y,z, cs, countThres, data_set, alpha, name,
     #fig.set_size_inches(4.5, 5)
     name = (name + '\nLower threshold: ' 
             + str(countThres) + ' counts')
-    fig.suptitle(name ,x=0.5, y=1.03, fontweight="bold")
+    fig.suptitle(name ,x=0.5, y=1.03)
     ax = Axes3D(fig)
     ax.scatter(x, y, z, c=scalarMap.to_rgba(cs), marker= "o", s=50, 
                alpha = alpha)

@@ -13,6 +13,56 @@ import numpy as np
 import cluster_mesytec as clu
 import plot_mesytec as pl
 
+def print_key_numbers(module_order, events, coincident_events):
+    
+
+        
+    
+    
+    for i, bus in enumerate(module_order):
+        if i % 3 == 0:
+            print('\nDetector ' + str(bus // 3 + 1) )
+            print('......................')
+        
+        print('-- Bus ' + str(bus) + ' --')
+        print('Number of events ' + '          : ' + str(events[events.Bus == bus].shape[0])
+                + ' (Wire events: ' + str(events[(events.Channel < 80) & (events.Bus == bus)].shape[0]) 
+                + '; Grid events: ' + str(events[(events.Channel >= 80) & (events.Bus == bus)].shape[0]) 
+                + ')')
+        print('Number of coincident events: ' 
+              + str(coincident_events[coincident_events.Bus == bus].shape[0]))
+        
+        no_events_ch = []
+        for channel in range(0,120):
+            if(events[(events.Channel == channel) & 
+                      (events.Bus == bus)].shape[0] == 0):
+                no_events_ch.append(channel)
+        
+        print('Channels with no events    : ' + str(no_events_ch))
+        print()
+    
+#    choice = input('\nFurther investigations? (y/n).\n>> ')
+#
+#    if choice == 'y':
+#        bus_nbr = input('Module: ')
+#        w_ch = input('Wire channel: ')
+#        g_ch = input('Grid channel: ')
+#        bus_nbr = int(bus_nbr)
+#        w_ch = int(w_ch)
+#        g_ch = int(g_ch)
+#        nbr_events_w = events[events.Channel == w_ch].shape[0]
+#        nbr_events_g = events[events.Channel == g_ch].shape[0]
+#        nbr_coincident_events = coincident_events[(coincident_events.wCh == w_ch) & (coincident_events.gCh == g_ch)].shape[0]
+#        print('Bus ' + str(bus_nbr))
+#        print('Events in channel ' + str(w_ch) + ': ' + str(nbr_events_w))
+#        print('Events in channel ' + str(g_ch) + ': ' + str(nbr_events_g))
+#        print('Coincident events between channel ' + str(w_ch) + ' and ' +
+#              str(g_ch) + ': ' + str(nbr_coincident_events))
+        
+    input('\nPress "Enter" when done.\n>> ')
+    
+    
+
 def create_plot_folder(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
@@ -32,12 +82,14 @@ def mkdir_p(mypath):
         else: raise
 
 def initialise_detector_types(number_of_detectors):
-    print('Enter detector types ("ESS" or "ILL") from\n' + 
-          'left to right, use spaces to separate.')
-    detector_types = [x for x in input('>>').split()]
+    print('Enter detector type(s), type "ESS" or "ILL".')
+    
+    detector_types = []
+    for i in range(0, number_of_detectors):
+        detector_type = input('Detector ' + str(i+1) + ': ')
+        detector_types.append(detector_type)
     
     exceptions = []
-    
     for i, detector in enumerate(detector_types):
         if detector == "ILL":
             temp = np.arange(3*i,3*i+3,1)
@@ -107,7 +159,7 @@ def choose_analysis_type(module_order, data_set):
                          'Coincidence Histogram (Front, Top, Side)',
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
-                         'ToF Histogram']
+                         'ToF Histogram', 'Events per channel']
     
     while(not finished_with_analysis):
         print()
@@ -145,9 +197,13 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 2:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
-                count_limit = input('Count limit: ')
-                count_limit = int(count_limit)
-                pl.plot_PHS_buses(name, events, module_order, data_set, count_limit)
+                count_min_limit = input('Count min-limit: ')
+                count_max_limit = input('Count max-limit: ')
+                count_max_limit = int(count_max_limit)
+                count_min_limit = int(count_min_limit)
+                count_range = [count_min_limit, count_max_limit]
+                
+                pl.plot_PHS_buses(name, events, module_order, data_set, count_range)
             else:
                 pl.plot_PHS_buses(name, events, module_order, data_set)
     
@@ -179,8 +235,11 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 6:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
-                count_range = [int(x) for x in input('Count range on colour bar, ' +
-                               'use a space to separate between min and max: ').split()]
+                count_min_limit = input('Count min-limit: ')
+                count_max_limit = input('Count max-limit: ')
+                count_max_limit = int(count_max_limit)
+                count_min_limit = int(count_min_limit)
+                count_range = [count_min_limit, count_max_limit]
                 pl.plot_all_sides(name, module_order, coincident_events, 
                                   data_set, number_of_detectors, count_range)
             else:
@@ -192,8 +251,11 @@ def choose_analysis_type(module_order, data_set):
             if choice == 'y':
                 m_range = input('Multiplicity limit: ')
                 m_range = int(m_range)
-                count_range = [int(x) for x in input('Count range on colour bar, ' +
-                               'use a space to separate between min and max: ').split()]
+                count_min_limit = input('Count min-limit: ')
+                count_max_limit = input('Count max-limit: ')
+                count_max_limit = int(count_max_limit)
+                count_min_limit = int(count_min_limit)
+                count_range = [count_min_limit, count_max_limit]
                 pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
                                       number_of_detectors, data_set, m_range, 
                                       count_range, thresADC)
@@ -233,6 +295,24 @@ def choose_analysis_type(module_order, data_set):
                                       rnge)
             else:
                 pl.plot_ToF_histogram(name, coincident_events, data_set)
+        
+        if analysis_type == 10:
+            choice = input('Further specifications? (y/n).\n>> ')
+            if choice == 'y':
+                lg = input('Logarithmic scale? (y/n):')
+                log = (lg == 'y')
+                count_min_limit = input('Count min-limit: ')
+                count_max_limit = input('Count max-limit: ')
+                count_max_limit = int(count_max_limit)
+                count_min_limit = int(count_min_limit)
+                count_range = [count_min_limit, count_max_limit]
+                
+                pl.plot_event_count(name, module_order, number_of_detectors, 
+                                    data_set, events, log, count_range)
+            else:
+                pl.plot_event_count(name, module_order, number_of_detectors, 
+                                    data_set, events)
+                
 
 def main_meny(data_set):
     not_int = True
@@ -252,15 +332,16 @@ def main_meny(data_set):
         print('2. Change module order')
         print('3. Change detector type(s)')
         print('4. Perform an analysis')
-        print('5. Quit')
+        print('5. Print key numbers')
+        print('6. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-5.\n>> ')
+                       'between 1-6.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 5)
+            not_in_range = (choice < 1) | (choice > 6)
         except ValueError:
             pass
     
@@ -305,6 +386,8 @@ while not_done:
     elif choice == 4:
         choose_analysis_type(module_order, data_set)
     elif choice == 5:
+        print_key_numbers(module_order, events, coincident_events)
+    elif choice == 6:
         print('\nBye!')
         not_done = False
     
