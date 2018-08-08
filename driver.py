@@ -10,15 +10,11 @@ Created on Fri Jul 27 14:01:55 2018
 import os
 import pandas as pd
 import numpy as np
-import cluster_mesytec as clu
-import plot_mesytec as pl
+import cluster as clu
+import plot as pl
 
 def print_key_numbers(module_order, events, coincident_events):
-    
-
         
-    
-    
     for i, bus in enumerate(module_order):
         if i % 3 == 0:
             print('\nDetector ' + str(bus // 3 + 1) )
@@ -108,6 +104,8 @@ def choose_data_set(exceptions):
         print('-------------------------------------------------')
         for i, file in enumerate(files):
             print(str(i+1) + '. ' + str(file))
+        
+        
     
         file_number = input('\nEnter a number between 1-' + 
                             str(len(files)) + '.\n>> ')

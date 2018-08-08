@@ -62,17 +62,9 @@ def import_data(filename):
         
         #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(content)//4), content)
-        
-        #Remove invalid and non-relevant words
-        s = pd.Series(np.array(data))
-        s_red = s[   ((s & TypeMask) == Header)
-                   | ((s & (TypeMask | DataMask)) == DataEvent)
-                   | ((s & (TypeMask | DataMask)) == DataExTs)
-                   | ((s & TypeMask) == EoE)  
-                 ]
-        s_red.reset_index(drop=True, inplace=True) 
+    
     print('100%')
-    return s_red
+    return data
 
 
 # =============================================================================
@@ -83,7 +75,7 @@ def cluster_data(data, ILL_exceptions = [-1]):
     print('Clustering...')
         
 
-    size = data.size
+    size = len(data)
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
                                     'wADC', 'gADC', 'wM', 'gM']
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
