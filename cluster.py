@@ -41,8 +41,6 @@ ChannelShift  =   12
 BusShift      =   24
 ExTsShift     =   30
 
-
-
 # =============================================================================
 #                                IMPORT DATA
 # =============================================================================
@@ -53,8 +51,8 @@ def import_data(filename):
     dirname = os.path.dirname(__file__)
     filepath = os.path.join(dirname, '../Data/' + filename)
     with open(filepath, mode='rb') as binfile:
-        content = binfile.read()      
-                
+        content = binfile.read()  
+        
         #Skip configuration text
         match = re.search(b'}\n}\n[ ]*', content)
         start = match.end()
@@ -62,7 +60,7 @@ def import_data(filename):
         
         #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(content)//4), content)
-    
+
     print('100%')
     return data
 
@@ -201,56 +199,7 @@ def cluster_data(data, ILL_exceptions = [-1]):
     events_df = pd.DataFrame(events)
     events_df = events_df.drop(range(index_event, size, 1))
     
- 
-    
     return coincident_events_df, events_df
-
-def cluster_data_ch(data):
-    
-    size = data.size
-    parameters = ['Bus', 'Time', 'Bus', 'Channel', 'ADC']
-    clusters = create_dict(size, parameters)
-    index = -1
-    
-    isOpen = False
-    isData = False
-    Time = 0
-    eventCount = 0
-    for word in data:
-        if (word & TypeMask) == Header:
-            isOpen = True
-        
-        elif ((word & (TypeMask | DataMask)) == DataEvent) & isOpen:
-            isData = True
-            index += 1
-            eventCount += 1
-            clusters['Bus'][index] = (word & BusMask) >> BusShift
-            clusters['ADC'][index] = (word & ADCMask)
-            
-            Channel = ((word & ChannelMask) >> ChannelShift)
-            if Channel < 80:
-                clusters['Channel'][index] = Channel ^ 1 #Shift odd and even Ch
-            else:
-                clusters['Channel'][index] = Channel
-        
-        elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & isData:
-            Time = (word & ExTsMask) << ExTsShift
-            
-        elif ((word & TypeMask) == EoE) & isOpen:
-            Time = Time | (word & TimeStampMask)
-            for i in range(0,eventCount):
-                clusters['Time'][index-i] = Time
-            eventCount = 0
-            isOpen = False
-            isData = False
-            Time = 0
-    
-    df = pd.DataFrame(clusters)
-    df = df.drop(range(index, size, 1))
-    
-    return df
-            
-
 
 # =============================================================================
 # Helper Functions

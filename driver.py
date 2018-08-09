@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import cluster as clu
 import plot as pl
+import matplotlib.pyplot as plt
 
 def print_key_numbers(module_order, events, coincident_events):
         
@@ -159,28 +160,36 @@ def choose_analysis_type(module_order, data_set):
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel']
     
+    figs = []
+    paths = []
+    
     while(not finished_with_analysis):
         print()
         print('******************* analysis ********************')
         print('-------------------------------------------------')
         for i, name in enumerate(analysis_name_vec):
             print(str(i+1) + '. ' + name)
-        print('0. Back to main meny')
-
-        analysis_type = input('\nChoose an analysis. Enter a number between 0-' 
-                              + str(len(analysis_name_vec)) + '.' + '\n>> ')
+        print('-------------------------------------------------')
+        print(str(len(analysis_name_vec)+1) + '. ' + 'Plot')
+        print(str(len(analysis_name_vec)+2) + '. ' + 'Back to main meny')
+        print('-------------------------------------------------')
+        print('\nChoose an analysis by entering a number between 1-' 
+                              + str(len(analysis_name_vec)) + '.\nEnter ' + 
+                              str(len(analysis_name_vec)+1) + ' to plot ' +
+                              'and ' + str(len(analysis_name_vec)+2) + ' to '
+                              + 'go back to main meny.')
+        analysis_type = input('>> ')
 
         try:
             analysis_type = int(analysis_type)
         except ValueError:
             print("That's not an int!")
         
-        name = (str(analysis_type) + '. ' 
-                + analysis_name_vec[analysis_type-1] + '\nData set: ' 
-                + data_set)
-    
-        if analysis_type == 0:
-            finished_with_analysis = True
+        if analysis_type <= len(analysis_name_vec):
+            fig = plt.figure()
+            name = (str(analysis_type) + '. ' 
+                   + analysis_name_vec[analysis_type-1] + '\nData set: ' 
+                   + data_set)
         
         if analysis_type == 1:
             bus = input('Which module? Enter a number between ' 
@@ -189,8 +198,9 @@ def choose_analysis_type(module_order, data_set):
             bus = int(bus)
             ChVec = [int(x) for x in input('Which Channels? Enter numbers ' +
                      'between 0-119, separated by spaces.\n>>').split()]
-        
-            pl.plot_PHS_several_channels(name, events, bus, ChVec, data_set)
+            print('Working...')
+            fig, path = pl.plot_PHS_several_channels(fig, name, events, bus, 
+                                                       ChVec, data_set)
         
         if analysis_type == 2:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -200,35 +210,47 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                
-                pl.plot_PHS_buses(name, events, module_order, data_set, count_range)
+                print('Working...')
+                fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
+                                              data_set, count_range)
             else:
-                pl.plot_PHS_buses(name, events, module_order, data_set)
+                print('Working...')
+                fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
+                                              data_set)
+            
     
         if analysis_type == 3:
             bus = input('Which module? Enter a number between ' 
                         + str(min(module_order)) + '-' +
                         str(max(module_order)) + '\n>>')
             bus = int(bus)
-            pl.plot_3D_new(name, events, bus, data_set)
+            print('Working...')
+            fig, path = pl.plot_3D_new(fig, name, events, bus, data_set)
 
         if analysis_type == 4:
-            pl.plot_2D_hit_buses(name, coincident_events, module_order, 
-                             number_of_detectors, data_set, thresADC)
+            print('Working...')
+            fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
+                                             module_order, number_of_detectors, 
+                                             data_set, thresADC)
         if analysis_type == 5:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
                 count_thres = input('Minimum count threshold: ')
                 count_thres = int(count_thres)
                 alpha = input('Insert transparancy factor (0 minimum, 1 maximum): ')
-                alpha = float(alpha)    
-                pl.plot_all_sides_3D(name, coincident_events, module_order, count_thres, 
-                                     alpha, data_set, number_of_detectors)
+                alpha = float(alpha)
+                print('Working...')
+                fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
+                                                 module_order, count_thres, 
+                                                 alpha, data_set, 
+                                                 number_of_detectors)
             else:
                 count_thres = 0
                 alpha = 1
-                pl.plot_all_sides_3D(name, coincident_events, module_order, count_thres, 
-                                     alpha, data_set, number_of_detectors)
+                print('Working...')
+                fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
+                                                 module_order, count_thres, 
+                                                 alpha, data_set, number_of_detectors)
         
         if analysis_type == 6:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -238,10 +260,12 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                pl.plot_all_sides(name, module_order, coincident_events, 
+                print('Working...')
+                fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
                                   data_set, number_of_detectors, count_range)
             else:
-                pl.plot_all_sides(name, module_order, coincident_events,
+                print('Working...')
+                fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events,
                                   data_set, number_of_detectors)
     
         if analysis_type == 7:
@@ -254,11 +278,15 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
+                print('Working...')
+                fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
+                                      coincident_events, module_order, 
                                       number_of_detectors, data_set, m_range, 
                                       count_range, thresADC)
             else:
-                pl.plot_2D_multiplicity_buses(name, coincident_events, module_order, 
+                print('Working...')
+                fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
+                                              coincident_events, module_order, 
                                               number_of_detectors, data_set)
     
         if analysis_type == 8:
@@ -276,11 +304,13 @@ def choose_analysis_type(module_order, data_set):
                                     input('Enter channels to exclude, ' +
                                           'use spaces to separate ' + 
                                           '(insert "-1" if none should be omitted): ').split()]
-                pl.plot_charge_scatter_buses(name, coincident_events, module_order, 
+                print('Working...')
+                fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
                                      number_of_detectors, data_set, minWM, maxWM, minGM, 
                                      maxGM, exclude_channels)
             else:
-                pl.plot_charge_scatter_buses(name, coincident_events, module_order, 
+                print('Working...')
+                fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
                                              number_of_detectors, data_set)
 
         if analysis_type == 9:
@@ -289,10 +319,13 @@ def choose_analysis_type(module_order, data_set):
                 number_bins = input('Number of bins: ')
                 rnge = [int(x) for x in input('Range (use a space to separate between min and max): ').split()]
                 number_bins = int(number_bins)
-                pl.plot_ToF_histogram(name, coincident_events, data_set, number_bins, 
-                                      rnge)
+                print('Working...')
+                fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
+                                                  data_set, number_bins, rnge)
             else:
-                pl.plot_ToF_histogram(name, coincident_events, data_set)
+                print('Working...')
+                fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
+                                                  data_set)
         
         if analysis_type == 10:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -304,12 +337,49 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                
-                pl.plot_event_count(name, module_order, number_of_detectors, 
-                                    data_set, events, log, count_range)
+                print('Working...')
+                fig, path = pl.plot_event_count(fig, name, module_order, 
+                                                number_of_detectors, 
+                                                data_set, events, log, count_range)
             else:
-                pl.plot_event_count(name, module_order, number_of_detectors, 
-                                    data_set, events)
+                print('Working...')
+                fig, path = pl.plot_event_count(fig, name, module_order, 
+                                                number_of_detectors, 
+                                                data_set, events)
+        
+        
+        
+        
+        
+        
+        if analysis_type <= len(analysis_name_vec):
+            figs.append(fig)
+            paths.append(path)
+        
+        if analysis_type == len(analysis_name_vec)+1:
+            if len(figs) > 0:
+                plt.show()
+                print('\nSaving...')
+                count = 1
+                print('0%')
+                for fig, path in zip(figs, paths):
+                    fig.savefig(path, bbox_inches='tight')
+                    print(str(round((float(count)/len(figs))*100)) + '%')
+                    count += 1
+                finished_with_analysis = True
+            else:
+                print('\nNothing to plot yet!')
+                input('\nPress "Enter" to continue.\n>> ')
+            
+            
+        if analysis_type == len(analysis_name_vec)+2:
+            finished_with_analysis = True
+        
+
+        
+
+            
+            
                 
 
 def main_meny(data_set):

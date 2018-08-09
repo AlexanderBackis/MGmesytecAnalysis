@@ -22,4 +22,4 @@ file_name = files[int(file_number) - 1]
 file_path = os.path.join(dir_name, '../HDF5/' + file_name)
 
 f = h5py.File(file_path,'r')
-print(list(f))
+print(list(f['entry']['user1'].values()))
