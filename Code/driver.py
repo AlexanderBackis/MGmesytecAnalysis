@@ -456,7 +456,7 @@ while not_done:
     elif choice == 5:
         print_key_numbers(module_order, events, coincident_events)
     elif choice == 6:
-        print('\nBye!')
+        print('\nBye!\n')
         not_done = False
     
     

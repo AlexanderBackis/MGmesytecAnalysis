@@ -13,11 +13,9 @@ import numpy as np
 import struct
 import re
 
-#hejehj
-
 # =======    MASKS    ======= #
 TypeMask      =   0xC0000000     # 1100 0000 0000 0000 0000 0000 0000 0000
-DataMask      =   0x30000000     # 0011 0000 0000 0000 0000 0000 0000 0000
+DataMask      =   0xF0000000     # 1111 0000 0000 0000 0000 0000 0000 0000
 
 ChannelMask   =   0x00FFF000     # 0000 0000 1111 1111 1111 0000 0000 0000
 BusMask       =   0x0F000000     # 0000 1111 0000 0000 0000 0000 0000 0000
@@ -75,7 +73,7 @@ def cluster_data(data, ILL_exceptions = [-1]):
     print('Clustering...')
         
 
-    size = len(data)
+    size = len(data)//3
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
                                     'wADC', 'gADC', 'wM', 'gM']
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
@@ -107,7 +105,7 @@ def cluster_data(data, ILL_exceptions = [-1]):
             isOpen = True
             isTrigger = (word & (TypeMask | TriggerMask)) == Trigger
               
-        elif ((word & (TypeMask | DataMask)) == DataEvent) & isOpen:
+        elif ((word & DataMask) == DataEvent) & isOpen:
             
             Bus = (word & BusMask) >> BusShift
             Channel = ((word & ChannelMask) >> ChannelShift)
@@ -115,12 +113,10 @@ def cluster_data(data, ILL_exceptions = [-1]):
             
             index_event += 1
             events['Bus'][index_event] = Bus
-            events['ADC'][index_event] = ADC
-            
+            events['ADC'][index_event] = ADC   
 
             ILL_exception = Bus in ILL_exceptions and isData == True
-
-                
+             
             if tempBus != Bus and not ILL_exception:
                 tempBus = Bus
                 maxADCw = -1
@@ -131,8 +127,7 @@ def cluster_data(data, ILL_exceptions = [-1]):
                 coincident_events['wCh'][index] = -1
                 coincident_events['gCh'][index] = -1
                 coincident_events['Bus'][index] = Bus
-                
-            
+                 
             if Channel < 80:
                 coincident_events['Bus'][index] = Bus #Remove if trigger is on wire
                 coincident_events['wADC'][index] += ADC
@@ -153,11 +148,10 @@ def cluster_data(data, ILL_exceptions = [-1]):
             
             isData = True
         
-        elif ((word & (TypeMask | DataMask)) == DataExTs) & isOpen & (isData | isTrigger):
+        elif ((word & DataMask) == DataExTs) & isOpen:
             extended_time_stamp = (word & ExTsMask) << ExTsShift
          
         elif ((word & TypeMask) == EoE) & isOpen:
-            
             time_stamp = (word & TimeStampMask)
             
             if extended_time_stamp != None:
