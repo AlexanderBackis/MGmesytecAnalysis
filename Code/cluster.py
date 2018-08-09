@@ -189,14 +189,13 @@ def cluster_data(data, ILL_exceptions = [-1]):
     if percentage_finished != '100%':
         print('100%')
     
-    coincident_events = coincident_events[0:index]
-    events = events[0:index_event]
-    
+    for key in coincident_events:
+        coincident_events[key] = coincident_events[key][0:index]
     coincident_events_df = pd.DataFrame(coincident_events)
-   # coincident_events_df = coincident_events_df.drop(range(index, size, 1))
     
+    for key in events:
+        events[key] = events[key][0:index_event]
     events_df = pd.DataFrame(events)
-  #  events_df = events_df.drop(range(index_event, size, 1))
     
     return coincident_events_df, events_df
 

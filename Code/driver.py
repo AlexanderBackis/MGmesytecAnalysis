@@ -198,9 +198,10 @@ def choose_analysis_type(module_order, data_set):
             bus = int(bus)
             ChVec = [int(x) for x in input('Which Channels? Enter numbers ' +
                      'between 0-119, separated by spaces.\n>>').split()]
-            print('Working...')
+            print('Loading...')
             fig, path = pl.plot_PHS_several_channels(fig, name, events, bus, 
                                                        ChVec, data_set)
+            print('Done!')
         
         if analysis_type == 2:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -210,28 +211,31 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
                                               data_set, count_range)
             else:
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
                                               data_set)
-            
+            print('Done!')
     
         if analysis_type == 3:
             bus = input('Which module? Enter a number between ' 
                         + str(min(module_order)) + '-' +
                         str(max(module_order)) + '\n>>')
             bus = int(bus)
-            print('Working...')
+            print('Loading...')
             fig, path = pl.plot_3D_new(fig, name, events, bus, data_set)
+            print('Done!')
 
         if analysis_type == 4:
-            print('Working...')
+            print('Loading...')
             fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
                                              module_order, number_of_detectors, 
                                              data_set, thresADC)
+            print('Done!')
+            
         if analysis_type == 5:
             choice = input('Further specifications? (y/n).\n>> ')
             if choice == 'y':
@@ -239,7 +243,7 @@ def choose_analysis_type(module_order, data_set):
                 count_thres = int(count_thres)
                 alpha = input('Insert transparancy factor (0 minimum, 1 maximum): ')
                 alpha = float(alpha)
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
                                                  module_order, count_thres, 
                                                  alpha, data_set, 
@@ -247,10 +251,12 @@ def choose_analysis_type(module_order, data_set):
             else:
                 count_thres = 0
                 alpha = 1
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
                                                  module_order, count_thres, 
-                                                 alpha, data_set, number_of_detectors)
+                                                 alpha, data_set, 
+                                                 number_of_detectors)
+                print('Done!')
         
         if analysis_type == 6:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -260,13 +266,14 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
                                   data_set, number_of_detectors, count_range)
             else:
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events,
                                   data_set, number_of_detectors)
+            print('Done!')
     
         if analysis_type == 7:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -278,16 +285,17 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
                                       coincident_events, module_order, 
                                       number_of_detectors, data_set, m_range, 
                                       count_range, thresADC)
             else:
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
                                               coincident_events, module_order, 
                                               number_of_detectors, data_set)
+            print('Done!')
     
         if analysis_type == 8:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -304,14 +312,15 @@ def choose_analysis_type(module_order, data_set):
                                     input('Enter channels to exclude, ' +
                                           'use spaces to separate ' + 
                                           '(insert "-1" if none should be omitted): ').split()]
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
                                      number_of_detectors, data_set, minWM, maxWM, minGM, 
                                      maxGM, exclude_channels)
             else:
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
                                              number_of_detectors, data_set)
+            print('Done!')
 
         if analysis_type == 9:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -319,13 +328,14 @@ def choose_analysis_type(module_order, data_set):
                 number_bins = input('Number of bins: ')
                 rnge = [int(x) for x in input('Range (use a space to separate between min and max): ').split()]
                 number_bins = int(number_bins)
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
                                                   data_set, number_bins, rnge)
             else:
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
                                                   data_set)
+            print('Done!')
         
         if analysis_type == 10:
             choice = input('Further specifications? (y/n).\n>> ')
@@ -337,15 +347,16 @@ def choose_analysis_type(module_order, data_set):
                 count_max_limit = int(count_max_limit)
                 count_min_limit = int(count_min_limit)
                 count_range = [count_min_limit, count_max_limit]
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_event_count(fig, name, module_order, 
                                                 number_of_detectors, 
                                                 data_set, events, log, count_range)
             else:
-                print('Working...')
+                print('Loading...')
                 fig, path = pl.plot_event_count(fig, name, module_order, 
                                                 number_of_detectors, 
                                                 data_set, events)
+            print('Done!')
         
         
         
@@ -430,7 +441,7 @@ print()
 dirname = os.path.dirname(__file__)
 folder = os.path.join(dirname, '../Data/')
 files = os.listdir(folder)
-files = [file for file in files if file[-9:] != '.DS_Store']
+files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
 
 
 number_of_detectors, module_order = choose_number_modules()
