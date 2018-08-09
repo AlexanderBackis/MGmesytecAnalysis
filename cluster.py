@@ -13,6 +13,8 @@ import numpy as np
 import struct
 import re
 
+#hejehj
+
 # =======    MASKS    ======= #
 TypeMask      =   0xC0000000     # 1100 0000 0000 0000 0000 0000 0000 0000
 DataMask      =   0x30000000     # 0011 0000 0000 0000 0000 0000 0000 0000
