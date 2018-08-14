@@ -14,6 +14,21 @@ import cluster as clu
 import plot as pl
 import matplotlib.pyplot as plt
 
+def choose_specifications():
+    spec_types = ['Count range', 'Multiplicity filter', 'Count threshold', 
+                  'Exclude channels', 'Look at specific channels', 
+                  'Log/Lin-scale']
+    print()
+    print('************* Choose specifications *************')
+    print('-------------------------------------------------')
+    for i, spec in enumerate(spec_types):
+        print(str(i+1) + '. ' + str(spec))
+    
+    choice = input('\nChoose specification(s). Use spaces to separate choices.'
+                   + '\n>> ')
+    
+    
+
 def print_key_numbers(module_order, events, coincident_events):
         
     for i, bus in enumerate(module_order):
@@ -192,19 +207,23 @@ def choose_analysis_type(module_order, data_set):
                    + data_set)
         
         if analysis_type == 1:
-            bus = input('Which module? Enter a number between ' 
-                        + str(min(module_order)) + '-' +
-                        str(max(module_order)) + '\n>>')
+#            bus = input('Which module? Enter a number between ' 
+#                        + str(min(module_order)) + '-' +
+#                        str(max(module_order)) + '\n>>')
+            bus = input('Module ID: ')
             bus = int(bus)
-            ChVec = [int(x) for x in input('Which Channels? Enter numbers ' +
-                     'between 0-119, separated by spaces.\n>>').split()]
+            ChVec = [int(x) for x in input('Channel(s) (use spaces to separate): ').split()]
+            choice = input('\nFurther specifications? (y/n).\n>> ')
+            if choice == 'y':
+                choose_specifications()
+            
             print('Loading...')
             fig, path = pl.plot_PHS_several_channels(fig, name, events, bus, 
                                                        ChVec, data_set)
             print('Done!')
         
         if analysis_type == 2:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 count_min_limit = input('Count min-limit: ')
                 count_max_limit = input('Count max-limit: ')
@@ -230,14 +249,26 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
 
         if analysis_type == 4:
-            print('Loading...')
-            fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
+            choice = input('\nFurther specifications? (y/n).\n>> ')
+            if choice == 'y':
+                count_min_limit = input('Count min-limit: ')
+                count_max_limit = input('Count max-limit: ')
+                count_max_limit = int(count_max_limit)
+                count_min_limit = int(count_min_limit)
+                count_range = [count_min_limit, count_max_limit]
+                print('Loading...')
+                fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
                                              module_order, number_of_detectors, 
-                                             data_set, thresADC)
+                                             data_set, count_range)
+            else:
+                fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
+                                             module_order, number_of_detectors, 
+                                             data_set)
+                
             print('Done!')
             
         if analysis_type == 5:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 count_thres = input('Minimum count threshold: ')
                 count_thres = int(count_thres)
@@ -259,7 +290,7 @@ def choose_analysis_type(module_order, data_set):
                 print('Done!')
         
         if analysis_type == 6:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 count_min_limit = input('Count min-limit: ')
                 count_max_limit = input('Count max-limit: ')
@@ -276,7 +307,7 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
     
         if analysis_type == 7:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 m_range = input('Multiplicity limit: ')
                 m_range = int(m_range)
@@ -298,7 +329,7 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
     
         if analysis_type == 8:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 minWM = input('Minimum wire multiplicity: ')
                 maxWM = input('Maximum wire multiplicity: ')
@@ -323,7 +354,7 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
 
         if analysis_type == 9:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 number_bins = input('Number of bins: ')
                 rnge = [int(x) for x in input('Range (use a space to separate between min and max): ').split()]
@@ -338,7 +369,7 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
         
         if analysis_type == 10:
-            choice = input('Further specifications? (y/n).\n>> ')
+            choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
                 lg = input('Logarithmic scale? (y/n):')
                 log = (lg == 'y')
@@ -357,12 +388,7 @@ def choose_analysis_type(module_order, data_set):
                                                 number_of_detectors, 
                                                 data_set, events)
             print('Done!')
-        
-        
-        
-        
-        
-        
+                
         if analysis_type <= len(analysis_name_vec):
             figs.append(fig)
             paths.append(path)
@@ -384,6 +410,7 @@ def choose_analysis_type(module_order, data_set):
             
             
         if analysis_type == len(analysis_name_vec)+2:
+            plt.close('all')
             finished_with_analysis = True
         
 
@@ -403,24 +430,23 @@ def main_meny(data_set):
         print('******************* main meny *******************')
        # print('*************************************************')
         print('-------------------------------------------------')
-        print('Current data set: ' + data_set)
+        print('Data set        : ' + data_set)
         print('Module order    : ' + str(module_order))
         print('Detector type(s): ' + str(detector_types))
         print('-------------------------------------------------')
         print('1. Change data set')
         print('2. Change module order')
-        print('3. Change detector type(s)')
-        print('4. Perform an analysis')
-        print('5. Print key numbers')
-        print('6. Quit')
+        print('3. Perform an analysis')
+        print('4. Print key numbers')
+        print('5. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-6.\n>> ')
+                       'between 1-5.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 6)
+            not_in_range = (choice < 1) | (choice > 5)
         except ValueError:
             pass
     
@@ -461,12 +487,10 @@ while not_done:
     elif choice == 2:
         module_order = [int(x) for x in input('Enter module order, uses spaces to separate.\n>>').split()]
     elif choice == 3:
-        detector_types, exceptions = initialise_detector_types(number_of_detectors)
-    elif choice == 4:
         choose_analysis_type(module_order, data_set)
-    elif choice == 5:
+    elif choice == 4:
         print_key_numbers(module_order, events, coincident_events)
-    elif choice == 6:
+    elif choice == 5:
         print('\nBye!\n')
         not_done = False
     

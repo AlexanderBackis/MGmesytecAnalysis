@@ -144,12 +144,13 @@ def plot_3D_new(fig, name, df, bus, data_set):
 # 4. Coincidence Histogram (2D)
 # =============================================================================
 
-def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig):
+def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range):
     df_clu_red = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
     
     plt.subplot(number_of_detectors,3,loc+1)
     plt.hist2d(df_clu_red.wCh, df_clu_red.gCh, bins=[80, 40], 
-               range=[[-0.5,79.5],[79.5,119.5]], norm=LogNorm(), vmin=1, vmax=10000,
+               range=[[-0.5,79.5],[79.5,119.5]], norm=LogNorm(), 
+                       vmin=count_range[0], vmax=count_range[1],
                cmap='jet')
     plt.xlabel("Wire [Channel number]")
     plt.ylabel("Grid [Channel number]")
@@ -159,14 +160,14 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig):
     plt.title(name)
     
 def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_set, 
-                      thresADC = 0):
+                      count_range = [1,10000]):
     name = (name)
     fig.suptitle(name, x=0.5, y=1.09)
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(bus_vec):
         df_clu = clusters[clusters.Bus == bus]
-        plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig)
+        plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range)
     plt.tight_layout()
  #   plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
