@@ -81,7 +81,7 @@ def cluster_data(data, ILL_buses = []):
                                     'wADC', 'gADC', 'wM', 'gM']
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
     coincident_events = create_dict(size, coincident_event_parameters)
-    coincident_events.update({'Coordinate': np.empty([size],dtype=object)})
+    coincident_events.update({'Coordinate': np.empty([size],dtype=dict)})
     events = create_dict(size, event_parameters)
     
     #Declare variables
@@ -190,7 +190,7 @@ def cluster_data(data, ILL_buses = []):
             wCh = coincident_events['wCh'][index]
             gCh = coincident_events['gCh'][index]
             if wCh != -1 and gCh != -1:
-                coincident_events['Coordinate'][index] = ch_to_coord[previousBus%3,gCh,wCh]
+                coincident_events['Coordinate'][index] = ch_to_coord[Bus%3,gCh,wCh]
             else:
                 coincident_events['Coordinate'][index] = None
                 
@@ -241,18 +241,19 @@ def import_coordinates():
     matrix = pd.read_excel(file_path).values
     coordinates = matrix[1:801]
     ch_to_coord = np.empty((3,120,80),dtype='object')
-    coordinate = [-1,-1,-1]
+    coordinate = {'x': -1, 'y': -1, 'z': -1}
+    axises =  ['x','y','z']
 
     for i, row in enumerate(coordinates):
         grid_ch = i // 20 + 80
         for j, col in enumerate(row):
-            module = (j // 12) % 3
+            module = j // 12
             layer = (j // 3) % 4
-            wire_ch = (19 - (i % 20)) + layer * 20
+            wire_ch = (19 - (i % 20)) + (layer * 20)
             coordinate_count = j % 3
-            coordinate[coordinate_count] = col
+            coordinate[axises[coordinate_count]] = col
             if coordinate_count == 2:
                 ch_to_coord[module, grid_ch, wire_ch] = coordinate
-                coordinate = [-1,-1,-1]
+                coordinate = {'x': -1, 'y': -1, 'z': -1}
 
     return ch_to_coord

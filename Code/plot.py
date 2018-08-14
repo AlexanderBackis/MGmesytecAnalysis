@@ -456,7 +456,7 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
 # =============================================================================
     
 def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None):
-    plt.hist(df.ToF, bins=number_bins, range=rnge)
+    plt.hist(df.ToF, bins=number_bins, range=rnge, color = 'b')
     plt.title(name)
     plt.xlabel('ToF [TDC channels]')
     plt.ylabel('Counts  [a.u.]')
@@ -481,7 +481,7 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
         plt.subplot(number_of_detectors, 3, i+1)
         plt.title('Bus ' + str(bus))
         plt.hist(events[events.Bus == bus].Channel, range= [-0.5,119.5], 
-                 bins=120, log=log)
+                 bins=120, log=log, color = 'b')
         plt.xlabel('Channel [a.u.]')
         plt.ylabel('Number of events [a.u.]')
         plt.ylim(v_range)
