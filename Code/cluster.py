@@ -117,10 +117,10 @@ def cluster_data(data, ILL_buses = []):
             if (previousBus in ILL_buses) and (Bus in ILL_buses):
                 pass
             else:
-                if previousBus != Bus:
+                if previousBus != Bus and previousBus != -1:
                     wCh = coincident_events['wCh'][index]
                     gCh = coincident_events['gCh'][index]
-                    if wCh != -1 and gCh != -1:
+                    if wCh != -1 and gCh != -1 and previousBus != -1:
                         coincident_events['Coordinate'][index] = ch_to_coord[previousBus%3,gCh,wCh]
                     else:
                         coincident_events['Coordinate'][index] = None
@@ -190,7 +190,8 @@ def cluster_data(data, ILL_buses = []):
             wCh = coincident_events['wCh'][index]
             gCh = coincident_events['gCh'][index]
             if wCh != -1 and gCh != -1:
-                coincident_events['Coordinate'][index] = ch_to_coord[Bus%3,gCh,wCh]
+                eventBus = coincident_events['Bus'][index]
+                coincident_events['Coordinate'][index] = ch_to_coord[eventBus%3,gCh,wCh]
             else:
                 coincident_events['Coordinate'][index] = None
                 
