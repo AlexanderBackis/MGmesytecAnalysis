@@ -73,7 +73,8 @@ def import_data(filename):
 
 def cluster_data(data, ILL_buses = []):
     print('Clustering...')
-    ch_to_coord = import_coordinates()
+    ess_ch_to_coord = create_ess_channel_to_coordinate_map()
+    ill_ch_to_coord = create_ill_channel_to_coordinate_map()
     
 
     size = len(data)
@@ -121,7 +122,9 @@ def cluster_data(data, ILL_buses = []):
                     wCh = coincident_events['wCh'][index]
                     gCh = coincident_events['gCh'][index]
                     if wCh != -1 and gCh != -1 and previousBus != -1:
-                        coincident_events['Coordinate'][index] = ch_to_coord[previousBus%3,gCh,wCh]
+                        coincident_events['Coordinate'][index] = coincident_events['Coordinate'][index] = get_coordinate(previousBus, wCh, gCh, 
+                                                                                                                         ess_ch_to_coord, ill_ch_to_coord, 
+                                                                                                                         ILL_buses)
                     else:
                         coincident_events['Coordinate'][index] = None
                 
@@ -191,7 +194,9 @@ def cluster_data(data, ILL_buses = []):
             gCh = coincident_events['gCh'][index]
             if wCh != -1 and gCh != -1:
                 eventBus = coincident_events['Bus'][index]
-                coincident_events['Coordinate'][index] = ch_to_coord[eventBus%3,gCh,wCh]
+                coincident_events['Coordinate'][index] = get_coordinate(eventBus, wCh, gCh, 
+                                                                        ess_ch_to_coord, ill_ch_to_coord, 
+                                                                        ILL_buses)
             else:
                 coincident_events['Coordinate'][index] = None
                 
@@ -236,12 +241,12 @@ def create_dict(size, names):
     
     return clu
 
-def import_coordinates():
+def create_ess_channel_to_coordinate_map():
     dirname = os.path.dirname(__file__)
-    file_path = os.path.join(dirname, '../Coordinates/Coordinates_MG_SEQ.xlsx')
+    file_path = os.path.join(dirname, '../Coordinates/Coordinates_MG_SEQ_ESS.xlsx')
     matrix = pd.read_excel(file_path).values
     coordinates = matrix[1:801]
-    ch_to_coord = np.empty((3,120,80),dtype='object')
+    ess_ch_to_coord = np.empty((3,120,80),dtype='object')
     coordinate = {'x': -1, 'y': -1, 'z': -1}
     axises =  ['x','y','z']
 
@@ -254,7 +259,40 @@ def import_coordinates():
             coordinate_count = j % 3
             coordinate[axises[coordinate_count]] = col
             if coordinate_count == 2:
-                ch_to_coord[module, grid_ch, wire_ch] = coordinate
+                ess_ch_to_coord[module, grid_ch, wire_ch] = coordinate
                 coordinate = {'x': -1, 'y': -1, 'z': -1}
 
-    return ch_to_coord
+    return ess_ch_to_coord
+    
+def create_ill_channel_to_coordinate_map():
+    WireSpacing  = 23.5 #  [mm]
+    LayerSpacing = 10   #  [mm]
+    GridSpacing  = 23.5 #  [mm]
+    
+    x_offset = WireSpacing/2   +   46.514 
+    y_offset = LayerSpacing/2  +   37.912
+    z_offset = GridSpacing/2   +   37.95
+    
+    ill_ch_to_coord = np.empty((3,120,80),dtype='object')
+    for Bus in range(0,3):
+        for GridChannel in range(80,120):
+            for WireChannel in range(0,80):
+                    x = (WireChannel % 20)  * WireSpacing   + x_offset
+                    y = (WireChannel // 20) * LayerSpacing  + y_offset + (Bus * 4 * LayerSpacing)
+                    z = GridChannel         * GridSpacing   + z_offset
+                    ill_ch_to_coord[Bus,GridChannel,WireChannel] = {'x': x, 'y': y, 'z': z}
+    
+    return  ill_ch_to_coord
+
+def get_coordinate(Bus, WireChannel, GridChannel, ess_ch_to_coord, ill_ch_to_coord, ILL_buses):
+    if Bus in ILL_buses:
+        return ill_ch_to_coord[Bus%3, GridChannel, WireChannel]
+    else:
+        return ess_ch_to_coord[Bus%3, GridChannel, WireChannel]
+    
+    
+    
+    
+    
+    
+    
