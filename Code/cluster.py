@@ -47,21 +47,37 @@ ExTsShift     =   30
 #                                IMPORT DATA
 # =============================================================================
 
-def import_data(filename):
+def import_data(file_name):
+    """ Goes to sister-folder '/Data/' and imports '.mesytec'-file with name
+        'file_name'. Does this in three steps:
+            
+            1. Reads file as binary and saves data in 'content'
+            2. Finds the end of the configuration text, i.e. '}\n}\n' followed
+               by 0 to n spaces, then saves everything after this to 
+               'reduced_content'.
+            3. Groups data into 'uint'-words of 4 bytes (32 bits) length
+        
+    Args:
+        file_name (str): Name of '.mesytec'-file that contains the data
+            
+    Returns:
+        data (tuple): A tuple where each element is a 32 bit mesytec word
+            
+    """
     print('\nImporting...')
     print('0%')
-    dirname = os.path.dirname(__file__)
-    filepath = os.path.join(dirname, '../Data/' + filename)
-    with open(filepath, mode='rb') as binfile:
+    dir_name = os.path.dirname(__file__)
+    file_path = os.path.join(dir_name, '../Data/' + file_name)
+    with open(file_path, mode='rb') as binfile:
         content = binfile.read()  
         
         #Skip configuration text
         match = re.search(b'}\n}\n[ ]*', content)
         start = match.end()
-        content = content[start:]
+        reduced_content = content[start:]
         
         #Group data into 'uint'-words of 4 bytes length
-        data = struct.unpack('I' * (len(content)//4), content)
+        data = struct.unpack('I' * (len(reduced_content)//4), reduced_content)
 
     print('100%')
     return data
@@ -72,6 +88,51 @@ def import_data(filename):
 # =============================================================================
 
 def cluster_data(data, ILL_buses = []):
+    """ Clusters the imported data and stores it two data frames: one for 
+        individual events and one for coicident events (i.e. candidate neutron 
+        events). 
+        
+        Does this in the following fashion for coincident events: 
+            1. Reads one word at a time
+            2. Checks what type of word it is (Header, BusStart, DataEvent, 
+               DataExTs or EoE).
+            3. When a Header is encountered, 'isOpen' is set to 'True',
+               signifying that a new event has been started. Data is then
+               gathered into a single coincident event until a different bus is
+               encountered (unless ILL exception), in which case a new event is
+               started.
+            4. When EoE is encountered the event is formed, and timestamp is 
+               assigned to it and all the created events under the current 
+               Header. This event is placed in the created dictionary.
+            5. After the iteration through data is complete, the dictionary
+               containing the coincident events is convereted to a DataFrame.
+                    
+        And for events:
+            1-2. Same as above.
+            3. Every time a data word is encountered it is added as a new event
+               in the intitally created dicitionary.
+            4-5. Same as above
+           
+    Args:
+        data (tuple)    : Tuple containing data, one word per element.
+        ILL_buses (list): List containg all ILL buses
+            
+    Returns:
+        data (tuple): A tuple where each element is a 32 bit mesytec word
+        
+        events_df (DataFrame): DataFrame containing one event (wire or grid) 
+                               per row. Each event has information about:
+                               "Bus", "Time", "Channel", "ADC".
+        
+        coincident_events_df (DataFrame): DataFrame containing one neutron
+                                          event per row. Each neutron event has
+                                          information about: "Bus", "Time", 
+                                          "ToF", "wCh", "gCh", "wADC", "gADC",
+                                          "wM", "gM", "Coordinate".
+                                        
+                                            
+            
+    """
     print('Clustering...')
     ess_ch_to_coord = create_ess_channel_to_coordinate_map()
     ill_ch_to_coord = create_ill_channel_to_coordinate_map()
@@ -122,9 +183,12 @@ def cluster_data(data, ILL_buses = []):
                     wCh = coincident_events['wCh'][index]
                     gCh = coincident_events['gCh'][index]
                     if wCh != -1 and gCh != -1 and previousBus != -1:
-                        coincident_events['Coordinate'][index] = coincident_events['Coordinate'][index] = get_coordinate(previousBus, wCh, gCh, 
-                                                                                                                         ess_ch_to_coord, ill_ch_to_coord, 
-                                                                                                                         ILL_buses)
+                        coord = get_coordinate(previousBus, wCh, gCh, 
+                                               ess_ch_to_coord, 
+                                               ill_ch_to_coord, 
+                                               ILL_buses)
+                        coincident_events['Coordinate'][index] = coord
+                
                     else:
                         coincident_events['Coordinate'][index] = None
                 
@@ -194,9 +258,9 @@ def cluster_data(data, ILL_buses = []):
             gCh = coincident_events['gCh'][index]
             if wCh != -1 and gCh != -1:
                 eventBus = coincident_events['Bus'][index]
-                coincident_events['Coordinate'][index] = get_coordinate(eventBus, wCh, gCh, 
-                                                                        ess_ch_to_coord, ill_ch_to_coord, 
-                                                                        ILL_buses)
+                coord = get_coordinate(eventBus, wCh, gCh, ess_ch_to_coord, 
+                                       ill_ch_to_coord, ILL_buses)
+                coincident_events['Coordinate'][index] = coord
             else:
                 coincident_events['Coordinate'][index] = None
                 
@@ -269,9 +333,9 @@ def create_ill_channel_to_coordinate_map():
     LayerSpacing = 10   #  [mm]
     GridSpacing  = 23.5 #  [mm]
     
-    x_offset = WireSpacing/2   +   46.514 
-    y_offset = LayerSpacing/2  +   37.912
-    z_offset = GridSpacing/2   +   37.95
+    x_offset = 46.514
+    y_offset = 37.912   
+    z_offset = 37.95
     
     ill_ch_to_coord = np.empty((3,120,80),dtype='object')
     for Bus in range(0,3):

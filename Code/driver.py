@@ -52,25 +52,7 @@ def print_key_numbers(module_order, events, coincident_events):
         
         print('Channels with no events    : ' + str(no_events_ch))
         print()
-    
-#    choice = input('\nFurther investigations? (y/n).\n>> ')
-#
-#    if choice == 'y':
-#        bus_nbr = input('Module: ')
-#        w_ch = input('Wire channel: ')
-#        g_ch = input('Grid channel: ')
-#        bus_nbr = int(bus_nbr)
-#        w_ch = int(w_ch)
-#        g_ch = int(g_ch)
-#        nbr_events_w = events[events.Channel == w_ch].shape[0]
-#        nbr_events_g = events[events.Channel == g_ch].shape[0]
-#        nbr_coincident_events = coincident_events[(coincident_events.wCh == w_ch) & (coincident_events.gCh == g_ch)].shape[0]
-#        print('Bus ' + str(bus_nbr))
-#        print('Events in channel ' + str(w_ch) + ': ' + str(nbr_events_w))
-#        print('Events in channel ' + str(g_ch) + ': ' + str(nbr_events_g))
-#        print('Coincident events between channel ' + str(w_ch) + ' and ' +
-#              str(g_ch) + ': ' + str(nbr_coincident_events))
-        
+            
     input('\nPress "Enter" when done.\n>> ')
     
     
@@ -207,9 +189,6 @@ def choose_analysis_type(module_order, data_set):
                    + data_set)
         
         if analysis_type == 1:
-#            bus = input('Which module? Enter a number between ' 
-#                        + str(min(module_order)) + '-' +
-#                        str(max(module_order)) + '\n>>')
             bus = input('Module ID: ')
             bus = int(bus)
             ChVec = [int(x) for x in input('Channel(s) (use spaces to separate): ').split()]

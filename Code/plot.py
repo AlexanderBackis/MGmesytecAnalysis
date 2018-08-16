@@ -40,12 +40,11 @@ def plot_PHS_several_channels(fig, name, df, bus, ChVec, data_set):
     plt.ylabel("Counts")
     name = name + '\nBus ' + str(bus) + ', Channels: ' + str(ChVec)
     plt.title(name)
-#    plt.show()
+
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig1, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')
-    
-    
+
+ 
 # =============================================================================
 # 2. PHS (2D)
 # =============================================================================
@@ -63,7 +62,6 @@ def plot_PHS(df, bus, loc, number_of_detectors, fig, count_range = [1, 3000]):
             'Wire events = ' + str(df_red[df_red.Channel < 80].shape[0]) + 
             ', Grid events = ' + str(df_red[df_red.Channel >= 80].shape[0]))
     
-    #plt.grid(axis='x')
     plt.title(name)
     
 def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range = [1, 3000]):
@@ -75,11 +73,9 @@ def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range = [1, 3000]):
     for loc, bus in enumerate(bus_vec):
         plot_PHS(df, bus, loc, number_of_detectors, fig , count_range)
     plt.tight_layout()
-    #plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig2, plot_path
     
-    #fig.savefig(plot_path)
 
 # =============================================================================
 # 3. PHS (3D)
@@ -100,14 +96,12 @@ def plot_3D_new(fig, name, df, bus, data_set):
     ybinsVec = [ybinsW, ybinsG]
     nameVec =  ['Wires', 'Grids']
     xlimVec =  [ [0, 80], [80, 120]]
-  #  zlimVec =   [[0,500], [0,3000]]
     
     plt.close()
     
     fig = plt.figure()
 
     fig.set_size_inches(15, 6)
-#    fig = plt.figure('position', [0, 0, 200, 500])
 
     name = name + '\nBus: ' + str(bus)
     plt.suptitle(name, x=0.5, y=1)
@@ -125,20 +119,13 @@ def plot_3D_new(fig, name, df, bus, data_set):
         ax.set_ylabel('Charge [ADC Channels]')
         ax.set_zlabel('Counts')
         ax.set_xlim(xlimVec[i])
-      #  ax.set_zlim(zlimVec[i])
-    
-#        ax.set_ylim([0,5000])
-#        ticks = np.arange(0, 6000, step=1000)
-#        ax.set_yticks(ticks)
-#        ax.set_yticklabels(ticks[::-1])
-        #fig.colorbar(m)
     
         plt.title(nameVec[i], x=0.5, y=1.02)
         
-  #  plt.show()
+
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')
+ 
     
 # =============================================================================
 # 4. Coincidence Histogram (2D)
@@ -169,10 +156,10 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_se
         df_clu = clusters[clusters.Bus == bus]
         plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range)
     plt.tight_layout()
- #   plt.show()
+
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')
+
     
 # =============================================================================
 # 5. Coincidence Histogram (3D)
@@ -221,10 +208,9 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
 def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name, 
               number_of_detectors, colorsMap='jet'):
     cm = plt.get_cmap(colorsMap)
-   # cNorm = Normalize(vmin=min(cs), vmax=max(cs))
+
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
-  #  fig = plt.figure()
-    #fig.set_size_inches(4.5, 5)
+
     name = (name + '\nLower threshold: ' 
             + str(countThres) + ' counts')
     fig.suptitle(name ,x=0.5, y=1.06)
@@ -239,11 +225,11 @@ def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name,
     ax.set_xticks(np.arange(0, 12*number_of_detectors + 2, step=2))
     ax.set_xticklabels(np.arange(0, 12*number_of_detectors + 2, step=2))
     ax.set_xlim([0,12*number_of_detectors])
-#    
+    
     ax.set_yticks(np.arange(0, 25, step=5))
     ax.set_yticklabels(np.arange(0, 25, step=5))
     ax.set_ylim([0,20])
-#    
+   
     ax.set_zticks(np.arange(0, 50, step=10))
     ax.set_zticklabels(np.arange(0, 50, step=10))
     ax.set_zlim([0,40])
@@ -252,12 +238,10 @@ def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name,
     scalarMap.set_array(cs)
     fig.colorbar(scalarMap)
     
-   # plt.show()
     
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     
     return fig, plot_path
-   # fig.savefig(plot_path, bbox_inches='tight')
     
 # =============================================================================
 # 6. Coincidence Histogram (Front, Top, Side)
@@ -342,7 +326,6 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, count_
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     
     return fig, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')
     
 # =============================================================================
 # 7. Multiplicity
