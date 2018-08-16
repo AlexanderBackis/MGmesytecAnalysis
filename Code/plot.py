@@ -26,14 +26,18 @@ def plot_PHS_bus_channel(df, bus, Channel):
     df_red = df[df.Channel == Channel]
     plt.hist(df_red.ADC, bins=50, range=[0,4400])  
     
-def plot_PHS_several_channels(fig, name, df, bus, ChVec, data_set):
+def plot_PHS_several_channels(fig, name, df, bus, ChVec, data_set, 
+                              loglin = False, count_range = None):
     fig1 = fig
     df_red = df[df.Bus == bus]
     
     for Channel in ChVec:
         df_ch = df_red[df_red.Channel == Channel]
-        plt.hist(df_ch.ADC, bins=100, range=[0,4400], log=False, alpha = 1, 
+        plt.hist(df_ch.ADC, bins=100, range=[0,4400], log=loglin, alpha = 1, 
                  label = 'Channel ' + str(Channel), histtype='step')
+        
+    if count_range!= None:
+        plt.ylim(count_range[0], count_range[1])
     
     plt.legend(loc='upper right')
     plt.xlabel("Charge  [ADC channels]")
@@ -64,7 +68,11 @@ def plot_PHS(df, bus, loc, number_of_detectors, fig, count_range = [1, 3000]):
     
     plt.title(name)
     
-def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range = [1, 3000]):
+def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range = None):
+    
+    if count_range == None:
+        count_range = [1, 3000]
+    
     fig2 = fig
     number_of_detectors = len(bus_vec) // 3
     fig.suptitle(name + '\n\n', x=0.5, y=1.08)
@@ -147,7 +155,11 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range):
     plt.title(name)
     
 def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_set, 
-                      count_range = [1,10000]):
+                      count_range = None):
+    
+    if count_range == None:
+        count_range = [1,10000]
+        
     name = (name)
     fig.suptitle(name, x=0.5, y=1.09)
     fig.set_figheight(4 * number_of_detectors)
@@ -306,8 +318,8 @@ def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range):
     plt.colorbar()
     plt.title(name)
     
-def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, count_range = [1e2, 3e4], 
-                   ADCthreshold = 0):
+def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, 
+                   count_range, ADCthreshold = 0):
     
     fig.set_figheight(4)
     fig.set_figwidth(14)
@@ -332,16 +344,16 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, count_
 # =============================================================================       
     
 def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                         fig, m_range=8, count_range =  [1, 1e6], thresADC=0):
+                         fig, m_range, count_range, thresADC):
     df_clu = coincident_events[coincident_events.Bus == bus]
     df_clu = df_clu[df_clu.wADC > thresADC]
     plt.subplot(number_of_detectors,3,loc+1)
-    hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[m_range+1, m_range+1], 
-                                        range=[[0,m_range+1],[0,m_range+1]],
+    hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[m_range[1]-m_range[0]+1, m_range[3]-m_range[2]+1], 
+                                        range=[[m_range[0],m_range[1]+1],[m_range[2],m_range[3]+1]],
                                         norm=LogNorm(), vmin=count_range[0], vmax=count_range[1], 
                                         cmap = 'jet')
     tot = df_clu.shape[0]
-    font_size = 50 / m_range
+    font_size = 50 / max(m_range)
     for i in range(len(ybins)-1):
         for j in range(len(xbins)-1):
             if hist[j,i] > 0:
@@ -352,34 +364,42 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc,
                 text.set_path_effects([path_effects.Stroke(linewidth=1, foreground='black'),
                        path_effects.Normal()])
         
-    ticks = np.arange(0,m_range+1,1)
-    locs = np.arange(0.5, m_range+1.5,1)
+    ticks_x = np.arange(m_range[0],m_range[1]+1,1)
+    locs_x = np.arange(m_range[0] + 0.5, m_range[1]+1.5,1)
+    ticks_y = np.arange(m_range[2],m_range[3]+1,1)
+    locs_y = np.arange(m_range[2] + 0.5, m_range[3]+1.5,1)
     
-    plt.xticks(locs,ticks)
-    plt.yticks(locs,ticks)
+    plt.xticks(locs_x,ticks_x)
+    plt.yticks(locs_y,ticks_y)
     plt.xlabel("Wire Multiplicity")
     plt.ylabel("Grid Multiplicity")
+
     plt.colorbar()
     plt.tight_layout()
     name = 'Bus ' + str(bus) + '\n(' + str(df_clu.shape[0]) + ' events)'
     plt.title(name)
 
 def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order, 
-                               number_of_detectors, data_set, m_range = 8, 
-                               count_limit = [1,1e6], thresADC=0):
-
+                               number_of_detectors, data_set, m_range, 
+                               count_range, thresADC):
+    
+    if count_range == None:
+        count_range = [1, 1e6]
+    if m_range == None:
+        m_range = [0,8,0,8]
+    
     name = (name)
     fig.suptitle(name, x=0.5, y=1.08)
     fig.set_figheight(4*number_of_detectors)
     fig.set_figwidth(14)
     for loc, bus in enumerate(module_order):
         plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                             fig, m_range, count_limit, thresADC)
+                             fig, m_range, count_range, thresADC)
 
     plt.tight_layout()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')
+
 
 # =============================================================================
 # 8. Scatter Map (collected charge in wires and grids)
@@ -413,6 +433,7 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
                               minWM = 0, maxWM = 100, minGM = 0, maxGM = 100,
                               exclude_channels = [-1]):
 
+
     name = (name + '\n' 
             + '(wm_min: ' + str(minWM) + 
             ', wm_max: ' + str(maxWM) +
@@ -432,7 +453,7 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
 
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')    
+    
 
 # =============================================================================
 # 9. ToF histogram
@@ -443,11 +464,10 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None):
     plt.title(name)
     plt.xlabel('ToF [TDC channels]')
     plt.ylabel('Counts  [a.u.]')
-    #plt.show()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     
     return fig, plot_path
-    #fig.savefig(plot_path, bbox_inches='tight')
+
     
 
 # =============================================================================

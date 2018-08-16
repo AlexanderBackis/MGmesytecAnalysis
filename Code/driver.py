@@ -14,19 +14,111 @@ import cluster as clu
 import plot as pl
 import matplotlib.pyplot as plt
 
-def choose_specifications():
-    spec_types = ['Count range', 'Multiplicity filter', 'Count threshold', 
-                  'Exclude channels', 'Look at specific channels', 
-                  'Log/Lin-scale']
+def choose_specifications(options):
+    
+    def get_count_range():
+        count_min = input('Lower count boundary: ')
+        count_max = input('Upper count boundary: ')
+        count_min = int(count_min)
+        count_max = int(count_max)
+        return [count_min, count_max]
+    
+    def get_multiplicity_filter():
+        mw_min = input('Minimum wire multiplicity: ')
+        mw_max = input('Maximum wire multiplicity: ')
+        mw_min = int(mw_min)
+        mw_max = int(mw_max)
+        mg_min = input('Minimum grid multiplicity: ')
+        mg_max = input('Maximum grid multiplicity: ')
+        mg_min = int(mg_min)
+        mg_max = int(mg_max)
+        return [mw_min, mw_max, mg_min, mg_max]
+    
+    def get_lower_count_threshold():
+        count_thres = input('Lower count threshold: ')
+        count_thres = int(count_thres)
+        return count_thres
+    
+    def get_exclude_channels():
+        exclude_channels = [int(x) for x in 
+                            input('Enter channels to exclude, ' +
+                                  'use spaces to separate: ').split()]
+        return exclude_channels
+    
+    def get_include_channels():
+        include_channels = [int(x) for x in 
+                            input('Enter channels to include, ' +
+                                  'use spaces to separate: ').split()]
+        return include_channels
+    
+    def get_log_lin_scale():
+        log_lin = input('Use logarithmic scale? (y/n): ')
+        if log_lin == 'y':
+            return True
+        else:
+            return False
+    
+    def get_ADC_threshold():
+        ADC_threshold = input('ADC threshold: ')
+        ADC_threshold = int(ADC_threshold)
+        return ADC_threshold
+    
+    def get_transparacy_factor():
+        alpha = input('Insert transparancy factor (0 minimum, 1 maximum): ')
+        alpha = float(alpha)
+        return alpha
+    
+    def get_number_of_bins():
+        number_bins = input('Number of bins: ')
+        number_bins = int(number_bins)
+        return number_bins
+    
+    def get_range():
+        min_ToF = input('Minimum ToF: ')
+        max_ToF = input('Maximum ToF: ')
+        min_ToF = int(min_ToF)
+        max_ToF = int(max_ToF)
+        return [min_ToF, max_ToF]
+        
+        
+        
+    get_spec =  {'Count range': get_count_range, 
+                 'Multiplicity filter': get_multiplicity_filter,
+                 'Lower count threshold': get_lower_count_threshold,
+                 'Exclude channels': get_exclude_channels,
+                 'Include channels': get_include_channels,
+                 'Log/Lin-scale': get_log_lin_scale,
+                 'ADC threshold': get_ADC_threshold,
+                 'Transparacy factor': get_transparacy_factor,
+                 'Number of bins': get_number_of_bins,
+                 'Range': get_range}
+    
+    spec_type_names = ['Count range', 'Multiplicity filter', 
+                       'Lower count threshold', 
+                       'Exclude channels', 'Include channels', 'Log/Lin-scale',
+                       'ADC threshold', 'Transparacy factor', 'Number of bins',
+                       'Range']
+    
+    specifications = {}
+    for specification in spec_type_names:
+        specifications.update({specification: None})
+    
     print()
-    print('************* Choose specifications *************')
+    print('***************** specifications ****************')
     print('-------------------------------------------------')
-    for i, spec in enumerate(spec_types):
-        print(str(i+1) + '. ' + str(spec))
+    for i, spec in enumerate(spec_type_names):
+        if spec in options:
+            print(str(i+1) + '. ' + str(spec))
     
-    choice = input('\nChoose specification(s). Use spaces to separate choices.'
-                   + '\n>> ')
-    
+    print('\nChoose specification(s). Use space(s) to separate choices.')
+
+    choices = [int(x) for x in input('>> ').split()]
+        
+    for choice in choices:
+        spec_type = spec_type_names[choice-1]
+        specifications[spec_type] = get_spec[spec_type]()
+        
+    return specifications
     
 
 def print_key_numbers(module_order, events, coincident_events):
@@ -189,33 +281,42 @@ def choose_analysis_type(module_order, data_set):
                    + data_set)
         
         if analysis_type == 1:
-            bus = input('Module ID: ')
+            bus = input('Module ID (select a number between ' 
+                        + str(min(module_order)) + '-' 
+                        + str(max(module_order)) + '): ')
             bus = int(bus)
             ChVec = [int(x) for x in input('Channel(s) (use spaces to separate): ').split()]
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            
+            loglin = False
+            count_range = False
             if choice == 'y':
-                choose_specifications()
+                options = ['Log/Lin-scale', 'Count range']
+                specs = choose_specifications(options)
+                loglin = specs['Log/Lin-scale']
+                count_range = specs['Count range']
             
             print('Loading...')
             fig, path = pl.plot_PHS_several_channels(fig, name, events, bus, 
-                                                       ChVec, data_set)
+                                                     ChVec, data_set, 
+                                                     loglin = loglin,
+                                                     count_range = count_range)
             print('Done!')
         
         if analysis_type == 2:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            
+            count_range = None
             if choice == 'y':
-                count_min_limit = input('Count min-limit: ')
-                count_max_limit = input('Count max-limit: ')
-                count_max_limit = int(count_max_limit)
-                count_min_limit = int(count_min_limit)
-                count_range = [count_min_limit, count_max_limit]
-                print('Loading...')
-                fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
-                                              data_set, count_range)
-            else:
-                print('Loading...')
-                fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
-                                              data_set)
+                options = ['Count range']
+                specs = choose_specifications(options)
+                loglin = specs['Log/Lin-scale']
+                count_range = specs['Count range']
+            
+            print('Loading...')
+            fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
+                                          data_set, count_range=count_range)
+ 
             print('Done!')
     
         if analysis_type == 3:
@@ -229,99 +330,94 @@ def choose_analysis_type(module_order, data_set):
 
         if analysis_type == 4:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            count_range = None
             if choice == 'y':
-                count_min_limit = input('Count min-limit: ')
-                count_max_limit = input('Count max-limit: ')
-                count_max_limit = int(count_max_limit)
-                count_min_limit = int(count_min_limit)
-                count_range = [count_min_limit, count_max_limit]
-                print('Loading...')
-                fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
+                options = ['Count range']
+                specs = choose_specifications(options)
+                count_range = specs['Count range']
+            
+            print('Loading...')
+            fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
                                              module_order, number_of_detectors, 
-                                             data_set, count_range)
-            else:
-                fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
-                                             module_order, number_of_detectors, 
-                                             data_set)
+                                             data_set, count_range=count_range)
                 
             print('Done!')
             
         if analysis_type == 5:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            alpha = 1
+            count_thres = 0
             if choice == 'y':
-                count_thres = input('Minimum count threshold: ')
-                count_thres = int(count_thres)
-                alpha = input('Insert transparancy factor (0 minimum, 1 maximum): ')
-                alpha = float(alpha)
-                print('Loading...')
-                fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
+                options = ['Transparacy factor', 'Lower count threshold']
+                specs = choose_specifications(options)
+                if specs['Lower count threshold'] != None:
+                    count_thres = specs['Lower count threshold']
+                if specs['Transparacy factor'] != None:
+                    alpha = specs['Transparacy factor']
+                   
+            print('Loading...')
+            fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
                                                  module_order, count_thres, 
                                                  alpha, data_set, 
                                                  number_of_detectors)
-            else:
-                count_thres = 0
-                alpha = 1
-                print('Loading...')
-                fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
-                                                 module_order, count_thres, 
-                                                 alpha, data_set, 
-                                                 number_of_detectors)
-                print('Done!')
+            print('Done!')
         
         if analysis_type == 6:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            
+            count_range = [1e2, 3e4]
             if choice == 'y':
-                count_min_limit = input('Count min-limit: ')
-                count_max_limit = input('Count max-limit: ')
-                count_max_limit = int(count_max_limit)
-                count_min_limit = int(count_min_limit)
-                count_range = [count_min_limit, count_max_limit]
-                print('Loading...')
-                fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
+                options = ['Count range']
+                specs = choose_specifications(options)
+                count_range = specs['Count range']
+            
+            print('Loading...')
+            fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
                                   data_set, number_of_detectors, count_range)
-            else:
-                print('Loading...')
-                fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events,
-                                  data_set, number_of_detectors)
+            
             print('Done!')
     
         if analysis_type == 7:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            m_range = [0,8,0,8]
+            thresADC = 0
+            count_range = [1, 1e6]
             if choice == 'y':
-                m_range = input('Multiplicity limit: ')
-                m_range = int(m_range)
-                count_min_limit = input('Count min-limit: ')
-                count_max_limit = input('Count max-limit: ')
-                count_max_limit = int(count_max_limit)
-                count_min_limit = int(count_min_limit)
-                count_range = [count_min_limit, count_max_limit]
-                print('Loading...')
-                fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
+                options = ['Multiplicity filter','Count range']
+                specs = choose_specifications(options)
+                m_range = specs['Multiplicity filter']
+                count_range = specs['Count range']
+            
+            print('Loading...')
+            fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
                                       coincident_events, module_order, 
                                       number_of_detectors, data_set, m_range, 
                                       count_range, thresADC)
-            else:
-                print('Loading...')
-                fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
-                                              coincident_events, module_order, 
-                                              number_of_detectors, data_set)
+
             print('Done!')
     
         if analysis_type == 8:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            
             if choice == 'y':
-                minWM = input('Minimum wire multiplicity: ')
-                maxWM = input('Maximum wire multiplicity: ')
-                minGM = input('Minimum grid multiplicity: ')
-                maxGM = input('Maximum grid multiplicity: ')
-                minWM = int(minWM)
-                maxWM = int(maxWM)
-                minGM = int(minGM)
-                maxGM = int(maxGM)
-                exclude_channels = [int(x) for x in 
-                                    input('Enter channels to exclude, ' +
-                                          'use spaces to separate ' + 
-                                          '(insert "-1" if none should be omitted): ').split()]
+                options = ['Multiplicity filter', 'Exclude channels']
+                specs = choose_specifications(options)
+                
+                minWM = 0
+                maxWM = 100
+                minGM = 0
+                maxGM = 100
+                
+                if specs['Multiplicity filter'] != None:
+                    minWM = specs['Multiplicity filter'][0]
+                    maxWM = specs['Multiplicity filter'][1]
+                    minGM = specs['Multiplicity filter'][2]
+                    maxGM = specs['Multiplicity filter'][3]
+                    
+                exclude_channels = [-1]
+                if specs['Exclude channels'] != None:
+                    exclude_channels = specs['Exclude channels']
+                
                 print('Loading...')
                 fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
                                      number_of_detectors, data_set, minWM, maxWM, minGM, 
@@ -335,9 +431,15 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 9:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
-                number_bins = input('Number of bins: ')
-                rnge = [int(x) for x in input('Range (use a space to separate between min and max): ').split()]
-                number_bins = int(number_bins)
+                options = ['Number of bins', 'Range']
+                specs = choose_specifications(options)
+                rnge = [0,1600000]
+                number_bins = 1000
+                if specs['Number of bins'] != None:
+                    number_bins = specs['Number of bins']
+                if specs['Range'] != None:
+                    rnge = specs['Range']
+                
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
                                                   data_set, number_bins, rnge)
@@ -350,13 +452,15 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 10:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
-                lg = input('Logarithmic scale? (y/n):')
-                log = (lg == 'y')
-                count_min_limit = input('Count min-limit: ')
-                count_max_limit = input('Count max-limit: ')
-                count_max_limit = int(count_max_limit)
-                count_min_limit = int(count_min_limit)
-                count_range = [count_min_limit, count_max_limit]
+                options = ['Count range', 'Log/Lin-scale']
+                specs = choose_specifications(options)
+                count_range = [1, 100000]
+                log = False
+                if specs['Count range'] != None:
+                    count_range = specs['Count range']
+                
+                if specs['Log/Lin-scale'] != None:
+                    log = specs['Log/Lin-scale']
                 print('Loading...')
                 fig, path = pl.plot_event_count(fig, name, module_order, 
                                                 number_of_detectors, 
