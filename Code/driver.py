@@ -84,11 +84,20 @@ def choose_specifications(options):
         buses = [int(x) for x in input('Enter buses to include, ' + 
                                        'uses spaces to separate: ').split()]
         return buses
+    
+    def get_ADC_filter():
+        min_ADC = input('Minimum ADC: ')
+        max_ADC = input('Maximum ADC: ')
+        min_ADC = int(min_ADC)
+        max_ADC = int(max_ADC)
+        
+        return  [min_ADC, max_ADC]
                  
         
         
         
     get_spec =  {'Count range': get_count_range, 
+                 'ADC filter': get_ADC_filter,
                  'Multiplicity filter': get_multiplicity_filter,
                  'Lower count threshold': get_lower_count_threshold,
                  'Exclude channels': get_exclude_channels,
@@ -100,7 +109,7 @@ def choose_specifications(options):
                  'Range': get_range,
                  'Choose specific bus(es)': get_buses}
     
-    spec_type_names = ['Count range', 'Multiplicity filter', 
+    spec_type_names = ['Count range', 'ADC filter', 'Multiplicity filter', 
                        'Lower count threshold', 
                        'Exclude channels', 'Include channels', 'Log/Lin-scale',
                        'ADC threshold', 'Transparacy factor', 'Number of bins',
@@ -342,10 +351,12 @@ def choose_analysis_type(module_order, data_set):
 
         if analysis_type == 4:
             choice = input('\nFurther specifications? (y/n).\n>> ')
-            count_range = [1,10000]
+            count_range = [1, 10000]
+            ADC_filter = None
             buses = module_order
             if choice == 'y':
-                options = ['Count range', 'Choose specific bus(es)']
+                options = ['Count range', 'Choose specific bus(es)', 
+                           'ADC filter']
                 specs = choose_specifications(options)
                 
                 if specs['Count range'] != None:
@@ -354,11 +365,14 @@ def choose_analysis_type(module_order, data_set):
                 if specs['Choose specific bus(es)'] != None:
                     buses = specs['Choose specific bus(es)']
                 
-            
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
+                
             print('Loading...')
             fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
                                              buses, number_of_detectors, 
-                                             data_set, count_range=count_range)
+                                             data_set, count_range,
+                                             ADC_filter)
                 
             print('Done!')
             

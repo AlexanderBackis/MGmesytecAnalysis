@@ -153,8 +153,17 @@ def plot_3D_new(fig, name, df, bus, data_set):
 # =============================================================================
 
 def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range, 
-                buses_per_row):
-    df_clu_red = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+                buses_per_row, ADC_filter):
+    df = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+    
+    df_clu_red = df
+    
+    if ADC_filter != None:
+        minADC = ADC_filter[0]
+        maxADC = ADC_filter[1]
+    
+        df_clu_red = df[  (df.wADC >= minADC) & (df.wADC <= maxADC) 
+                        & (df.gADC >= minADC) & (df.gADC <= maxADC)]
     
     plt.subplot(number_of_detectors,buses_per_row,loc+1)
     plt.hist2d(df_clu_red.wCh, df_clu_red.gCh, bins=[80, 40], 
@@ -168,8 +177,8 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range,
     name = 'Bus ' + str(bus) + '\n(' + str(df_clu_red.shape[0]) + ' events)'
     plt.title(name)
     
-def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_set, 
-                      count_range):
+def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, 
+                      data_set, count_range, ADC_filter):
     
     
     buses_per_row = None
@@ -190,11 +199,12 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_se
     for loc, bus in enumerate(bus_vec):
         df_clu = clusters[clusters.Bus == bus]
         plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range, 
-                    buses_per_row)
+                    buses_per_row, ADC_filter)
     plt.tight_layout()
 
     plot_path = (get_plot_path(data_set) + name + ', Count range: ' 
-                 + str(count_range) + '.pdf')
+                 + str(count_range) + ', ADC filter: ' + str(ADC_filter) 
+                 + '.pdf')
     
     return fig, plot_path
 
