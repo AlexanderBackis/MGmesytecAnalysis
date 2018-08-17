@@ -34,10 +34,12 @@ def choose_specifications(options):
         mg_max = int(mg_max)
         return [mw_min, mw_max, mg_min, mg_max]
     
-    def get_lower_count_threshold():
-        count_thres = input('Lower count threshold: ')
-        count_thres = int(count_thres)
-        return count_thres
+    def get_count_threshold():
+        lower_thres = input('Lower count threshold: ')
+        upper_thres = input('Upper count threshold: ')
+        lower_thres = int(lower_thres)
+        upper_thres = int(upper_thres)
+        return [lower_thres, upper_thres]
     
     def get_exclude_channels():
         exclude_channels = [int(x) for x in 
@@ -99,7 +101,7 @@ def choose_specifications(options):
     get_spec =  {'Count range': get_count_range, 
                  'ADC filter': get_ADC_filter,
                  'Multiplicity filter': get_multiplicity_filter,
-                 'Lower count threshold': get_lower_count_threshold,
+                 'Lower and upper count threshold': get_count_threshold,
                  'Exclude channels': get_exclude_channels,
                  'Include channels': get_include_channels,
                  'Log/Lin-scale': get_log_lin_scale,
@@ -110,7 +112,7 @@ def choose_specifications(options):
                  'Choose specific bus(es)': get_buses}
     
     spec_type_names = ['Count range', 'ADC filter', 'Multiplicity filter', 
-                       'Lower count threshold', 
+                       'Lower and upper count threshold', 
                        'Exclude channels', 'Include channels', 'Log/Lin-scale',
                        'ADC threshold', 'Transparacy factor', 'Number of bins',
                        'Range', 'Choose specific bus(es)']
@@ -379,14 +381,14 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 5:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             alpha = 1
-            count_thres = 0
+            count_thres = None
             ADC_filter = None
             if choice == 'y':
-                options = ['Transparacy factor', 'Lower count threshold',
+                options = ['Transparacy factor', 'Lower and upper count threshold',
                            'ADC filter']
                 specs = choose_specifications(options)
-                if specs['Lower count threshold'] != None:
-                    count_thres = specs['Lower count threshold']
+                if specs['Lower and upper count threshold'] != None:
+                    count_thres = specs['Lower and upper count threshold']
                 
                 if specs['Transparacy factor'] != None:
                     alpha = specs['Transparacy factor']

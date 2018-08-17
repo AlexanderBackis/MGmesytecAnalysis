@@ -242,13 +242,22 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
         
     H, edges = np.histogramdd(df_3d.values, bins=(12*number_of_detectors, 40, 20), range=((0,12*number_of_detectors), 
                                              (0,40), (0,20)))
+    minCount = None
+    maxCount = None
+    if countThres != None:
+        minCount = countThres[0]
+        maxCount = countThres[1]
+    else:
+        minCount = 0
+        maxCount = np.inf
+        countThres = [0,np.inf]
 
     hist = np.empty([4, H.shape[0]*H.shape[1]*H.shape[2]], dtype='int')
     loc = 0
     for i in range(0,12*number_of_detectors):
         for j in range(0,40):
             for k in range(0,20):
-                if H[i,j,k] > countThres:
+                if H[i,j,k] > minCount and H[i,j,k] <= maxCount:
                     hist[0][loc] = i + 1
                     hist[1][loc] = j + 1
                     hist[2][loc] = k + 1
@@ -266,7 +275,7 @@ def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name,
 
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
 
-    name = (name + '\nLower threshold: ' 
+    name = (name + '\nCount limit: ' 
             + str(countThres) + ' counts')
     fig.suptitle(name ,x=0.5, y=1.06)
     ax = Axes3D(fig)
