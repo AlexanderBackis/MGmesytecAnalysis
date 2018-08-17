@@ -79,6 +79,12 @@ def choose_specifications(options):
         min_ToF = int(min_ToF)
         max_ToF = int(max_ToF)
         return [min_ToF, max_ToF]
+    
+    def get_buses():
+        buses = [int(x) for x in input('Enter buses to include, ' + 
+                                       'uses spaces to separate: ').split()]
+        return buses
+                 
         
         
         
@@ -91,13 +97,14 @@ def choose_specifications(options):
                  'ADC threshold': get_ADC_threshold,
                  'Transparacy factor': get_transparacy_factor,
                  'Number of bins': get_number_of_bins,
-                 'Range': get_range}
+                 'Range': get_range,
+                 'Choose specific bus(es)': get_buses}
     
     spec_type_names = ['Count range', 'Multiplicity filter', 
                        'Lower count threshold', 
                        'Exclude channels', 'Include channels', 'Log/Lin-scale',
                        'ADC threshold', 'Transparacy factor', 'Number of bins',
-                       'Range']
+                       'Range', 'Choose specific bus(es)']
     
     specifications = {}
     for specification in spec_type_names:
@@ -306,15 +313,23 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 2:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
-            count_range = None
+            count_range = [1, 3000]
+            buses = module_order
             if choice == 'y':
-                options = ['Count range']
+                options = ['Count range', 'Choose specific bus(es)']
                 specs = choose_specifications(options)
-                loglin = specs['Log/Lin-scale']
-                count_range = specs['Count range']
+                
+                if specs['Choose specific bus(es)'] != None:
+                    buses = specs['Choose specific bus(es)']
+                
+                if specs['Count range'] != None:
+                    count_range = specs['Count range']
+                    
+                    
             
             print('Loading...')
-            fig, path = pl.plot_PHS_buses(fig, name, events, module_order, 
+            print(count_range)
+            fig, path = pl.plot_PHS_buses(fig, name, events, buses, 
                                           data_set, count_range=count_range)
  
             print('Done!')
@@ -330,15 +345,22 @@ def choose_analysis_type(module_order, data_set):
 
         if analysis_type == 4:
             choice = input('\nFurther specifications? (y/n).\n>> ')
-            count_range = None
+            count_range = [1,10000]
+            buses = module_order
             if choice == 'y':
-                options = ['Count range']
+                options = ['Count range', 'Choose specific bus(es)']
                 specs = choose_specifications(options)
-                count_range = specs['Count range']
+                
+                if specs['Count range'] != None:
+                    count_range = specs['Count range']
+                
+                if specs['Choose specific bus(es)'] != None:
+                    buses = specs['Choose specific bus(es)']
+                
             
             print('Loading...')
             fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
-                                             module_order, number_of_detectors, 
+                                             buses, number_of_detectors, 
                                              data_set, count_range=count_range)
                 
             print('Done!')
@@ -382,15 +404,21 @@ def choose_analysis_type(module_order, data_set):
             m_range = [0,8,0,8]
             thresADC = 0
             count_range = [1, 1e6]
+            buses = module_order
             if choice == 'y':
-                options = ['Multiplicity filter','Count range']
+                options = ['Multiplicity filter', 'Count range', 
+                           'Choose specific bus(es)']
                 specs = choose_specifications(options)
-                m_range = specs['Multiplicity filter']
-                count_range = specs['Count range']
+                if specs['Multiplicity filter'] != None:
+                    m_range = specs['Multiplicity filter']
+                if specs['Count range'] != None:
+                    count_range = specs['Count range']
+                if specs['Choose specific bus(es)'] != None:
+                    buses = specs['Choose specific bus(es)']
             
             print('Loading...')
             fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
-                                      coincident_events, module_order, 
+                                      coincident_events, buses, 
                                       number_of_detectors, data_set, m_range, 
                                       count_range, thresADC)
 
@@ -400,7 +428,8 @@ def choose_analysis_type(module_order, data_set):
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
             if choice == 'y':
-                options = ['Multiplicity filter', 'Exclude channels']
+                options = ['Multiplicity filter', 'Exclude channels', 
+                           'Choose specific bus(es)']
                 specs = choose_specifications(options)
                 
                 minWM = 0
@@ -418,8 +447,12 @@ def choose_analysis_type(module_order, data_set):
                 if specs['Exclude channels'] != None:
                     exclude_channels = specs['Exclude channels']
                 
+                buses = module_order
+                if specs['Choose specific bus(es)'] != None:
+                    buses = specs['Choose specific bus(es)']
+                
                 print('Loading...')
-                fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
+                fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, buses, 
                                      number_of_detectors, data_set, minWM, maxWM, minGM, 
                                      maxGM, exclude_channels)
             else:
@@ -452,17 +485,23 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 10:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             if choice == 'y':
-                options = ['Count range', 'Log/Lin-scale']
+                options = ['Count range', 'Log/Lin-scale', 
+                           'Choose specific bus(es)']
                 specs = choose_specifications(options)
                 count_range = [1, 100000]
                 log = False
+                buses = module_order
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
                 
                 if specs['Log/Lin-scale'] != None:
                     log = specs['Log/Lin-scale']
+                
+                if specs['Choose specific bus(es)'] != None:
+                    buses = specs['Choose specific bus(es)']
+                    
                 print('Loading...')
-                fig, path = pl.plot_event_count(fig, name, module_order, 
+                fig, path = pl.plot_event_count(fig, name, buses, 
                                                 number_of_detectors, 
                                                 data_set, events, log, count_range)
             else:

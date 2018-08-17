@@ -53,9 +53,10 @@ def plot_PHS_several_channels(fig, name, df, bus, ChVec, data_set,
 # 2. PHS (2D)
 # =============================================================================
 
-def plot_PHS(df, bus, loc, number_of_detectors, fig, count_range = [1, 3000]):
+def plot_PHS(df, bus, loc, number_of_detectors, fig, count_range = [1, 3000],
+             buses_per_row = 3):
     df_red = df[df.Bus == bus]
-    plt.subplot(1*number_of_detectors,3,loc+1)
+    plt.subplot(1*number_of_detectors, buses_per_row, loc+1)
     plt.hist2d(df_red.Channel, df_red.ADC, bins=[120, 120], norm=LogNorm(), 
                range=[[-0.5, 119.5], [0, 4400]], vmin=count_range[0], 
                vmax=count_range[1], cmap='jet')
@@ -68,18 +69,29 @@ def plot_PHS(df, bus, loc, number_of_detectors, fig, count_range = [1, 3000]):
     
     plt.title(name)
     
-def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range = None):
-    
-    if count_range == None:
-        count_range = [1, 3000]
+def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range):
     
     fig2 = fig
-    number_of_detectors = len(bus_vec) // 3
+        
+    buses_per_row = None
+    number_of_detectors = None
+    if len(bus_vec) < 3:
+        buses_per_row = len(bus_vec)
+        number_of_detectors = 1
+        figwidth = 14 * len(bus_vec) / 3
+    else:
+        number_of_detectors = np.ceil(len(bus_vec) / 3)
+        buses_per_row = 3
+        figwidth = 14
+        
     fig.suptitle(name + '\n\n', x=0.5, y=1.08)
     fig.set_figheight(4 * number_of_detectors)
-    fig.set_figwidth(14)
+    fig.set_figwidth(figwidth)
+    
     for loc, bus in enumerate(bus_vec):
-        plot_PHS(df, bus, loc, number_of_detectors, fig , count_range)
+        plot_PHS(df, bus, loc, number_of_detectors, fig, count_range, 
+                 buses_per_row)
+        
     plt.tight_layout()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
     return fig2, plot_path
@@ -139,10 +151,11 @@ def plot_3D_new(fig, name, df, bus, data_set):
 # 4. Coincidence Histogram (2D)
 # =============================================================================
 
-def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range):
+def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range, 
+                buses_per_row):
     df_clu_red = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
     
-    plt.subplot(number_of_detectors,3,loc+1)
+    plt.subplot(number_of_detectors,buses_per_row,loc+1)
     plt.hist2d(df_clu_red.wCh, df_clu_red.gCh, bins=[80, 40], 
                range=[[-0.5,79.5],[79.5,119.5]], norm=LogNorm(), 
                        vmin=count_range[0], vmax=count_range[1],
@@ -155,18 +168,28 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range):
     plt.title(name)
     
 def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_set, 
-                      count_range = None):
+                      count_range):
     
-    if count_range == None:
-        count_range = [1,10000]
-        
+    
+    buses_per_row = None
+    number_of_detectors = None
+    if len(bus_vec) < 3:
+        buses_per_row = len(bus_vec)
+        number_of_detectors = 1
+        figwidth = 14 * len(bus_vec) / 3
+    else:
+        number_of_detectors = np.ceil(len(bus_vec) / 3)
+        buses_per_row = 3
+        figwidth = 14
+            
     name = (name)
     fig.suptitle(name, x=0.5, y=1.09)
     fig.set_figheight(4 * number_of_detectors)
-    fig.set_figwidth(14)
+    fig.set_figwidth(figwidth)
     for loc, bus in enumerate(bus_vec):
         df_clu = clusters[clusters.Bus == bus]
-        plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range)
+        plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range, 
+                    buses_per_row)
     plt.tight_layout()
 
     plot_path = get_plot_path(data_set) + name  + '.pdf'
@@ -344,10 +367,10 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
 # =============================================================================       
     
 def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                         fig, m_range, count_range, thresADC):
+                         fig, m_range, count_range, thresADC, buses_per_row):
     df_clu = coincident_events[coincident_events.Bus == bus]
     df_clu = df_clu[df_clu.wADC > thresADC]
-    plt.subplot(number_of_detectors,3,loc+1)
+    plt.subplot(number_of_detectors, buses_per_row, loc+1)
     hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[m_range[1]-m_range[0]+1, m_range[3]-m_range[2]+1], 
                                         range=[[m_range[0],m_range[1]+1],[m_range[2],m_range[3]+1]],
                                         norm=LogNorm(), vmin=count_range[0], vmax=count_range[1], 
@@ -388,13 +411,27 @@ def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order,
     if m_range == None:
         m_range = [0,8,0,8]
     
+    buses_per_row = None
+    number_of_detectors = None
+    if len(module_order) < 3:
+        buses_per_row = len(module_order)
+        number_of_detectors = 1
+        figwidth = 14 * len(module_order) / 3
+    else:
+        number_of_detectors = np.ceil(len(module_order) / 3)
+        buses_per_row = 3
+        figwidth = 14
+    
+    
+    
     name = (name)
     fig.suptitle(name, x=0.5, y=1.08)
     fig.set_figheight(4*number_of_detectors)
-    fig.set_figwidth(14)
+    fig.set_figwidth(figwidth)
     for loc, bus in enumerate(module_order):
         plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                             fig, m_range, count_range, thresADC)
+                             fig, m_range, count_range, thresADC, 
+                             buses_per_row)
 
     plt.tight_layout()
     plot_path = get_plot_path(data_set) + name  + '.pdf'
@@ -405,9 +442,8 @@ def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order,
 # 8. Scatter Map (collected charge in wires and grids)
 # =============================================================================
 
-def charge_scatter(df, bus, number_of_detectors, loc, fig, minWM = 0, 
-                   maxWM = 100, minGM = 0, maxGM = 100, 
-                   exclude_channels = [-1] ):
+def charge_scatter(df, bus, number_of_detectors, loc, fig, minWM, 
+                   maxWM, minGM, maxGM, exclude_channels, buses_per_row):
 
     df_red = df[(df.Bus == bus) & (df.gM >= minWM) &
                 (df.wM <= maxWM) & (df.gM >= minGM) & (df.gM <= maxGM)]
@@ -418,7 +454,7 @@ def charge_scatter(df, bus, number_of_detectors, loc, fig, minWM = 0,
         else:
             df_red = df_red[df_red.gCh != Channel]
     
-    plt.subplot(number_of_detectors,3,loc+1)
+    plt.subplot(number_of_detectors, buses_per_row, loc+1)
 
     plt.hist2d(df_red.wADC, df_red.gADC, bins=[200, 200], 
                norm=LogNorm(),range=[[0, 5000], [0, 5000]], vmin=1, vmax=10000,
@@ -432,7 +468,17 @@ def charge_scatter(df, bus, number_of_detectors, loc, fig, minWM = 0,
 def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, data_set, 
                               minWM = 0, maxWM = 100, minGM = 0, maxGM = 100,
                               exclude_channels = [-1]):
-
+    
+    buses_per_row = None
+    number_of_detectors = None
+    if len(bus_order) < 3:
+        buses_per_row = len(bus_order)
+        number_of_detectors = 1
+        figwidth = 14 * len(bus_order) / 3
+    else:
+        number_of_detectors = np.ceil(len(bus_order) / 3)
+        buses_per_row = 3
+        figwidth = 14
 
     name = (name + '\n' 
             + '(wm_min: ' + str(minWM) + 
@@ -441,13 +487,14 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
             ', gm_max: ' + str(maxGM) +
             ', excluded channels: ' + str(exclude_channels) +
             ')')
+    
     fig.suptitle(name, x=0.5, y=1.12)
     fig.set_figheight(4 * number_of_detectors)
-    fig.set_figwidth(14)
+    fig.set_figwidth(figwidth)
     for loc, bus in enumerate(bus_order):
         df_clu = df[df.Bus == bus]
         charge_scatter(df_clu, bus, number_of_detectors, loc, fig, minWM, maxWM, 
-                       minGM, maxGM, exclude_channels)
+                       minGM, maxGM, exclude_channels, buses_per_row)
 
     plt.tight_layout()
 
@@ -476,12 +523,24 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None):
 
 def plot_event_count(fig, name, module_order, number_of_detectors, data_set, events, 
                      log=False, v_range=[1,100000]):
+    
+    
+    buses_per_row = None
+    number_of_detectors = None
+    if len(module_order) < 3:
+        buses_per_row = len(module_order)
+        number_of_detectors = 1
+        figwidth = 14 * len(module_order) / 3
+    else:
+        number_of_detectors = np.ceil(len(module_order) / 3)
+        buses_per_row = 3
+        figwidth = 14
 
     fig.suptitle(name, x=0.5, y=1.08)
     fig.set_figheight(4 * number_of_detectors)
-    fig.set_figwidth(14)
+    fig.set_figwidth(figwidth)
     for i, bus in enumerate(module_order):
-        plt.subplot(number_of_detectors, 3, i+1)
+        plt.subplot(number_of_detectors, buses_per_row, i+1)
         plt.title('Bus ' + str(bus))
         plt.hist(events[events.Bus == bus].Channel, range= [-0.5,119.5], 
                  bins=120, log=log, color = 'b')
