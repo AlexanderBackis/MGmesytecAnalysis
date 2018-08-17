@@ -494,34 +494,47 @@ def choose_analysis_type(module_order, data_set):
 
         if analysis_type == 9:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            
+            rnge = [0,5000000]
+            number_bins = 1000
+            
             if choice == 'y':
-                options = ['Number of bins', 'Range']
+                options = ['Number of bins', 'Range', 'ADC filter']
                 specs = choose_specifications(options)
-                rnge = [0,1600000]
-                number_bins = 1000
+                ADC_filter = None
                 if specs['Number of bins'] != None:
                     number_bins = specs['Number of bins']
+                
                 if specs['Range'] != None:
                     rnge = specs['Range']
                 
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
+                    
+                
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
-                                                  data_set, number_bins, rnge)
+                                                  data_set, number_bins, rnge,
+                                                  ADC_filter)
             else:
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
-                                                  data_set)
+                                                  data_set, number_bins, rnge)
             print('Done!')
         
         if analysis_type == 10:
             choice = input('\nFurther specifications? (y/n).\n>> ')
+            
+            count_range = [1, 100000]
+            log = False
+            buses = module_order
+            ADC_filter = None
+                
             if choice == 'y':
                 options = ['Count range', 'Log/Lin-scale', 
-                           'Choose specific bus(es)']
+                           'Choose specific bus(es)', 'ADC filter']
                 specs = choose_specifications(options)
-                count_range = [1, 100000]
-                log = False
-                buses = module_order
+
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
                 
@@ -531,15 +544,16 @@ def choose_analysis_type(module_order, data_set):
                 if specs['Choose specific bus(es)'] != None:
                     buses = specs['Choose specific bus(es)']
                     
-                print('Loading...')
-                fig, path = pl.plot_event_count(fig, name, buses, 
-                                                number_of_detectors, 
-                                                data_set, events, log, count_range)
-            else:
-                print('Loading...')
-                fig, path = pl.plot_event_count(fig, name, module_order, 
-                                                number_of_detectors, 
-                                                data_set, events)
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
+                
+            
+            print('Loading...')
+            fig, path = pl.plot_event_count(fig, name, buses, 
+                                            number_of_detectors, 
+                                            data_set, events, log, 
+                                            count_range, ADC_filter)
+
             print('Done!')
                 
         if analysis_type <= len(analysis_name_vec):

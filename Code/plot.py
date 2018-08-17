@@ -568,7 +568,16 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
 # 9. ToF histogram
 # =============================================================================
     
-def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None):
+def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
+                       ADC_filter = None):
+    
+    if ADC_filter != None:
+        minADC = ADC_filter[0]
+        maxADC = ADC_filter[1]
+        df = df[  (df.wADC >= minADC) & (df.wADC <= maxADC) 
+                & (df.gADC >= minADC) & (df.gADC <= maxADC)]
+    
+    
     plt.hist(df.ToF, bins=number_bins, range=rnge, color = 'b')
     plt.title(name)
     plt.xlabel('ToF [TDC channels]')
@@ -585,7 +594,7 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None):
 # =============================================================================
 
 def plot_event_count(fig, name, module_order, number_of_detectors, data_set, events, 
-                     log=False, v_range=[1,100000]):
+                     log=False, v_range=[1,100000], ADC_filter = None):
     
     
     buses_per_row = None
@@ -606,6 +615,12 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
     for i, bus in enumerate(module_order):
         plt.subplot(number_of_detectors, buses_per_row, i+1)
         plt.title('Bus ' + str(bus))
+        
+        if ADC_filter != None:
+            minADC = ADC_filter[0]
+            maxADC = ADC_filter[1]
+            events = events[(events.ADC >= minADC) & (events.ADC <= maxADC)]
+        
         plt.hist(events[events.Bus == bus].Channel, range= [-0.5,119.5], 
                  bins=120, log=log, color = 'b')
         plt.xlabel('Channel [a.u.]')
