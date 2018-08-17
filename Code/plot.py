@@ -417,9 +417,15 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
 # =============================================================================       
     
 def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                         fig, m_range, count_range, thresADC, buses_per_row):
+                         fig, m_range, count_range, ADC_filter, buses_per_row):
     df_clu = coincident_events[coincident_events.Bus == bus]
-    df_clu = df_clu[df_clu.wADC > thresADC]
+    
+    if ADC_filter != None:
+            minADC = ADC_filter[0]
+            maxADC = ADC_filter[1]
+            df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
+                            & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
+    
     plt.subplot(number_of_detectors, buses_per_row, loc+1)
     hist, xbins, ybins, im = plt.hist2d(df_clu.wM, df_clu.gM, bins=[m_range[1]-m_range[0]+1, m_range[3]-m_range[2]+1], 
                                         range=[[m_range[0],m_range[1]+1],[m_range[2],m_range[3]+1]],
@@ -454,7 +460,7 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc,
 
 def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order, 
                                number_of_detectors, data_set, m_range, 
-                               count_range, thresADC):
+                               count_range, ADC_filter):
     
     if count_range == None:
         count_range = [1, 1e6]
@@ -480,13 +486,13 @@ def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order,
     fig.set_figwidth(figwidth)
     for loc, bus in enumerate(module_order):
         plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc, 
-                             fig, m_range, count_range, thresADC, 
+                             fig, m_range, count_range, ADC_filter, 
                              buses_per_row)
 
     plt.tight_layout()
     plot_path = (get_plot_path(data_set) + name + ' Multiplicity range: ' 
                  + str(m_range) + ', Count range: ' + str(count_range) 
-                 + ', ADC threshold: ' + str(thresADC) + 
+                 + ', ADC filter: ' + str(ADC_filter) + 
                  ', Buses: ' + str(module_order) + '.pdf')
     
     return fig, plot_path

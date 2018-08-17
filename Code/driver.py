@@ -427,25 +427,31 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 7:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             m_range = [0,8,0,8]
-            thresADC = 0
             count_range = [1, 1e6]
             buses = module_order
+            ADC_filter = None
             if choice == 'y':
                 options = ['Multiplicity filter', 'Count range', 
-                           'Choose specific bus(es)']
+                           'Choose specific bus(es)', 'ADC filter']
                 specs = choose_specifications(options)
                 if specs['Multiplicity filter'] != None:
                     m_range = specs['Multiplicity filter']
+                
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
+                
                 if specs['Choose specific bus(es)'] != None:
                     buses = specs['Choose specific bus(es)']
+                
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
+                
             
             print('Loading...')
             fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
                                       coincident_events, buses, 
                                       number_of_detectors, data_set, m_range, 
-                                      count_range, thresADC)
+                                      count_range, ADC_filter)
 
             print('Done!')
     
