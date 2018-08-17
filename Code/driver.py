@@ -325,10 +325,7 @@ def choose_analysis_type(module_order, data_set):
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
                     
-                    
-            
             print('Loading...')
-            print(count_range)
             fig, path = pl.plot_PHS_buses(fig, name, events, buses, 
                                           data_set, count_range=count_range)
  

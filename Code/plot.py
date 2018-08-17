@@ -527,6 +527,7 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
     
     buses_per_row = None
     number_of_detectors = None
+    
     if len(module_order) < 3:
         buses_per_row = len(module_order)
         number_of_detectors = 1
@@ -549,7 +550,8 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
         plt.ylim(v_range)
     plt.tight_layout()
 
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + str(module_order) 
+                + str(v_range) + str(log) + '.pdf')
     return fig, plot_path
 
     
