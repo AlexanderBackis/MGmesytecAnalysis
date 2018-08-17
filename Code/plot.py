@@ -93,7 +93,8 @@ def plot_PHS_buses(fig, name, df, bus_vec, data_set, count_range):
                  buses_per_row)
         
     plt.tight_layout()
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + ', Count range: ' 
+                 + str(count_range) + ', Buses: ' + str(bus_vec) + '.pdf')
     return fig2, plot_path
     
 
@@ -192,7 +193,9 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, data_se
                     buses_per_row)
     plt.tight_layout()
 
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + ', Count range: ' 
+                 + str(count_range) + '.pdf')
+    
     return fig, plot_path
 
     
@@ -358,7 +361,9 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
     fig.suptitle(name, x=0.5, y=1.08)
     plt.tight_layout()
 
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + 'Count range: ' 
+                 + str(count_range) + ', ADC threshold: ' 
+                 + str(ADCthreshold) + '.pdf')
     
     return fig, plot_path
     
@@ -434,7 +439,11 @@ def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order,
                              buses_per_row)
 
     plt.tight_layout()
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + ' Multiplicity range: ' 
+                 + str(m_range) + ', Count range: ' + str(count_range) 
+                 + ', ADC threshold: ' + str(thresADC) + 
+                 ', Buses: ' + str(module_order) + '.pdf')
+    
     return fig, plot_path
 
 
@@ -498,7 +507,9 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
 
     plt.tight_layout()
 
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + ', Buses: ' + str(bus_order) 
+                + '.pdf')
+    
     return fig, plot_path
     
 
@@ -511,7 +522,8 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None):
     plt.title(name)
     plt.xlabel('ToF [TDC channels]')
     plt.ylabel('Counts  [a.u.]')
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
+                 'Number of bins: ' + str(number_bins) + '.pdf')
     
     return fig, plot_path
 
@@ -550,8 +562,9 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
         plt.ylim(v_range)
     plt.tight_layout()
 
-    plot_path = (get_plot_path(data_set) + name + str(module_order) 
-                + str(v_range) + str(log) + '.pdf')
+    plot_path = (get_plot_path(data_set) + name + ', module order: ' + 
+                 str(module_order) + ', count range: ' + str(v_range) +
+                 + ', is log: ' + str(log) + '.pdf')
     return fig, plot_path
 
     
