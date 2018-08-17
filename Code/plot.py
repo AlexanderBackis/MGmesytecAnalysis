@@ -214,13 +214,20 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors,
 # =============================================================================  
     
 def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha, 
-                      data_set, number_of_detectors):
+                      data_set, number_of_detectors, ADC_filter):
     
     df_tot = pd.DataFrame()
     
     for i, bus in enumerate(bus_order):
         df_clu = coincident_events[coincident_events.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+        
+        if ADC_filter != None:
+            minADC = ADC_filter[0]
+            maxADC = ADC_filter[1]
+            df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
+                            & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
+            
         df_clu['wCh'] += (80 * i)
         df_tot = pd.concat([df_tot, df_clu])
     
@@ -250,11 +257,11 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
                         
     return scatter3d(fig, hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], 
                      hist[3][0:loc], countThres, data_set, alpha, name, 
-                     number_of_detectors)
+                     number_of_detectors, ADC_filter)
 
     
 def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name, 
-              number_of_detectors, colorsMap='jet'):
+              number_of_detectors, ADC_filter, colorsMap='jet'):
     cm = plt.get_cmap(colorsMap)
 
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
@@ -287,7 +294,8 @@ def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name,
     fig.colorbar(scalarMap)
     
     
-    plot_path = get_plot_path(data_set) + name  + '.pdf'
+    plot_path = (get_plot_path(data_set) + name + ', ADC filter: ' 
+                 + str(ADC_filter) + '.pdf')
     
     return fig, plot_path
     
@@ -295,13 +303,21 @@ def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name,
 # 6. Coincidence Histogram (Front, Top, Side)
 # =============================================================================
     
-def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range):
+def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
+                   ADC_filter):
     name = 'Front view'
     df_tot = pd.DataFrame()
     
     for i, bus in enumerate(bus_vec):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+        
+        if ADC_filter != None:
+            minADC = ADC_filter[0]
+            maxADC = ADC_filter[1]
+            df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
+                            & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
+            
         df_clu['wCh'] += (80 * i)
         df_clu['gCh'] += (-80 + 1)
         df_tot = pd.concat([df_tot, df_clu])        
@@ -315,13 +331,21 @@ def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range):
     plt.colorbar()
     plt.title(name)
     
-def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range):
+def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
+                   ADC_filter):
     name = 'Top view'
     df_tot = pd.DataFrame()
     
     for i, bus in enumerate(bus_vec):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+        
+        if ADC_filter != None:
+            minADC = ADC_filter[0]
+            maxADC = ADC_filter[1]
+            df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
+                            & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
+        
         df_clu['wCh'] += (80 * i)
         df_tot = pd.concat([df_tot, df_clu])  
         
@@ -334,13 +358,21 @@ def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range):
     plt.colorbar()
     plt.title(name)
     
-def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range):
+def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
+                   ADC_filter):
     name = 'Side view'
     df_tot = pd.DataFrame()
     
     for i, bus in enumerate(bus_vec):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
+        
+        if ADC_filter != None:
+            minADC = ADC_filter[0]
+            maxADC = ADC_filter[1]
+            df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
+                            & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
+            
         df_clu['gCh'] += (-80 + 1)
         df_tot = pd.concat([df_tot, df_clu])
     
@@ -355,25 +387,28 @@ def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range):
     plt.title(name)
     
 def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, 
-                   count_range, ADCthreshold = 0):
+                   count_range, ADC_filter):
     
     fig.set_figheight(4)
     fig.set_figwidth(14)
     
     plt.subplot(1,3,1)
-    plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range)
+    plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
+                   ADC_filter)
     plt.subplot(1,3,2)
-    plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range)
+    plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
+                   ADC_filter)
     plt.subplot(1,3,3)
-    plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range)
+    plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
+                   ADC_filter)
     
     name = (name)
     fig.suptitle(name, x=0.5, y=1.08)
     plt.tight_layout()
 
     plot_path = (get_plot_path(data_set) + name + 'Count range: ' 
-                 + str(count_range) + ', ADC threshold: ' 
-                 + str(ADCthreshold) + '.pdf')
+                 + str(count_range) + ', ADC filter: ' 
+                 + str(ADC_filter) + '.pdf')
     
     return fig, plot_path
     

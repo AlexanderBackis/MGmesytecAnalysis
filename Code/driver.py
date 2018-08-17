@@ -380,33 +380,47 @@ def choose_analysis_type(module_order, data_set):
             choice = input('\nFurther specifications? (y/n).\n>> ')
             alpha = 1
             count_thres = 0
+            ADC_filter = None
             if choice == 'y':
-                options = ['Transparacy factor', 'Lower count threshold']
+                options = ['Transparacy factor', 'Lower count threshold',
+                           'ADC filter']
                 specs = choose_specifications(options)
                 if specs['Lower count threshold'] != None:
                     count_thres = specs['Lower count threshold']
+                
                 if specs['Transparacy factor'] != None:
                     alpha = specs['Transparacy factor']
+                
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
                    
             print('Loading...')
             fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
                                                  module_order, count_thres, 
                                                  alpha, data_set, 
-                                                 number_of_detectors)
+                                                 number_of_detectors,
+                                                 ADC_filter)
             print('Done!')
         
         if analysis_type == 6:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
             count_range = [1e2, 3e4]
+            ADC_filter = None
             if choice == 'y':
-                options = ['Count range']
+                options = ['Count range', 'ADC filter']
                 specs = choose_specifications(options)
-                count_range = specs['Count range']
+                if specs['Count range'] != None:
+                    count_range = specs['Count range']
+                
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
+                    
             
             print('Loading...')
             fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
-                                  data_set, number_of_detectors, count_range)
+                                  data_set, number_of_detectors, count_range,
+                                  ADC_filter)
             
             print('Done!')
     
