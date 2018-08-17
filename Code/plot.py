@@ -27,7 +27,7 @@ def plot_PHS_bus_channel(df, bus, Channel):
     plt.hist(df_red.ADC, bins=50, range=[0,4400])  
     
 def plot_PHS_several_channels(fig, name, df, bus, ChVec, data_set, 
-                              loglin = False, count_range = None):
+                              loglin, count_range):
     fig1 = fig
     df_red = df[df.Bus == bus]
     
@@ -563,7 +563,7 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
     plt.tight_layout()
 
     plot_path = (get_plot_path(data_set) + name + ', module order: ' + 
-                 str(module_order) + ', count range: ' + str(v_range) +
+                 str(module_order) + ', count range: ' + str(v_range) 
                  + ', is log: ' + str(log) + '.pdf')
     return fig, plot_path
 

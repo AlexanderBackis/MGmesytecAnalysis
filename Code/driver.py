@@ -296,7 +296,7 @@ def choose_analysis_type(module_order, data_set):
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
             loglin = False
-            count_range = False
+            count_range = None
             if choice == 'y':
                 options = ['Log/Lin-scale', 'Count range']
                 specs = choose_specifications(options)
