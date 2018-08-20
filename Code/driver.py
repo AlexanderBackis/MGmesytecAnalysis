@@ -356,9 +356,10 @@ def choose_analysis_type(module_order, data_set):
             count_range = [1, 10000]
             ADC_filter = None
             buses = module_order
+            m_range = None
             if choice == 'y':
                 options = ['Count range', 'Choose specific bus(es)', 
-                           'ADC filter']
+                           'ADC filter', 'Multiplicity filter']
                 specs = choose_specifications(options)
                 
                 if specs['Count range'] != None:
@@ -370,11 +371,14 @@ def choose_analysis_type(module_order, data_set):
                 if specs['ADC filter'] != None:
                     ADC_filter = specs['ADC filter']
                 
+                if specs['Multiplicity filter'] != None:
+                    m_range = specs['Multiplicity filter']
+                
             print('Loading...')
             fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
                                              buses, number_of_detectors, 
                                              data_set, count_range,
-                                             ADC_filter)
+                                             ADC_filter, m_range)
                 
             print('Done!')
             
@@ -383,9 +387,10 @@ def choose_analysis_type(module_order, data_set):
             alpha = 1
             count_thres = None
             ADC_filter = None
+            m_range = None
             if choice == 'y':
                 options = ['Transparacy factor', 'Lower and upper count threshold',
-                           'ADC filter']
+                           'ADC filter', 'Multiplicity filter']
                 specs = choose_specifications(options)
                 if specs['Lower and upper count threshold'] != None:
                     count_thres = specs['Lower and upper count threshold']
@@ -395,13 +400,16 @@ def choose_analysis_type(module_order, data_set):
                 
                 if specs['ADC filter'] != None:
                     ADC_filter = specs['ADC filter']
+                
+                if specs['Multiplicity filter'] != None:
+                    m_range = specs['Multiplicity filter']
                    
             print('Loading...')
             fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
                                                  module_order, count_thres, 
                                                  alpha, data_set, 
                                                  number_of_detectors,
-                                                 ADC_filter)
+                                                 ADC_filter, m_range)
             print('Done!')
         
         if analysis_type == 6:
@@ -409,20 +417,24 @@ def choose_analysis_type(module_order, data_set):
             
             count_range = [1e2, 3e4]
             ADC_filter = None
+            m_range = None
             if choice == 'y':
-                options = ['Count range', 'ADC filter']
+                options = ['Count range', 'ADC filter', 'Multiplicity filter']
                 specs = choose_specifications(options)
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
                 
                 if specs['ADC filter'] != None:
                     ADC_filter = specs['ADC filter']
+                
+                if specs['Multiplicity filter'] != None:
+                    m_range = specs['Multiplicity filter']
                     
             
             print('Loading...')
             fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
                                   data_set, number_of_detectors, count_range,
-                                  ADC_filter)
+                                  ADC_filter, m_range)
             
             print('Done!')
     

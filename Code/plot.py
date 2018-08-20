@@ -178,8 +178,16 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range,
     plt.title(name)
     
 def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, 
-                      data_set, count_range, ADC_filter):
+                      data_set, count_range, ADC_filter, m_range):
     
+    if m_range != None:
+        minWM = m_range[0]
+        maxWM = m_range[1]
+        minGM = m_range[2]
+        maxGM = m_range[3]
+    
+        clusters = clusters[  (clusters.wM >= minWM) & (clusters.wM <= maxWM) 
+                            & (clusters.gM >= minGM) & (clusters.wM <= maxGM)]
     
     buses_per_row = None
     number_of_detectors = None
@@ -204,7 +212,7 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors,
 
     plot_path = (get_plot_path(data_set) + name + ', Count range: ' 
                  + str(count_range) + ', ADC filter: ' + str(ADC_filter) 
-                 + '.pdf')
+                 + ', Multiplicity filter: ' + str(m_range) + '.pdf')
     
     return fig, plot_path
 
@@ -214,7 +222,7 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors,
 # =============================================================================  
     
 def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha, 
-                      data_set, number_of_detectors, ADC_filter):
+                      data_set, number_of_detectors, ADC_filter, m_range):
     
     df_tot = pd.DataFrame()
     
@@ -230,6 +238,15 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
             
         df_clu['wCh'] += (80 * i)
         df_tot = pd.concat([df_tot, df_clu])
+    
+    if m_range != None:
+        minWM = m_range[0]
+        maxWM = m_range[1]
+        minGM = m_range[2]
+        maxGM = m_range[3]
+    
+        df_tot = df_tot[  (df_tot.wM >= minWM) & (df_tot.wM <= maxWM) 
+                        & (df_tot.gM >= minGM) & (df_tot.wM <= maxGM)]
     
     x = np.floor(df_tot['wCh'] / 20).astype(int)
     y = df_tot['gCh'] - 80
@@ -266,11 +283,11 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
                         
     return scatter3d(fig, hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], 
                      hist[3][0:loc], countThres, data_set, alpha, name, 
-                     number_of_detectors, ADC_filter)
+                     number_of_detectors, ADC_filter, m_range)
 
     
 def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name, 
-              number_of_detectors, ADC_filter, colorsMap='jet'):
+              number_of_detectors, ADC_filter, m_range, colorsMap='jet'):
     cm = plt.get_cmap(colorsMap)
 
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
@@ -304,7 +321,8 @@ def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name,
     
     
     plot_path = (get_plot_path(data_set) + name + ', ADC filter: ' 
-                 + str(ADC_filter) + '.pdf')
+                 + str(ADC_filter) + ', Multiplicity filter: ' 
+                 + str(m_range) + '.pdf')
     
     return fig, plot_path
     
@@ -396,10 +414,21 @@ def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
     plt.title(name)
     
 def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, 
-                   count_range, ADC_filter):
+                   count_range, ADC_filter, m_range):
     
     fig.set_figheight(4)
     fig.set_figwidth(14)
+    
+    if m_range != None:
+        minWM = m_range[0]
+        maxWM = m_range[1]
+        minGM = m_range[2]
+        maxGM = m_range[3]
+    
+        df = df[  (df.wM >= minWM) & (df.wM <= maxWM) 
+                 & (df.gM >= minGM) & (df.wM <= maxGM)]
+    
+    
     
     plt.subplot(1,3,1)
     plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
@@ -417,7 +446,8 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
 
     plot_path = (get_plot_path(data_set) + name + 'Count range: ' 
                  + str(count_range) + ', ADC filter: ' 
-                 + str(ADC_filter) + '.pdf')
+                 + str(ADC_filter) + 
+                 + ', Multiplicity filter: ' + str(m_range) + '.pdf')
     
     return fig, plot_path
     
