@@ -21,6 +21,10 @@ def choose_specifications(options):
         count_max = input('Upper count boundary: ')
         count_min = int(count_min)
         count_max = int(count_max)
+        
+        if count_min < 0:
+            count_min = 1
+        
         return [count_min, count_max]
     
     def get_multiplicity_filter():

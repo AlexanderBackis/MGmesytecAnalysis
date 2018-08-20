@@ -672,6 +672,10 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
                  + ', is log: ' + str(log) + '.pdf')
     return fig, plot_path
 
+
+
+    
+
     
 
     
@@ -684,3 +688,9 @@ def get_plot_path(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
     return folder
+
+
+    
+    
+    
+    
