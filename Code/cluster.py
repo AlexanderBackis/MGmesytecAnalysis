@@ -68,8 +68,20 @@ def import_data(file_name):
     print('0%')
     dir_name = os.path.dirname(__file__)
     file_path = os.path.join(dir_name, '../Data/' + file_name)
-    with open(file_path, mode='rb') as binfile:
-        content = binfile.read()  
+
+    
+    with open(file_path, mode='rb') as bin_file:
+        
+        content = bin_file.read(64 * (1 << 20))
+        
+        moreData = True
+        while moreData:
+            piece = bin_file.read(64 * (1 << 20)) # Read 64 MB at a time; big, but not memory busting
+            if not piece:  # Reached EOF
+                moreData = False
+            else:
+                content += piece
+                
         
         #Skip configuration text
         match = re.search(b'}\n}\n[ ]*', content)

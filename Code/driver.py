@@ -513,7 +513,7 @@ def choose_analysis_type(module_order, data_set):
         if analysis_type == 9:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
-            rnge = [0,5000000]
+            rnge = None
             number_bins = 1000
             
             if choice == 'y':
