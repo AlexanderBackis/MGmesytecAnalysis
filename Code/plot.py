@@ -446,7 +446,7 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
 
     plot_path = (get_plot_path(data_set) + name + 'Count range: ' 
                  + str(count_range) + ', ADC filter: ' 
-                 + str(ADC_filter) + 
+                 + str(ADC_filter)  
                  + ', Multiplicity filter: ' + str(m_range) + '.pdf')
     
     return fig, plot_path

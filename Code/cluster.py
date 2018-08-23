@@ -277,6 +277,8 @@ def cluster_data(data, ILL_buses = []):
         if count % 1000000 == 1:
             percentage_finished = str(round((count/number_words)*100)) + '%'
             print(percentage_finished)
+#            for i in range(0,len(percentage_finished)):
+#                print('\r', end='')
     
     if percentage_finished != '100%':
         print('100%')
