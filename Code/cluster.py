@@ -322,7 +322,11 @@ def cluster_data(data, ILL_buses = []):
         events[key] = events[key][0:index_event]
     events_df = pd.DataFrame(events)
     
-    triggers_df = pd.DataFrame(triggers[0:trigger_index-1])
+    triggers_df = None
+    if trigger_index == 0:
+        triggers_df = pd.DataFrame([0])
+    else:
+        triggers_df = pd.DataFrame(triggers[0:trigger_index-1])
     
     print('Done!')
     
