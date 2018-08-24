@@ -92,6 +92,7 @@ def import_data(file_name):
         data = struct.unpack('I' * (len(reduced_content)//4), reduced_content)
 
     print('100%')
+    print('Done!')
     return data
 
 
@@ -152,16 +153,19 @@ def cluster_data(data, ILL_buses = []):
 
     size = len(data)
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
-                                    'wADC', 'gADC', 'wM', 'gM']
-    event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
+                                    'wADC', 'gADC', 'wM', 'gM', 'x', 'y', 'z']
     coincident_events = create_dict(size, coincident_event_parameters)
-    coincident_events.update({'Coordinate': np.empty([size],dtype=dict)})
+    
+    event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
     events = create_dict(size, event_parameters)
     
+    triggers = np.empty([size],dtype=int)
+    
     #Declare variables
-    TriggerTime =    0
-    index       =   -1
-    index_event =   -1
+    TriggerTime   =    0
+    index         =   -1
+    index_event   =   -1
+    trigger_index =    0
     
     #Declare temporary variables
     isOpen              =    False
@@ -199,10 +203,14 @@ def cluster_data(data, ILL_buses = []):
                                                ess_ch_to_coord, 
                                                ill_ch_to_coord, 
                                                ILL_buses)
-                        coincident_events['Coordinate'][index] = coord
+                        coincident_events['x'][index] = coord['x']
+                        coincident_events['y'][index] = coord['y']
+                        coincident_events['z'][index] = coord['z']
                 
                     else:
-                        coincident_events['Coordinate'][index] = None
+                        coincident_events['x'][index] = -1
+                        coincident_events['y'][index] = -1
+                        coincident_events['z'][index] = -1
                 
                 previousBus             = Bus
                 maxADCw                 = 0
@@ -254,6 +262,10 @@ def cluster_data(data, ILL_buses = []):
             
             if isTrigger:
                 TriggerTime = Time
+                triggers[trigger_index] = TriggerTime
+                trigger_index += 1
+            
+            
             
             #Assign timestamp to coindicent events
             ToF = Time - TriggerTime
@@ -272,9 +284,15 @@ def cluster_data(data, ILL_buses = []):
                 eventBus = coincident_events['Bus'][index]
                 coord = get_coordinate(eventBus, wCh, gCh, ess_ch_to_coord, 
                                        ill_ch_to_coord, ILL_buses)
-                coincident_events['Coordinate'][index] = coord
+                
+                coincident_events['x'][index] = coord['x']
+                coincident_events['y'][index] = coord['y']
+                coincident_events['z'][index] = coord['z']
+                
             else:
-                coincident_events['Coordinate'][index] = None
+                coincident_events['x'][index] = -1
+                coincident_events['y'][index] = -1
+                coincident_events['z'][index] = -1
                 
             #Reset temporary variables
             nbrCoincidentEvents  =  0
@@ -304,7 +322,13 @@ def cluster_data(data, ILL_buses = []):
         events[key] = events[key][0:index_event]
     events_df = pd.DataFrame(events)
     
-    return coincident_events_df, events_df
+    triggers_df = pd.DataFrame(triggers[0:trigger_index-1])
+    
+    print('Done!')
+    
+    
+    
+    return coincident_events_df, events_df, triggers_df
 
 # =============================================================================
 # Helper Functions

@@ -236,9 +236,9 @@ def choose_data_set(exceptions):
     
     data = clu.import_data(data_set)
     
-    coincident_events, events = clu.cluster_data(data, exceptions)
+    coincident_events, events, triggers = clu.cluster_data(data, exceptions)
     
-    return coincident_events, events, data_set
+    return coincident_events, events, data_set, triggers
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -269,7 +269,8 @@ def choose_analysis_type(module_order, data_set):
                          'Coincidence Histogram (Front, Top, Side)',
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
-                         'ToF Histogram', 'Events per channel']
+                         'ToF Histogram', 'Events per channel', 
+                         'Timestamp and Trigger']
     
     figs = []
     paths = []
@@ -573,6 +574,13 @@ def choose_analysis_type(module_order, data_set):
                                             count_range, ADC_filter)
 
             print('Done!')
+        
+        if analysis_type == 11:
+            print('Loading...')
+            fig, path = pl.plot_timestamp_and_trigger(fig, name, data_set, 
+                                    coincident_events, triggers)
+            
+            
                 
         if analysis_type <= len(analysis_name_vec):
             figs.append(fig)
@@ -623,15 +631,16 @@ def main_meny(data_set):
         print('2. Change module order')
         print('3. Perform an analysis')
         print('4. Print key numbers')
-        print('5. Quit')
+        print('5. Save clusters')
+        print('6. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-5.\n>> ')
+                       'between 1-6.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 5)
+            not_in_range = (choice < 1) | (choice > 6)
         except ValueError:
             pass
     
@@ -640,7 +649,7 @@ def main_meny(data_set):
     
     return choice
 print('\n')
-print(' __  __       _ _   _         _____      _     _\n' + 
+print(' __  __       _ _   _         _____      _     _ \n' + 
       '|  \/  |     | | | (_)       / ____|    (_)   | |\n' +
       '| \  / |_   _| | |_ _ ______| |  __ _ __ _  __| |\n' +
       '| |\/| | | | | | __| |______| | |_ |  __| |/ _` |\n' +
@@ -649,18 +658,123 @@ print(' __  __       _ _   _         _____      _     _\n' +
 print('   MESYTEC OUTPUT: IMPORT, CLUSTER AND ANALYSE    ')
 print()
 
+
+def save_clusters(coincident_events, events, triggers, number_of_detectors,
+                  module_order, detector_types, data_set):
+    print('Saving...')
+    print('0%')
+    dirname = os.path.dirname(__file__)
+    folder = os.path.join(dirname, '../Clusters/')
+    path = folder + data_set + '.h5'
+    
+#    coincident_events_path = folder + '/coincident_events/' + data_set + '.csv'
+#    events_path = folder + '/events/' + data_set + '.csv'
+#    triggers_path = folder + '/triggers/' + data_set + '.csv'
+#    meta_data_path = folder + '/meta_data/' + data_set + '.csv'
+    
+    coincident_events.to_hdf(path, 'coincident_events')
+    print('25%')
+    events.to_hdf(path, 'events')
+    print('50%')
+    
+    triggers.to_hdf(path, 'triggers')
+    print('75%')
+    
+    number_det = pd.DataFrame({'number_of_detectors': [number_of_detectors]})
+    mod_or     = pd.DataFrame({'module_order': module_order})
+    det_types  = pd.DataFrame({'detector_types': detector_types})
+    da_set     = pd.DataFrame({'data_set': [data_set]})
+        
+    number_det.to_hdf(path, 'number_of_detectors')
+    mod_or.to_hdf(path, 'module_order')
+    det_types.to_hdf(path, 'detector_types')
+    da_set.to_hdf(path, 'data_set')
+    print('100%')
+    print('Done!')
+
+
+    
+    
+    
+    
+    
+    
+
 dirname = os.path.dirname(__file__)
-folder = os.path.join(dirname, '../Data/')
-files = os.listdir(folder)
-files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
+coincident_events = None
+events = None
+triggers = None
+number_of_detectors = None
+module_order = None
+detector_types = None
+data_set = None
 
+print('Import saved clusters (y/n)?')
+answer = input('>> ')
+if answer == 'y':
+    clusters_folder = os.path.join(dirname, '../Clusters/')
+    clu_files = os.listdir(clusters_folder)
+    clu_files = [file for file in clu_files if file[-3:] == '.h5']
+    
+    not_int = True
+    not_in_range = True
+    file_number = None
+    
+    print()
+    print('************* Choose saved clusters *************')
+    print('-------------------------------------------------')
+    while (not_int or not_in_range):
+        for i, file in enumerate(clu_files):
+            print(str(i+1) + '. ' + file)
+    
+        file_number = input('\nEnter a number between 1-' + 
+                            str(len(clu_files)) + '.\n>> ')
+    
+        try:
+            file_number = int(file_number)
+            not_int = False
+            not_in_range = (file_number < 1) | (file_number > len(clu_files))
+        except ValueError:
+            pass
+    
+        if not_int or not_in_range:
+            print('\nThat is not a valid number.')
+    
+    clu_set = clu_files[int(file_number) - 1]
+    
+    clu_path = clusters_folder + clu_set
+    
+    print('Loading...')
+    
+    coincident_events = pd.read_hdf(clu_path, 'coincident_events')
+    events = pd.read_hdf(clu_path, 'events')
+    triggers = pd.read_hdf(clu_path, 'triggers')
+    number_of_detectors = pd.read_hdf(clu_path, 'number_of_detectors')['number_of_detectors'].iloc[0]
+    module_order_df = pd.read_hdf(clu_path, 'module_order')
+    detector_types_df = pd.read_hdf(clu_path, 'detector_types')
+    
+    detector_types = []
+    for row in detector_types_df['detector_types']:
+        detector_types.append(row)
+    
+    module_order =  []
+    for row in module_order_df['module_order']:
+        module_order.append(row)
+        
+    
+    data_set = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
+    create_plot_folder(data_set)
 
-number_of_detectors, module_order = choose_number_modules()
-detector_types, exceptions = initialise_detector_types(number_of_detectors)
-coincident_events, events, data_set = choose_data_set(exceptions)
-create_plot_folder(data_set)
+else:
+    folder = os.path.join(dirname, '../Data/')
+    files = os.listdir(folder)
+    files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
+    number_of_detectors, module_order = choose_number_modules()
+    detector_types, exceptions = initialise_detector_types(number_of_detectors)
+    coincident_events, events, data_set, triggers = choose_data_set(exceptions)
+    create_plot_folder(data_set)
+
 thresADC = 0
-
 not_done = True
 while not_done:
     choice = main_meny(data_set)
@@ -676,6 +790,9 @@ while not_done:
     elif choice == 4:
         print_key_numbers(module_order, events, coincident_events)
     elif choice == 5:
+        save_clusters(coincident_events, events, triggers, number_of_detectors,
+                      module_order, detector_types, data_set)
+    elif choice == 6:
         print('\nBye!\n')
         not_done = False
     

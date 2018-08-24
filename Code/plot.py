@@ -672,8 +672,39 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
                  + ', is log: ' + str(log) + '.pdf')
     return fig, plot_path
 
+# =============================================================================
+# 11. Timestamp and Trigger
+# =============================================================================
 
-
+def plot_timestamp_and_trigger(fig, name, data_set, coincident_events, 
+                               triggers):
+    
+    fig.suptitle(name, x=0.5, y=1.08)
+    
+    df = coincident_events
+    df = df[(df.wCh != -1) & (df.gCh != -1)]
+    event_number = np.arange(1, df.shape[0]+1,1)
+    trigger_number = np.arange(1,len(triggers)+1,1)
+    
+    plt.subplot(1,2,1)
+    plt.title('Timestamp vs. Event number', x=0.5, y=1.04)
+    plt.xlabel('Event number')
+    plt.ylabel('Timestamp')
+    plt.plot(event_number, df.Time, color = 'b')
+    
+    plt.subplot(1,2,2)
+    plt.title('Trigger-time vs. Trigger number', x=0.5, y=1.04)
+    plt.xlabel('Trigger number')
+    plt.ylabel('Trigger time')
+    plt.plot(trigger_number, triggers, color = 'b')
+    
+    plt.tight_layout()
+    
+    plot_path = get_plot_path(data_set) + name + '.pdf'
+    
+    return fig, plot_path
+    
+    
     
 
     
