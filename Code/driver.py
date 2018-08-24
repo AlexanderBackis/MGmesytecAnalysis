@@ -793,7 +793,7 @@ while not_done:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
                       module_order, detector_types, data_set)
     elif choice == 6:
-        print('\nBye!\n')
+        print('\nBye!')
         not_done = False
     
     

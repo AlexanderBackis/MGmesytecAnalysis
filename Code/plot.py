@@ -702,6 +702,14 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     
     plot_path = get_plot_path(data_set) + name + '.pdf'
     
+    dirname = os.path.dirname(__file__)
+    output_path_triggers = os.path.join(dirname, '../Output/triggers.txt')
+    output_path_timestamps = os.path.join(dirname, '../Output/timestamps.txt')
+    
+    timestamps = df['Time'].values
+    np.savetxt(output_path_triggers, triggers, delimiter=",")
+    np.savetxt(output_path_timestamps, timestamps, delimiter=",")
+    
     return fig, plot_path
     
     
