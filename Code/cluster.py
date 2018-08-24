@@ -47,7 +47,7 @@ ExTsShift     =   30
 #                                IMPORT DATA
 # =============================================================================
 
-def import_data(file_name):
+def import_data(file_name, max_size = np.inf):
     """ Goes to sister-folder '/Data/' and imports '.mesytec'-file with name
         'file_name'. Does this in three steps:
             
@@ -72,16 +72,22 @@ def import_data(file_name):
     
     with open(file_path, mode='rb') as bin_file:
         
-        content = bin_file.read(64 * (1 << 20))
+        content = bin_file.read(100 * (1 << 20))
         
         moreData = True
-        while moreData:
-            piece = bin_file.read(64 * (1 << 20)) # Read 64 MB at a time; big, but not memory busting
+        imported_data = 0
+        while moreData and imported_data <= max_size * (1 << 20):
+            imported_data += 100 * (1 << 20)
+            piece = bin_file.read(100 * (1 << 20)) # Read 100 MB at a time; big, but not memory busting
             if not piece:  # Reached EOF
                 moreData = False
             else:
                 content += piece
-                
+        
+        #Make sure our data is evenly divided by 4
+        rest = imported_data % 4
+        if rest != 0:
+            content = content[:-rest]
         
         #Skip configuration text
         match = re.search(b'}\n}\n[ ]*', content)
@@ -388,7 +394,7 @@ def create_ill_channel_to_coordinate_map():
                     z = GridChannel         * GridSpacing   + z_offset
                     ill_ch_to_coord[Bus,GridChannel,WireChannel] = {'x': x, 'y': y, 'z': z}
     
-    return  ill_ch_to_coord
+    return ill_ch_to_coord
 
 def get_coordinate(Bus, WireChannel, GridChannel, ess_ch_to_coord, ill_ch_to_coord, ILL_buses):
     if Bus in ILL_buses:

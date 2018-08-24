@@ -233,8 +233,16 @@ def choose_data_set(exceptions):
             print('\nThat is not a valid number.')
     
     data_set = files[int(file_number) - 1]
-    
-    data = clu.import_data(data_set)
+    data = None
+    print('Import full file (y/n)?')
+    ans = input('>> ')
+    if ans == 'n':
+        print('Enter amount of data in MB to import (minimum size is 100MB).')
+        max_size = input('>> ')
+        max_size = int(max_size)
+        data = clu.import_data(data_set, max_size)
+    else:
+        data = clu.import_data(data_set)
     
     coincident_events, events, triggers = clu.cluster_data(data, exceptions)
     
@@ -627,20 +635,19 @@ def main_meny(data_set):
         print('Module order    : ' + str(module_order))
         print('Detector type(s): ' + str(detector_types))
         print('-------------------------------------------------')
-        print('1. Change data set')
-        print('2. Change module order')
-        print('3. Perform an analysis')
-        print('4. Print key numbers')
-        print('5. Save clusters')
-        print('6. Quit')
+        print('1. Change module order')
+        print('2. Perform an analysis')
+        print('3. Print key numbers')
+        print('4. Save clusters')
+        print('5. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-6.\n>> ')
+                       'between 1-5.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 6)
+            not_in_range = (choice < 1) | (choice > 5)
         except ValueError:
             pass
     
@@ -779,20 +786,15 @@ not_done = True
 while not_done:
     choice = main_meny(data_set)
     if choice == 1:
-        number_of_detectors, module_order = choose_number_modules()
-        detector_types, exceptions = initialise_detector_types(number_of_detectors)
-        coincident_events, events, data_set = choose_data_set(exceptions)
-        create_plot_folder(data_set)
-    elif choice == 2:
         module_order = [int(x) for x in input('Enter module order, uses spaces to separate.\n>>').split()]
-    elif choice == 3:
+    elif choice == 2:
         choose_analysis_type(module_order, data_set)
-    elif choice == 4:
+    elif choice == 3:
         print_key_numbers(module_order, events, coincident_events)
-    elif choice == 5:
+    elif choice == 4:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
                       module_order, detector_types, data_set)
-    elif choice == 6:
+    elif choice == 5:
         print('\nBye!')
         not_done = False
     
