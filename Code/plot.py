@@ -627,19 +627,12 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
     dirname = os.path.dirname(__file__)
     output_path_ToF = os.path.join(dirname, '../Output/ToF.txt')
     
-    print('hist')
-    print(len(hist))
-    print(type(hist))
-    print(hist)
-    print('bins')
-    print(len(bins))
-    print(type(bins))
-    print(bins)
+
+    bin_center = np.array((bins[:-1] + bins[1:]) / 2)
+   
     
     
-    ToF_hist = np.array([bins[0:-1],hist])
-    
-    np.savetxt(output_path_ToF, np.transpose([bins[0:-1],hist]), delimiter=",")
+    np.savetxt(output_path_ToF, np.transpose([bin_center,hist]), delimiter=",")
 
     
     return fig, plot_path
