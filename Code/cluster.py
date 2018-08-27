@@ -175,6 +175,7 @@ def cluster_data(data, ILL_buses = []):
     
     #Declare temporary variables
     isOpen              =    False
+    isData              =    False
     isTrigger           =    False
     Bus                 =    -1
     previousBus         =    -1
@@ -197,6 +198,7 @@ def cluster_data(data, ILL_buses = []):
         elif ((word & DataMask) == DataBusStart) & isOpen:
             
             Bus = (word & BusMask) >> BusShift
+            isData = True
             
             if (previousBus in ILL_buses) and (Bus in ILL_buses):
                 pass
@@ -286,7 +288,7 @@ def cluster_data(data, ILL_buses = []):
             #Assign coordinate
             wCh = coincident_events['wCh'][index]
             gCh = coincident_events['gCh'][index]
-            if wCh != -1 and gCh != -1:
+            if wCh != -1 and gCh != -1 and isData == True:
                 eventBus = coincident_events['Bus'][index]
                 coord = get_coordinate(eventBus, wCh, gCh, ess_ch_to_coord, 
                                        ill_ch_to_coord, ILL_buses)
@@ -306,6 +308,7 @@ def cluster_data(data, ILL_buses = []):
             Bus                  =  -1
             previousBus          =  -1
             isOpen               =  False
+            isData               =  False
             isTrigger            =  False
             Time                 =  0
 

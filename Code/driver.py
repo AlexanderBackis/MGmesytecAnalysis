@@ -207,7 +207,7 @@ def initialise_detector_types(number_of_detectors):
     return detector_types, exceptions
     
 
-def choose_data_set(exceptions):
+def choose_data_set():
     not_int = True
     not_in_range = True
     while (not_int or not_in_range):
@@ -234,8 +234,29 @@ def choose_data_set(exceptions):
     
     data_set = files[int(file_number) - 1]
     data = None
+    
+
+    
+    print('Use standard module order and detector types (y/n)?')
+    answer = input('>> ')
+    
+    number_of_detectors = None
+    module_order = None
+    detector_types = None
+    if answer == 'y':
+        number_of_detectors = 3
+        module_order = [0,1,2,3,4,5,6,7,8]
+        detector_types = ['ILL', 'ESS', 'ESS']
+        exceptions = [0,1,2]
+    else:
+        number_of_detectors, module_order = choose_number_modules()
+        detector_types, exceptions = initialise_detector_types(number_of_detectors)
+        print()
+    
+    
     print('Import full file (y/n)?')
     ans = input('>> ')
+        
     if ans == 'n':
         print('Enter amount of data in MB to import (minimum size is 100MB).')
         max_size = input('>> ')
@@ -246,7 +267,7 @@ def choose_data_set(exceptions):
     
     coincident_events, events, triggers = clu.cluster_data(data, exceptions)
     
-    return coincident_events, events, data_set, triggers
+    return coincident_events, events, data_set, triggers, number_of_detectors, module_order, detector_types
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -674,17 +695,12 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     folder = os.path.join(dirname, '../Clusters/')
     path = folder + data_set + '.h5'
     
-#    coincident_events_path = folder + '/coincident_events/' + data_set + '.csv'
-#    events_path = folder + '/events/' + data_set + '.csv'
-#    triggers_path = folder + '/triggers/' + data_set + '.csv'
-#    meta_data_path = folder + '/meta_data/' + data_set + '.csv'
-    
-    coincident_events.to_hdf(path, 'coincident_events')
+    coincident_events.to_hdf(path, 'coincident_events', complevel = 9)
     print('25%')
-    events.to_hdf(path, 'events')
+    events.to_hdf(path, 'events', complevel = 9)
     print('50%')
     
-    triggers.to_hdf(path, 'triggers')
+    triggers.to_hdf(path, 'triggers', complevel = 9)
     print('75%')
     
     number_det = pd.DataFrame({'number_of_detectors': [number_of_detectors]})
@@ -692,10 +708,10 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     det_types  = pd.DataFrame({'detector_types': detector_types})
     da_set     = pd.DataFrame({'data_set': [data_set]})
         
-    number_det.to_hdf(path, 'number_of_detectors')
-    mod_or.to_hdf(path, 'module_order')
-    det_types.to_hdf(path, 'detector_types')
-    da_set.to_hdf(path, 'data_set')
+    number_det.to_hdf(path, 'number_of_detectors', complevel = 9)
+    mod_or.to_hdf(path, 'module_order', complevel = 9)
+    det_types.to_hdf(path, 'detector_types', complevel = 9)
+    da_set.to_hdf(path, 'data_set', complevel = 9)
     print('100%')
     print('Done!')
 
@@ -776,9 +792,7 @@ else:
     folder = os.path.join(dirname, '../Data/')
     files = os.listdir(folder)
     files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
-    number_of_detectors, module_order = choose_number_modules()
-    detector_types, exceptions = initialise_detector_types(number_of_detectors)
-    coincident_events, events, data_set, triggers = choose_data_set(exceptions)
+    coincident_events, events, data_set, triggers, number_of_detectors, module_order, detector_types = choose_data_set()
     create_plot_folder(data_set)
 
 thresADC = 0
