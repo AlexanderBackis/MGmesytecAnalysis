@@ -628,11 +628,11 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
     output_path_ToF = os.path.join(dirname, '../Output/ToF.txt')
     
 
-    bin_center = np.array((bins[:-1] + bins[1:]) / 2)
+    #bin_center = np.array((bins[:-1] + bins[1:]) / 2)
    
     
     
-    np.savetxt(output_path_ToF, np.transpose([bin_center,hist]), delimiter=",")
+    np.savetxt(output_path_ToF, df['ToF'], delimiter=",")
 
     
     return fig, plot_path
