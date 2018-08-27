@@ -629,6 +629,7 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
     ToF_path = folder + 'ToF.txt'
     
     np.savetxt(ToF_path, df['ToF'], delimiter=",")
+    
 
     
     return fig, plot_path
@@ -689,7 +690,7 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     fig.suptitle(name, x=0.5, y=1.08)
     
     df = coincident_events
-    df = df[(df.wCh != -1) & (df.gCh != -1)]
+    #df = df[(df.wCh != -1) & (df.gCh != -1)]
     event_number = np.arange(1, df.shape[0]+1,1)
     trigger_number = np.arange(1,len(triggers)+1,1)
     
@@ -717,6 +718,8 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     timestamps = df['Time'].values
     np.savetxt(trigpath, triggers, delimiter=",")
     np.savetxt(stamppath, timestamps, delimiter=",")
+    
+
     
     return fig, plot_path
     

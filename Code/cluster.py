@@ -188,6 +188,7 @@ def cluster_data(data, ILL_buses = []):
 
     
     number_words = len(data)
+    
     #Five possibilities in each word: Header, DataBusStart, DataEvent, 
     #DataExTs or EoE.
     for count, word in enumerate(data):
@@ -268,8 +269,21 @@ def cluster_data(data, ILL_buses = []):
             else:
                 Time = time_stamp
             
+    #        trigger_value = 0
+            
             if isTrigger:
                 TriggerTime = Time
+#                if isData == False:
+#                    coincident_events['wCh'][index]  = -1
+#                    coincident_events['gCh'][index]  = -1
+#                    coincident_events['ToF'][index]  = -1
+#                    coincident_events['Time'][index] =  Time
+#                    coincident_events['Bus'][index]  = -1
+#                    coincident_events['wM'][index]   = -1
+#                    coincident_events['gM'][index]   = -1
+#                    
+#                trigger_value = 1
+                    
                 triggers[trigger_index] = TriggerTime
                 trigger_index += 1
             
