@@ -617,12 +617,30 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
                 & (df.gADC >= minADC) & (df.gADC <= maxADC)]
     
     
-    plt.hist(df.ToF, bins=number_bins, range=rnge, color = 'b')
+    hist, bins, patches = plt.hist(df.ToF, bins=number_bins, range=rnge, color = 'b')
     plt.title(name)
     plt.xlabel('ToF [TDC channels]')
     plt.ylabel('Counts  [a.u.]')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
+    
+    dirname = os.path.dirname(__file__)
+    output_path_ToF = os.path.join(dirname, '../Output/ToF.txt')
+    
+    print('hist')
+    print(len(hist))
+    print(type(hist))
+    print(hist)
+    print('bins')
+    print(len(bins))
+    print(type(bins))
+    print(bins)
+    
+    
+    ToF_hist = np.array([bins[0:-1],hist])
+    
+    np.savetxt(output_path_ToF, np.transpose([bins[0:-1],hist]), delimiter=",")
+
     
     return fig, plot_path
 
@@ -727,6 +745,7 @@ def get_plot_path(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
     return folder
+
 
 
     

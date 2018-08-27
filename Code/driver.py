@@ -658,17 +658,16 @@ def main_meny(data_set):
         print('-------------------------------------------------')
         print('1. Change module order')
         print('2. Perform an analysis')
-        print('3. Print key numbers')
-        print('4. Save clusters')
-        print('5. Quit')
+        print('3. Save clusters')
+        print('4. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-5.\n>> ')
+                       'between 1-4.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 5)
+            not_in_range = (choice < 1) | (choice > 4)
         except ValueError:
             pass
     
@@ -732,7 +731,7 @@ module_order = None
 detector_types = None
 data_set = None
 
-print('Import saved clusters (y/n)?')
+print('Load saved clusters (y/n)?')
 answer = input('>> ')
 if answer == 'y':
     clusters_folder = os.path.join(dirname, '../Clusters/')
@@ -768,13 +767,18 @@ if answer == 'y':
     clu_path = clusters_folder + clu_set
     
     print('Loading...')
-    
+    print('0%')
     coincident_events = pd.read_hdf(clu_path, 'coincident_events')
+    print('25%')
     events = pd.read_hdf(clu_path, 'events')
+    print('50%')
     triggers = pd.read_hdf(clu_path, 'triggers')
+    print('75%')
     number_of_detectors = pd.read_hdf(clu_path, 'number_of_detectors')['number_of_detectors'].iloc[0]
     module_order_df = pd.read_hdf(clu_path, 'module_order')
     detector_types_df = pd.read_hdf(clu_path, 'detector_types')
+    print('100%')
+    print('Done!')
     
     detector_types = []
     for row in detector_types_df['detector_types']:
@@ -804,11 +808,9 @@ while not_done:
     elif choice == 2:
         choose_analysis_type(module_order, data_set)
     elif choice == 3:
-        print_key_numbers(module_order, events, coincident_events)
-    elif choice == 4:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
                       module_order, detector_types, data_set)
-    elif choice == 5:
+    elif choice == 4:
         print('\nBye!')
         not_done = False
     
