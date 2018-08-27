@@ -176,6 +176,12 @@ def create_plot_folder(data_set):
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
     mkdir_p(folder)
     
+def create_output_folder(data_set):
+    dirname = os.path.dirname(__file__)
+    folder = os.path.join(dirname, '../Output/' + data_set + '/')
+    mkdir_p(folder)
+    
+    
 def mkdir_p(mypath):
     '''Creates a directory. equivalent to using mkdir -p on the command line'''
 
@@ -798,6 +804,8 @@ else:
     files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
     coincident_events, events, data_set, triggers, number_of_detectors, module_order, detector_types = choose_data_set()
     create_plot_folder(data_set)
+
+create_output_folder(data_set)
 
 thresADC = 0
 not_done = True

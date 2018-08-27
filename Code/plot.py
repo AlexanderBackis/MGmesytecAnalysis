@@ -624,15 +624,11 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
     
-    dirname = os.path.dirname(__file__)
-    output_path_ToF = os.path.join(dirname, '../Output/ToF.txt')
+    folder = get_output_path(data_set)
     
-
-    #bin_center = np.array((bins[:-1] + bins[1:]) / 2)
-   
+    ToF_path = folder + 'ToF.txt'
     
-    
-    np.savetxt(output_path_ToF, df['ToF'], delimiter=",")
+    np.savetxt(ToF_path, df['ToF'], delimiter=",")
 
     
     return fig, plot_path
@@ -713,13 +709,14 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     
     plot_path = get_plot_path(data_set) + name + '.pdf'
     
-    dirname = os.path.dirname(__file__)
-    output_path_triggers = os.path.join(dirname, '../Output/triggers.txt')
-    output_path_timestamps = os.path.join(dirname, '../Output/timestamps.txt')
+    folder = get_output_path(data_set)
+    
+    trigpath = folder + 'triggers.txt'
+    stamppath = folder + 'timestamps.txt'
     
     timestamps = df['Time'].values
-    np.savetxt(output_path_triggers, triggers, delimiter=",")
-    np.savetxt(output_path_timestamps, timestamps, delimiter=",")
+    np.savetxt(trigpath, triggers, delimiter=",")
+    np.savetxt(stamppath, timestamps, delimiter=",")
     
     return fig, plot_path
     
@@ -738,6 +735,12 @@ def get_plot_path(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
     return folder
+
+def get_output_path(data_set):
+    dirname = os.path.dirname(__file__)
+    folder = os.path.join(dirname, '../Output/' + data_set + '/')
+    return folder
+    
 
 
 
