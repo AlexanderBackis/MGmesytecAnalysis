@@ -102,7 +102,7 @@ def import_data(file_name, max_size = np.inf):
         
         #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(reduced_content)//4), reduced_content)
-
+    
     print('100%')
     print('Done!')
     return data
@@ -245,8 +245,10 @@ def cluster_data(data, ILL_buses = []):
             index_event += 1
             events['Bus'][index_event] = Bus
             events['ADC'][index_event] = ADC   
-                 
-            if Channel < 80:
+            
+            if Channel >= 120:
+                pass
+            elif Channel < 80:
                 coincident_events['Bus'][index] = Bus #Remove if trigger is on wire
                 coincident_events['wADC'][index] += ADC
                 coincident_events['wM'][index] += 1
@@ -263,6 +265,7 @@ def cluster_data(data, ILL_buses = []):
                     maxADCg = ADC
                 
                 events['Channel'][index_event] = Channel
+            
         
         elif ((word & DataMask) == DataExTs) & isOpen:
             extended_time_stamp = (word & ExTsMask) << ExTsShift
