@@ -724,9 +724,7 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     
 def intro_meny():
     
-    isDone = False
-    answer = None
-    
+    isDone = False    
     while not isDone:
         print('*************** Choose an action ****************')
         print('-------------------------------------------------')
@@ -739,15 +737,19 @@ def intro_meny():
         ans = int(ans)
     
         if ans == 1:
-            answer = 'n'
             isDone = True
         elif ans == 2:
-            answer == 'y'
             isDone = True
         elif ans == 3:
             unzip_meny()
         
         print()
+    
+    
+    if ans == 1:
+        return 'n'
+    else:
+        return 'y'
     
     return answer
             
@@ -820,6 +822,7 @@ detector_types = None
 data_set = None
 
 answer = intro_meny()
+print(answer)
 
 if answer == 'y':
     clusters_folder = os.path.join(dirname, '../Clusters/')
