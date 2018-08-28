@@ -762,10 +762,19 @@ def unzip_meny():
     print('-------------------------------------------------')
     for i, Zip in enumerate(zips):
         print(str(i+1) + '. ' + Zip)
+    print('-------------------------------------------------')
+    print(str(len(zips)+1) + '. Unzip all')
     
     print(  '\nEnter a numbers between 1-' + str(len(zips)) 
-          + ' to chooose\nfile(s). Use spaces to separate choices.')
+          + ' to chooose\nfile(s). Use spaces to separate choices.\n' 
+          + 'Press ' + str(len(zips)+1) + ' to unzip all.')
     to_unzip = [int(x) for x in input('>> ').split()]
+    
+    if len(to_unzip) == 1 and to_unzip[0] == 11:
+        to_unzip = np.arange(1,len(zips)+1,1)
+    
+    print('Unzipping...')
+    print('0%')
     for index in to_unzip:
         zip_file = zips[index-1]
         zip_path = zip_folder + zip_file
@@ -785,6 +794,11 @@ def unzip_meny():
             destination = os.path.join(dirname, '../Data/') + source_file
             shutil.move(source, destination)
             shutil.rmtree(zip_temp_folder, ignore_errors=True)
+        
+        percentage_finished = str(int(round((index/len(to_unzip))*100,1))) + '%'
+        print(percentage_finished)
+    
+    print('Done!')
             
         
 
