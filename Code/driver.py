@@ -13,6 +13,8 @@ import numpy as np
 import cluster as clu
 import plot as pl
 import matplotlib.pyplot as plt
+import zipfile
+import shutil
 
 def choose_specifications(options):
     
@@ -719,6 +721,72 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     da_set.to_hdf(path, 'data_set', complevel = 9)
     print('100%')
     print('Done!')
+    
+def intro_meny():
+    
+    isDone = False
+    answer = None
+    
+    while not isDone:
+        print('*************** Choose an action ****************')
+        print('-------------------------------------------------')
+        print('1. Import and cluster')
+        print('2. Load saved clusters')
+        print('3. Unzip file(s)')
+        print()
+        print('Enter a number between 1-3.')
+        ans = input('>> ')
+        ans = int(ans)
+    
+        if ans == 1:
+            answer = 'n'
+            isDone = True
+        elif ans == 2:
+            answer == 'y'
+            isDone = True
+        elif ans == 3:
+            unzip_meny()
+        
+        print()
+    
+    return answer
+            
+            
+def unzip_meny():
+    dirname = os.path.dirname(__file__)
+    zip_folder = os.path.join(dirname, '../Zips/')
+    zips = os.listdir(zip_folder)
+    zips = [Zip for Zip in zips if Zip[-4:] == '.zip']
+    print()
+    print('************ Choose file(s) to unzip ************')
+    print('-------------------------------------------------')
+    for i, Zip in enumerate(zips):
+        print(str(i+1) + '. ' + Zip)
+    
+    print(  '\nEnter a numbers between 1-' + str(len(zips)) 
+          + ' to chooose\nfile(s). Use spaces to separate choices.')
+    to_unzip = [int(x) for x in input('>> ').split()]
+    for index in to_unzip:
+        zip_file = zips[index-1]
+        zip_path = zip_folder + zip_file
+
+        with zipfile.ZipFile(zip_path,"r") as zip_ref:
+            zip_temp_folder = zip_folder + str(zip_file[0:-4]) + '/'    
+            zip_ref.extractall(zip_temp_folder)
+            
+            temp_list = os.listdir(zip_temp_folder)
+            source_file = None
+            for temp_file in temp_list:
+                if temp_file[-8:] == '.mvmelst':
+                    source_file = temp_file
+            
+            
+            source      = zip_temp_folder + source_file
+            destination = os.path.join(dirname, '../Data/') + source_file
+            shutil.move(source, destination)
+            shutil.rmtree(zip_temp_folder, ignore_errors=True)
+            
+        
 
 
     
@@ -737,8 +805,8 @@ module_order = None
 detector_types = None
 data_set = None
 
-print('Load saved clusters (y/n)?')
-answer = input('>> ')
+answer = intro_meny()
+
 if answer == 'y':
     clusters_folder = os.path.join(dirname, '../Clusters/')
     clu_files = os.listdir(clusters_folder)
