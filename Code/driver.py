@@ -264,7 +264,7 @@ def choose_data_set():
     ans = input('>> ')
         
     if ans == 'n':
-        print('Enter amount of data in MB to import (minimum size is 100MB).')
+        print('Enter amount of data in MB to import (minimum size is 1 MB).')
         max_size = input('>> ')
         max_size = int(max_size)
         data = clu.import_data(data_set, max_size)
@@ -614,7 +614,7 @@ def choose_analysis_type(module_order, data_set):
             print('Loading...')
             fig, path = pl.plot_timestamp_and_trigger(fig, name, data_set, 
                                     coincident_events, triggers)
-            
+            print('Done!')
             
                 
         if analysis_type <= len(analysis_name_vec):

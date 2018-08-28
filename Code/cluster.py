@@ -72,13 +72,19 @@ def import_data(file_name, max_size = np.inf):
     
     with open(file_path, mode='rb') as bin_file:
         
-        content = bin_file.read(100 * (1 << 20))
+        piece_size = 0
+        if max_size > 1000:
+            piece_size = 1000
+        else:
+            piece_size = max_size
+        
+        content = bin_file.read(piece_size * (1 << 20))
         
         moreData = True
         imported_data = 0
         while moreData and imported_data <= max_size * (1 << 20):
-            imported_data += 100 * (1 << 20)
-            piece = bin_file.read(100 * (1 << 20)) # Read 100 MB at a time; big, but not memory busting
+            imported_data += piece_size * (1 << 20)
+            piece = bin_file.read(piece_size * (1 << 20)) # Read 100 MB at a time; big, but not memory busting
             if not piece:  # Reached EOF
                 moreData = False
             else:
@@ -268,22 +274,9 @@ def cluster_data(data, ILL_buses = []):
                 Time = extended_time_stamp | time_stamp
             else:
                 Time = time_stamp
-            
-    #        trigger_value = 0
-            
+                
             if isTrigger:
-                TriggerTime = Time
-#                if isData == False:
-#                    coincident_events['wCh'][index]  = -1
-#                    coincident_events['gCh'][index]  = -1
-#                    coincident_events['ToF'][index]  = -1
-#                    coincident_events['Time'][index] =  Time
-#                    coincident_events['Bus'][index]  = -1
-#                    coincident_events['wM'][index]   = -1
-#                    coincident_events['gM'][index]   = -1
-#                    
-#                trigger_value = 1
-                    
+                TriggerTime = Time                    
                 triggers[trigger_index] = TriggerTime
                 trigger_index += 1
             
