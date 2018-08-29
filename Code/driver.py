@@ -100,6 +100,14 @@ def choose_specifications(options):
         max_ADC = int(max_ADC)
         
         return  [min_ADC, max_ADC]
+    
+    def get_timestamp_filter():
+        min_ts = input('Minimum timestamp: ')
+        max_ts = input('Maximum timestamp: ')
+        min_ts = int(min_ts)
+        max_ts = int(max_ts)
+        return [min_ts, max_ts]
+        
                  
         
         
@@ -107,6 +115,7 @@ def choose_specifications(options):
     get_spec =  {'Count range': get_count_range, 
                  'ADC filter': get_ADC_filter,
                  'Multiplicity filter': get_multiplicity_filter,
+                 'Time-stamp filter': get_timestamp_filter,
                  'Lower and upper count threshold': get_count_threshold,
                  'Exclude channels': get_exclude_channels,
                  'Include channels': get_include_channels,
@@ -118,7 +127,7 @@ def choose_specifications(options):
                  'Choose specific bus(es)': get_buses}
     
     spec_type_names = ['Count range', 'ADC filter', 'Multiplicity filter', 
-                       'Lower and upper count threshold', 
+                       'Lower and upper count threshold', 'Time-stamp filter',
                        'Exclude channels', 'Include channels', 'Log/Lin-scale',
                        'ADC threshold', 'Transparacy factor', 'Number of bins',
                        'Range', 'Choose specific bus(es)']
@@ -350,14 +359,16 @@ def choose_analysis_type(module_order, data_set):
             
             loglin = False
             count_range = None
+            temp_events = events
             if choice == 'y':
                 options = ['Log/Lin-scale', 'Count range']
                 specs = choose_specifications(options)
                 loglin = specs['Log/Lin-scale']
                 count_range = specs['Count range']
+                    
             
             print('Loading...')
-            fig, path = pl.plot_PHS_several_channels(fig, name, events, bus, 
+            fig, path = pl.plot_PHS_several_channels(fig, name, temp_events, bus, 
                                                      ChVec, data_set, 
                                                      loglin = loglin,
                                                      count_range = count_range)
@@ -368,6 +379,8 @@ def choose_analysis_type(module_order, data_set):
             
             count_range = [1, 3000]
             buses = module_order
+            temp_events = events
+           
             if choice == 'y':
                 options = ['Count range', 'Choose specific bus(es)']
                 specs = choose_specifications(options)
@@ -377,9 +390,9 @@ def choose_analysis_type(module_order, data_set):
                 
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
-                    
+                
             print('Loading...')
-            fig, path = pl.plot_PHS_buses(fig, name, events, buses, 
+            fig, path = pl.plot_PHS_buses(fig, name, temp_events, buses, 
                                           data_set, count_range=count_range)
  
             print('Done!')
@@ -399,9 +412,12 @@ def choose_analysis_type(module_order, data_set):
             ADC_filter = None
             buses = module_order
             m_range = None
+            ce_temp = coincident_events
+            ts_range = [0,np.inf]
             if choice == 'y':
                 options = ['Count range', 'Choose specific bus(es)', 
-                           'ADC filter', 'Multiplicity filter']
+                           'ADC filter', 'Multiplicity filter',
+                           'Time-stamp filter']
                 specs = choose_specifications(options)
                 
                 if specs['Count range'] != None:
@@ -416,11 +432,21 @@ def choose_analysis_type(module_order, data_set):
                 if specs['Multiplicity filter'] != None:
                     m_range = specs['Multiplicity filter']
                 
+                if specs['Time-stamp filter'] != None:
+                    ts_range = specs['Time-stamp filter']
+         
+                    min_ts = ts_range[0]
+                    max_ts = ts_range[1]
+
+                    ce_temp = ce_temp[(ce_temp['Time'] >= min_ts) &
+                                      (ce_temp['Time'] <= max_ts)]
+               
+                
             print('Loading...')
-            fig, path = pl.plot_2D_hit_buses(fig, name, coincident_events, 
+            fig, path = pl.plot_2D_hit_buses(fig, name, ce_temp, 
                                              buses, number_of_detectors, 
                                              data_set, count_range,
-                                             ADC_filter, m_range)
+                                             ADC_filter, m_range, ts_range)
                 
             print('Done!')
             
@@ -486,9 +512,12 @@ def choose_analysis_type(module_order, data_set):
             count_range = [1, 1e6]
             buses = module_order
             ADC_filter = None
+            ce_temp = coincident_events
+            ts_range = [0,np.inf]
             if choice == 'y':
                 options = ['Multiplicity filter', 'Count range', 
-                           'Choose specific bus(es)', 'ADC filter']
+                           'Choose specific bus(es)', 'ADC filter',
+                           'Time-stamp filter']
                 specs = choose_specifications(options)
                 if specs['Multiplicity filter'] != None:
                     m_range = specs['Multiplicity filter']
@@ -502,22 +531,36 @@ def choose_analysis_type(module_order, data_set):
                 if specs['ADC filter'] != None:
                     ADC_filter = specs['ADC filter']
                 
+                if specs['Time-stamp filter'] != None:
+                    ts_range = specs['Time-stamp filter']
+                    min_ts = ts_range[0]
+                    max_ts = ts_range[1]
+       
+                    
+           
+                    ce_temp = ce_temp[(ce_temp['Time'] >= min_ts) &
+                                      (ce_temp['Time'] <= max_ts)]
+    
+                
             
             print('Loading...')
             fig, path = pl.plot_2D_multiplicity_buses(fig, name, 
-                                      coincident_events, buses, 
+                                      ce_temp, buses, 
                                       number_of_detectors, data_set, m_range, 
-                                      count_range, ADC_filter)
+                                      count_range, ADC_filter, ts_range)
 
             print('Done!')
     
         if analysis_type == 8:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
+            
             if choice == 'y':
                 options = ['Multiplicity filter', 'Exclude channels', 
-                           'Choose specific bus(es)']
+                           'Choose specific bus(es)', 'Time-stamp filter']
+                
                 specs = choose_specifications(options)
+                ce_temp = coincident_events
                 
                 minWM = 0
                 maxWM = 100
@@ -538,10 +581,19 @@ def choose_analysis_type(module_order, data_set):
                 if specs['Choose specific bus(es)'] != None:
                     buses = specs['Choose specific bus(es)']
                 
+                if specs['Time-stamp filter'] != None:
+                    ts_range = specs['Time-stamp filter']
+                    min_ts = ts_range[0]
+                    max_ts = ts_range[1]
+       
+                    
+                    ce_temp = ce_temp[(ce_temp['Time'] >= min_ts) &
+                                      (ce_temp['Time'] <= max_ts)]
+                
                 print('Loading...')
-                fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, buses, 
+                fig, path = pl.plot_charge_scatter_buses(fig, name, ce_temp, buses, 
                                      number_of_detectors, data_set, minWM, maxWM, minGM, 
-                                     maxGM, exclude_channels)
+                                     maxGM, exclude_channels, ts_range)
             else:
                 print('Loading...')
                 fig, path = pl.plot_charge_scatter_buses(fig, name, coincident_events, module_order, 
@@ -750,8 +802,6 @@ def intro_meny():
         return 'n'
     else:
         return 'y'
-    
-    return answer
             
             
 def unzip_meny():
@@ -820,9 +870,9 @@ number_of_detectors = None
 module_order = None
 detector_types = None
 data_set = None
+temp_events = None
 
 answer = intro_meny()
-print(answer)
 
 if answer == 'y':
     clusters_folder = os.path.join(dirname, '../Clusters/')

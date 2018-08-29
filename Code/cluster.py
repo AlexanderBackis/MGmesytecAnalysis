@@ -103,7 +103,6 @@ def import_data(file_name, max_size = np.inf):
         #Group data into 'uint'-words of 4 bytes length
         data = struct.unpack('I' * (len(reduced_content)//4), reduced_content)
     
-    print('100%')
     print('Done!')
     return data
 
@@ -231,6 +230,7 @@ def cluster_data(data, ILL_buses = []):
                 maxADCw                 = 0
                 maxADCg                 = 0
                 nbrCoincidentEvents    += 1
+                nbrEvents              += 1
                 index                  += 1
                 
                 coincident_events['wCh'][index] = -1
@@ -241,8 +241,8 @@ def cluster_data(data, ILL_buses = []):
             
             Channel = ((word & ChannelMask) >> ChannelShift)
             ADC = (word & ADCMask)
-            
             index_event += 1
+            nbrEvents   += 1
             events['Bus'][index_event] = Bus
             events['ADC'][index_event] = ADC   
             
@@ -296,21 +296,22 @@ def cluster_data(data, ILL_buses = []):
                 events['Time'][index-i] = Time
                 
             #Assign coordinate
-            wCh = coincident_events['wCh'][index]
-            gCh = coincident_events['gCh'][index]
-            if wCh != -1 and gCh != -1 and isData == True:
-                eventBus = coincident_events['Bus'][index]
-                coord = get_coordinate(eventBus, wCh, gCh, ess_ch_to_coord, 
-                                       ill_ch_to_coord, ILL_buses)
+            for i in range(0,nbrCoincidentEvents):
+                wCh = coincident_events['wCh'][index]
+                gCh = coincident_events['gCh'][index]
+                if (wCh != 0 and gCh != 0) and (wCh != -1 and gCh != -1):
+                    eventBus = coincident_events['Bus'][index]
+                    coord = get_coordinate(eventBus, wCh, gCh, ess_ch_to_coord, 
+                                           ill_ch_to_coord, ILL_buses)
                 
-                coincident_events['x'][index] = coord['x']
-                coincident_events['y'][index] = coord['y']
-                coincident_events['z'][index] = coord['z']
+                    coincident_events['x'][index] = coord['x']
+                    coincident_events['y'][index] = coord['y']
+                    coincident_events['z'][index] = coord['z']
                 
-            else:
-                coincident_events['x'][index] = -1
-                coincident_events['y'][index] = -1
-                coincident_events['z'][index] = -1
+                else:
+                    coincident_events['x'][index] = -1
+                    coincident_events['y'][index] = -1
+                    coincident_events['z'][index] = -1
                 
             #Reset temporary variables
             nbrCoincidentEvents  =  0

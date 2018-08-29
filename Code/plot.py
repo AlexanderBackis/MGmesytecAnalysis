@@ -178,7 +178,7 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range,
     plt.title(name)
     
 def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, 
-                      data_set, count_range, ADC_filter, m_range):
+                      data_set, count_range, ADC_filter, m_range, ts_range):
     
     if m_range != None:
         minWM = m_range[0]
@@ -200,7 +200,7 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors,
         buses_per_row = 3
         figwidth = 14
             
-    name = (name)
+    name = (name + '\nTimestamp range: ' + str(ts_range))
     fig.suptitle(name, x=0.5, y=1.09)
     fig.set_figheight(4 * number_of_detectors)
     fig.set_figwidth(figwidth)
@@ -471,7 +471,7 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc,
                                         norm=LogNorm(), vmin=count_range[0], vmax=count_range[1], 
                                         cmap = 'jet')
     tot = df_clu.shape[0]
-    font_size = 50 / max(m_range)
+    font_size = 13
     for i in range(len(ybins)-1):
         for j in range(len(xbins)-1):
             if hist[j,i] > 0:
@@ -494,12 +494,12 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc,
 
     plt.colorbar()
     plt.tight_layout()
-    name = 'Bus ' + str(bus) + '\n(' + str(df_clu.shape[0]) + ' events)'
+    name = 'Bus ' + str(bus) + '\n(' + str(df_clu.shape[0]) + ' events)' 
     plt.title(name)
 
 def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order, 
                                number_of_detectors, data_set, m_range, 
-                               count_range, ADC_filter):
+                               count_range, ADC_filter, ts_range):
     
     if count_range == None:
         count_range = [1, 1e6]
@@ -519,7 +519,7 @@ def plot_2D_multiplicity_buses(fig, name, coincident_events, module_order,
     
     
     
-    name = (name)
+    name = name + '\nTimestamp range: ' + str(ts_range)
     fig.suptitle(name, x=0.5, y=1.08)
     fig.set_figheight(4*number_of_detectors)
     fig.set_figwidth(figwidth)
@@ -566,7 +566,7 @@ def charge_scatter(df, bus, number_of_detectors, loc, fig, minWM,
     
 def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, data_set, 
                               minWM = 0, maxWM = 100, minGM = 0, maxGM = 100,
-                              exclude_channels = [-1]):
+                              exclude_channels = [-1], ts_range = [0, np.inf]):
     
     buses_per_row = None
     number_of_detectors = None
@@ -585,7 +585,7 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
             ', gm_min: ' + str(minGM) +
             ', gm_max: ' + str(maxGM) +
             ', excluded channels: ' + str(exclude_channels) +
-            ')')
+            ')' + '\nTimestamp range: ' + str(ts_range))
     
     fig.suptitle(name, x=0.5, y=1.12)
     fig.set_figheight(4 * number_of_detectors)
