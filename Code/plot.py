@@ -471,7 +471,7 @@ def plot_2D_multiplicity(coincident_events, number_of_detectors, bus, loc,
                                         norm=LogNorm(), vmin=count_range[0], vmax=count_range[1], 
                                         cmap = 'jet')
     tot = df_clu.shape[0]
-    font_size = 13
+    font_size = 7
     for i in range(len(ybins)-1):
         for j in range(len(xbins)-1):
             if hist[j,i] > 0:
