@@ -608,7 +608,7 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
 # =============================================================================
     
 def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
-                       ADC_filter = None):
+                       ADC_filter = None, log = False):
     
     if ADC_filter != None:
         minADC = ADC_filter[0]
@@ -617,20 +617,20 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
                 & (df.gADC >= minADC) & (df.gADC <= maxADC)]
     
     
-    hist, bins, patches = plt.hist(df.ToF, bins=number_bins, range=rnge, color = 'b')
+    hist, bins, patches = plt.hist(df.ToF, bins=number_bins, range=rnge, 
+                                   log=log, color='b')
     plt.title(name)
     plt.xlabel('ToF [TDC channels]')
     plt.ylabel('Counts  [a.u.]')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
     
-    folder = get_output_path(data_set)
+#    folder = get_output_path(data_set)
+#    
+#    ToF_path = folder + 'ToF.txt'
+#    
+#    np.savetxt(ToF_path, df['ToF'], delimiter=",")
     
-    ToF_path = folder + 'ToF.txt'
-    
-    np.savetxt(ToF_path, df['ToF'], delimiter=",")
-    
-
     
     return fig, plot_path
 
@@ -710,14 +710,14 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     
     plot_path = get_plot_path(data_set) + name + '.pdf'
     
-    folder = get_output_path(data_set)
-    
-    trigpath = folder + 'triggers.txt'
-    stamppath = folder + 'timestamps.txt'
-    
-    timestamps = df['Time'].values
-    np.savetxt(trigpath, triggers, delimiter=",")
-    np.savetxt(stamppath, timestamps, delimiter=",")
+#    folder = get_output_path(data_set)
+#    
+#    trigpath = folder + 'triggers.txt'
+#    stamppath = folder + 'timestamps.txt'
+#    
+#    timestamps = df['Time'].values
+#    np.savetxt(trigpath, triggers, delimiter=",")
+#    np.savetxt(stamppath, timestamps, delimiter=",")
     
 
     

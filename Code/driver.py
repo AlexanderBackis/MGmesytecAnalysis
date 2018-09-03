@@ -107,11 +107,14 @@ def choose_specifications(options):
         min_ts = int(min_ts)
         max_ts = int(max_ts)
         return [min_ts, max_ts]
-        
-                 
-        
-        
-        
+    
+    def get_ToF_filter():
+        min_tof = input('Minimum ToF: ')
+        max_tof = input('Maximum ToF: ')
+        min_tof = int(min_tof)
+        max_tof = int(max_tof)
+        return [min_tof, max_tof]
+
     get_spec =  {'Count range': get_count_range, 
                  'ADC filter': get_ADC_filter,
                  'Multiplicity filter': get_multiplicity_filter,
@@ -124,13 +127,14 @@ def choose_specifications(options):
                  'Transparacy factor': get_transparacy_factor,
                  'Number of bins': get_number_of_bins,
                  'Range': get_range,
-                 'Choose specific bus(es)': get_buses}
+                 'Choose specific bus(es)': get_buses,
+                 'ToF filter': get_ToF_filter}
     
     spec_type_names = ['Count range', 'ADC filter', 'Multiplicity filter', 
                        'Lower and upper count threshold', 'Time-stamp filter',
                        'Exclude channels', 'Include channels', 'Log/Lin-scale',
                        'ADC threshold', 'Transparacy factor', 'Number of bins',
-                       'Range', 'Choose specific bus(es)']
+                       'Range', 'Choose specific bus(es)', 'ToF filter']
     
     specifications = {}
     for specification in spec_type_names:
@@ -233,26 +237,39 @@ def choose_data_set():
         print('-------------------------------------------------')
         for i, file in enumerate(files):
             print(str(i+1) + '. ' + str(file))
-        
-        
+        print('---------------------------------------------')
+        print(str(len(files)+1) + '. Select several data sets')
+        print(str(len(files)+2) + '. Select interval of data sets')
+        print('---------------------------------------------')
     
         file_number = input('\nEnter a number between 1-' + 
-                            str(len(files)) + '.\n>> ')
+                            str(len(files)+2) + '.\n>> ')
     
         try:
             file_number = int(file_number)
             not_int = False
-            not_in_range = (file_number < 1) | (file_number > len(files))
+            not_in_range = (file_number < 1) | (file_number > len(files)+2)
         except ValueError:
             pass
     
         if not_int or not_in_range:
             print('\nThat is not a valid number.')
     
-    data_set = files[int(file_number) - 1]
-    data = None
-    
-
+    data_sets = []
+    if file_number <= len(files):
+        data_sets.append(files[int(file_number) - 1])
+    elif file_number == len(files) + 1:
+        print('Enter data sets to import, use space(s) to separate choices.')
+        choices = [int(x) for x in input('>> ').split()]
+        for choice in choices:
+            data_sets.append(files[choice-1])
+    elif file_number == len(files) + 2:
+        start = input('Start file: ')
+        end = input('End file: ')
+        start = int(start)
+        end = int(end)
+        for choice in range(start, end+1):
+            data_sets.append(files[choice-1])
     
     print('Use standard module order and detector types (y/n)?')
     answer = input('>> ')
@@ -271,20 +288,30 @@ def choose_data_set():
         print()
     
     
-    print('Import full file (y/n)?')
+    print('Import full file(s) (y/n)?')
     ans = input('>> ')
-        
+    
+    max_size = np.inf
     if ans == 'n':
         print('Enter amount of data in MB to import (minimum size is 1 MB).')
         max_size = input('>> ')
         max_size = int(max_size)
-        data = clu.import_data(data_set, max_size)
-    else:
-        data = clu.import_data(data_set)
     
-    coincident_events, events, triggers = clu.cluster_data(data, exceptions)
+    coincident_events = pd.DataFrame()
+    events = pd.DataFrame()
+    triggers = pd.DataFrame()
+    for i, data_set in enumerate(data_sets):
+        print()
+        print('-- File ' + str(i+1) + '/' + str(len(data_sets)) + ' --')
+        data_temp = clu.import_data(data_set, max_size)
+        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions)
+        coincident_events = coincident_events.append(ce_temp)
+        events = events.append(e_temp)
+        triggers = triggers.append(t_temp)
     
-    return coincident_events, events, data_set, triggers, number_of_detectors, module_order, detector_types
+    data_sets = str(data_sets)
+    
+    return coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -417,7 +444,7 @@ def choose_analysis_type(module_order, data_set):
             if choice == 'y':
                 options = ['Count range', 'Choose specific bus(es)', 
                            'ADC filter', 'Multiplicity filter',
-                           'Time-stamp filter']
+                           'Time-stamp filter', 'ToF filter']
                 specs = choose_specifications(options)
                 
                 if specs['Count range'] != None:
@@ -441,6 +468,15 @@ def choose_analysis_type(module_order, data_set):
                     ce_temp = ce_temp[(ce_temp['Time'] >= min_ts) &
                                       (ce_temp['Time'] <= max_ts)]
                
+                if specs['ToF filter'] is not None:
+                    ts_range = specs['ToF filter']
+         
+                    min_ts = ts_range[0]
+                    max_ts = ts_range[1]
+
+                    ce_temp = ce_temp[(ce_temp['ToF'] >= min_tof) &
+                                      (ce_temp['ToF'] <= max_tof)]
+                    
                 
             print('Loading...')
             fig, path = pl.plot_2D_hit_buses(fig, name, ce_temp, 
@@ -607,7 +643,8 @@ def choose_analysis_type(module_order, data_set):
             number_bins = 1000
             
             if choice == 'y':
-                options = ['Number of bins', 'Range', 'ADC filter']
+                options = ['Number of bins', 'Range', 'ADC filter', 
+                           'Log/Lin-scale']
                 specs = choose_specifications(options)
                 ADC_filter = None
                 if specs['Number of bins'] != None:
@@ -618,12 +655,15 @@ def choose_analysis_type(module_order, data_set):
                 
                 if specs['ADC filter'] != None:
                     ADC_filter = specs['ADC filter']
+                
+                if specs['Log/Lin-scale'] is not None:
+                    log = specs['Log/Lin-scale']
                     
                 
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
                                                   data_set, number_bins, rnge,
-                                                  ADC_filter)
+                                                  ADC_filter, log)
             else:
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
@@ -665,9 +705,27 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
         
         if analysis_type == 11:
+            choice = input('\nFurther specifications? (y/n).\n>> ')
+            temp_ce = coincident_events
+            if choice == 'y':
+                options = ['Multiplicity filter']
+                
+                specs = choose_specifications(options)
+                if specs['Multiplicity filter'] is not None:
+                    m_range = specs['Multiplicity filter']
+                    mw_min = m_range[0]
+                    mw_max = m_range[1]
+                    mg_min = m_range[2]
+                    mg_max = m_range[3]
+                    temp_ce = temp_ce[  
+                              (temp_ce.wM >= mw_min) & (temp_ce.wM <= mw_max) 
+                            & (temp_ce.gM >= mg_min) & (temp_ce.gM <= mg_max)
+                                     ]
+                
+                
             print('Loading...')
             fig, path = pl.plot_timestamp_and_trigger(fig, name, data_set, 
-                                    coincident_events, triggers)
+                                    temp_ce, triggers)
             print('Done!')
             
                 
@@ -702,7 +760,7 @@ def choose_analysis_type(module_order, data_set):
             
                 
 
-def main_meny(data_set):
+def main_meny(data_sets):
     not_int = True
     not_in_range = True
     choice = None
@@ -712,22 +770,23 @@ def main_meny(data_set):
         print('******************* main meny *******************')
        # print('*************************************************')
         print('-------------------------------------------------')
-        print('Data set        : ' + data_set)
+        print('Data set(s)     : ' + data_sets)
         print('Module order    : ' + str(module_order))
         print('Detector type(s): ' + str(detector_types))
         print('-------------------------------------------------')
         print('1. Change module order')
         print('2. Perform an analysis')
         print('3. Save clusters')
-        print('4. Quit')
+        print('4. Export clusters')
+        print('5. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-4.\n>> ')
+                       'between 1-5.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 4)
+            not_in_range = (choice < 1) | (choice > 5)
         except ValueError:
             pass
     
@@ -735,16 +794,6 @@ def main_meny(data_set):
             print('\nThat is not a valid number.')
     
     return choice
-print('\n')
-print(' __  __       _ _   _         _____      _     _ \n' + 
-      '|  \/  |     | | | (_)       / ____|    (_)   | |\n' +
-      '| \  / |_   _| | |_ _ ______| |  __ _ __ _  __| |\n' +
-      '| |\/| | | | | | __| |______| | |_ |  __| |/ _` |\n' +
-      '| |  | | |_| | | |_| |      | |__| | |  | | (_| |\n' +
-      '|_|  |_|\__,_|_|\__|_|       \_____|_|  |_|\__,_|\n')
-print('   MESYTEC OUTPUT: IMPORT, CLUSTER AND ANALYSE    ')
-print()
-
 
 def save_clusters(coincident_events, events, triggers, number_of_detectors,
                   module_order, detector_types, data_set):
@@ -773,6 +822,40 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     da_set.to_hdf(path, 'data_set', complevel = 9)
     print('100%')
     print('Done!')
+    
+def export_clusters(coincident_events, triggers, data_sets):
+    print('Exporting...')
+    mw_min = 0
+    mw_max = 10
+    mg_min = 0
+    mg_max = 10
+    temp_ce = coincident_events
+    temp_ce = temp_ce[  (temp_ce.wM >= mw_min) & (temp_ce.wM <= mw_max) 
+                      & (temp_ce.gM >= mg_min) & (temp_ce.gM <= mg_max)]
+    np_matrix = temp_ce[['Time', 'ToF', 'wCh', 'wADC', 'gCh', 'gADC']].values
+    
+       
+    folder = get_output_path(data_sets)
+
+    ce_path = folder + 'coincident_events.dat'
+    np.savetxt(ce_path, np_matrix, delimiter=",")
+
+    ToF_path = folder + 'ToF.dat'
+    np.savetxt(ToF_path, temp_ce['ToF'], delimiter=",")
+
+    trigpath = folder + 'triggers.dat'
+    np.savetxt(trigpath, triggers, delimiter=",")
+
+    stamppath = folder + 'timestamps.dat'
+    np.savetxt(stamppath, temp_ce['Time'], delimiter=",")
+    
+    print('Done!')
+    
+def get_output_path(data_set):
+    dirname = os.path.dirname(__file__)
+    folder = os.path.join(dirname, '../Output/' + data_set + '/')
+    return folder  
+    
     
 def intro_meny():
     
@@ -859,7 +942,15 @@ def unzip_meny():
     
     
     
-    
+print('\n')
+print(' __  __       _ _   _         _____      _     _ \n' + 
+      '|  \/  |     | | | (_)       / ____|    (_)   | |\n' +
+      '| \  / |_   _| | |_ _ ______| |  __ _ __ _  __| |\n' +
+      '| |\/| | | | | | __| |______| | |_ |  __| |/ _` |\n' +
+      '| |  | | |_| | | |_| |      | |__| | |  | | (_| |\n' +
+      '|_|  |_|\__,_|_|\__|_|       \_____|_|  |_|\__,_|\n')
+print('   MESYTEC OUTPUT: IMPORT, CLUSTER AND ANALYSE    ')
+print()
     
 
 dirname = os.path.dirname(__file__)
@@ -869,7 +960,7 @@ triggers = None
 number_of_detectors = None
 module_order = None
 detector_types = None
-data_set = None
+data_sets = None
 temp_events = None
 
 answer = intro_meny()
@@ -930,30 +1021,32 @@ if answer == 'y':
         module_order.append(row)
         
     
-    data_set = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
+    data_sets = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
     create_plot_folder(data_set)
 
 else:
     folder = os.path.join(dirname, '../Data/')
     files = os.listdir(folder)
     files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
-    coincident_events, events, data_set, triggers, number_of_detectors, module_order, detector_types = choose_data_set()
-    create_plot_folder(data_set)
+    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types = choose_data_set()
+    create_plot_folder(data_sets)
 
-create_output_folder(data_set)
+create_output_folder(data_sets)
 
 thresADC = 0
 not_done = True
 while not_done:
-    choice = main_meny(data_set)
+    choice = main_meny(data_sets)
     if choice == 1:
         module_order = [int(x) for x in input('Enter module order, uses spaces to separate.\n>>').split()]
     elif choice == 2:
-        choose_analysis_type(module_order, data_set)
+        choose_analysis_type(module_order, data_sets)
     elif choice == 3:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
-                      module_order, detector_types, data_set)
+                      module_order, detector_types, data_sets)
     elif choice == 4:
+        export_clusters(coincident_events, triggers, data_sets)
+    elif choice == 5:
         print('\nBye!')
         not_done = False
     

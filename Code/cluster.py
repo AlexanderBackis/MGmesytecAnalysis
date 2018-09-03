@@ -66,13 +66,13 @@ def import_data(file_name, max_size = np.inf):
     """
     print('\nImporting...')
     print('0%')
+    
     dir_name = os.path.dirname(__file__)
     file_path = os.path.join(dir_name, '../Data/' + file_name)
-
     
     with open(file_path, mode='rb') as bin_file:
-        
         piece_size = 0
+        
         if max_size > 1000:
             piece_size = 1000
         else:
@@ -80,29 +80,30 @@ def import_data(file_name, max_size = np.inf):
         
         content = bin_file.read(piece_size * (1 << 20))
         
+        # Skip configuration text
+        match = re.search(b'}\n}\n[ ]*', content)
+        start = match.end()
+        content = content[start:]
+        
+        data = struct.unpack('I' * (len(content)//4), content)
+        
         moreData = True
-        imported_data = 0
-        while moreData and imported_data <= max_size * (1 << 20):
-            imported_data += piece_size * (1 << 20)
-            piece = bin_file.read(piece_size * (1 << 20)) # Read 100 MB at a time; big, but not memory busting
+        imported_data = piece_size
+        
+        file_size = os.path.getsize(file_path)
+        
+        while moreData and imported_data <= max_size:
+            imported_data += piece_size
+            piece = bin_file.read(piece_size * (1 << 20))
             if not piece:  # Reached EOF
                 moreData = False
             else:
-                content += piece
-        
-        #Make sure our data is evenly divided by 4
-        rest = imported_data % 4
-        if rest != 0:
-            content = content[:-rest]
-        
-        #Skip configuration text
-        match = re.search(b'}\n}\n[ ]*', content)
-        start = match.end()
-        reduced_content = content[start:]
-        
-        #Group data into 'uint'-words of 4 bytes length
-        data = struct.unpack('I' * (len(reduced_content)//4), reduced_content)
-    
+                data += struct.unpack('I' * (len(piece)//4), piece)
+
+#            print(str(int(round(((imported_data * (1 << 20))/file_size),2)*100)) + '%')
+
+
+    print('100%!')
     print('Done!')
     return data
 
@@ -293,7 +294,7 @@ def cluster_data(data, ILL_buses = []):
             
             #Assign timestamp to events
             for i in range(0,nbrEvents):
-                events['Time'][index-i] = Time
+                events['Time'][index_event-i] = Time
                 
             #Assign coordinate
             for i in range(0,nbrCoincidentEvents):
