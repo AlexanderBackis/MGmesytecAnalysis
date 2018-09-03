@@ -15,6 +15,7 @@ import plot as pl
 import matplotlib.pyplot as plt
 import zipfile
 import shutil
+import imageio
 
 def choose_specifications(options):
     
@@ -469,15 +470,14 @@ def choose_analysis_type(module_order, data_set):
                                       (ce_temp['Time'] <= max_ts)]
                
                 if specs['ToF filter'] is not None:
-                    ts_range = specs['ToF filter']
-         
-                    min_ts = ts_range[0]
-                    max_ts = ts_range[1]
+                    tof_range = specs['ToF filter']
+
+                    min_tof = tof_range[0]
+                    max_tof = tof_range[1]
 
                     ce_temp = ce_temp[(ce_temp['ToF'] >= min_tof) &
                                       (ce_temp['ToF'] <= max_tof)]
-                    
-                
+
             print('Loading...')
             fig, path = pl.plot_2D_hit_buses(fig, name, ce_temp, 
                                              buses, number_of_detectors, 
@@ -492,9 +492,10 @@ def choose_analysis_type(module_order, data_set):
             count_thres = None
             ADC_filter = None
             m_range = None
+            ce_temp = coincident_events
             if choice == 'y':
                 options = ['Transparacy factor', 'Lower and upper count threshold',
-                           'ADC filter', 'Multiplicity filter']
+                           'ADC filter', 'Multiplicity filter', 'ToF filter']
                 specs = choose_specifications(options)
                 if specs['Lower and upper count threshold'] != None:
                     count_thres = specs['Lower and upper count threshold']
@@ -507,9 +508,18 @@ def choose_analysis_type(module_order, data_set):
                 
                 if specs['Multiplicity filter'] != None:
                     m_range = specs['Multiplicity filter']
+                
+                if specs['ToF filter'] is not None:
+                    tof_range = specs['ToF filter']
+
+                    min_tof = tof_range[0]
+                    max_tof = tof_range[1]
+
+                    ce_temp = ce_temp[(ce_temp['ToF'] >= min_tof) &
+                                      (ce_temp['ToF'] <= max_tof)]
                    
             print('Loading...')
-            fig, path = pl.plot_all_sides_3D(fig, name, coincident_events, 
+            fig, path = pl.plot_all_sides_3D(fig, name, ce_temp, 
                                                  module_order, count_thres, 
                                                  alpha, data_set, 
                                                  number_of_detectors,
@@ -522,8 +532,11 @@ def choose_analysis_type(module_order, data_set):
             count_range = [1e2, 3e4]
             ADC_filter = None
             m_range = None
+            tof_range = None
+            ce_temp = coincident_events
             if choice == 'y':
-                options = ['Count range', 'ADC filter', 'Multiplicity filter']
+                options = ['Count range', 'ADC filter', 'Multiplicity filter',
+                           'ToF filter']
                 specs = choose_specifications(options)
                 if specs['Count range'] != None:
                     count_range = specs['Count range']
@@ -533,12 +546,21 @@ def choose_analysis_type(module_order, data_set):
                 
                 if specs['Multiplicity filter'] != None:
                     m_range = specs['Multiplicity filter']
+                
+                if specs['ToF filter'] is not None:
+                    tof_range = specs['ToF filter']
+
+                    min_tof = tof_range[0]
+                    max_tof = tof_range[1]
+
+                    ce_temp = ce_temp[(ce_temp['ToF'] >= min_tof) &
+                                      (ce_temp['ToF'] <= max_tof)]
                     
             
             print('Loading...')
-            fig, path = pl.plot_all_sides(fig, name, module_order, coincident_events, 
+            fig, path = pl.plot_all_sides(fig, name, module_order, ce_temp, 
                                   data_set, number_of_detectors, count_range,
-                                  ADC_filter, m_range)
+                                  ADC_filter, m_range, tof_range)
             
             print('Done!')
     
@@ -776,17 +798,18 @@ def main_meny(data_sets):
         print('-------------------------------------------------')
         print('1. Change module order')
         print('2. Perform an analysis')
-        print('3. Save clusters')
-        print('4. Export clusters')
-        print('5. Quit')
+        print('3. Create animation')
+        print('4. Save clusters')
+        print('5. Export clusters')
+        print('6. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-5.\n>> ')
+                       'between 1-6.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 5)
+            not_in_range = (choice < 1) | (choice > 6)
         except ValueError:
             pass
     
@@ -854,7 +877,12 @@ def export_clusters(coincident_events, triggers, data_sets):
 def get_output_path(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Output/' + data_set + '/')
-    return folder  
+    return folder
+
+def get_plot_path(data_set):
+    dirname = os.path.dirname(__file__)
+    folder = os.path.join(dirname, '../Plot/' + data_set + '/')
+    return folder
     
     
 def intro_meny():
@@ -934,6 +962,64 @@ def unzip_meny():
         print(percentage_finished)
     
     print('Done!')
+
+def create_animation(coincident_events, data_sets):
+    images = []
+    folder = get_plot_path("['mvmelst_210.mvmelst']")
+    plot_path = folder + 'test.gif'
+    file_names = os.listdir(folder)
+    files = [file for file in file_names if file[-9:] != '.DS_Store' and file != '.gitignore']
+    for filename in files:
+        images.append(imageio.imread(folder + filename))
+    imageio.mimsave(plot_path, images)
+
+def generate_images_for_animation(coincident_events, data_sets):
+    start = 0
+    stop = 150000
+    step = 100
+    tof_vec = range(start, stop, step)
+    ce = coincident_events
+    count_range = [1, 100]
+    ADC_filter = None
+    m_range = None
+    name = ('6. Coincidence Histogram (Front, Top, Side)\n' + 'Data set: '
+            + str(data_sets))
+    temp_folder = get_plot_path('temp_folder')
+    mkdir_p(temp_folder)
+    
+    for i in range(0, (stop-start)//step-1):
+        print(str(i) + '/' + str((stop-start)//step))
+        fig = plt.figure()
+        min_tof = tof_vec[i]
+        max_tof = tof_vec[i+1]
+        tof_range = [min_tof, max_tof]
+        ce_temp = ce[(ce['ToF'] >= min_tof) & (ce['ToF'] <= max_tof)]
+
+        fig, path = pl.plot_all_sides(fig, name, module_order, ce_temp,
+                                      data_sets, number_of_detectors,
+                                      count_range, ADC_filter, m_range,
+                                      tof_range)
+        fig.savefig(temp_folder + str(i) + '.png')
+        plt.close()
+    
+    images = []
+    files = os.listdir(temp_folder)
+    files = [file for file in files if file[-9:] != '.DS_Store' 
+             and file != '.gitignore']
+    
+    output_path = get_output_path(data_sets) + 'ToF sweep.gif'
+    
+    for filename in files:
+        images.append(imageio.imread(temp_folder + filename))
+    imageio.mimsave(output_path, images)
+    
+    shutil.rmtree(temp_folder, ignore_errors=True)
+        
+        
+        
+        
+        
+    
             
         
 
@@ -1022,7 +1108,7 @@ if answer == 'y':
         
     
     data_sets = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
-    create_plot_folder(data_set)
+    create_plot_folder(data_sets)
 
 else:
     folder = os.path.join(dirname, '../Data/')
@@ -1042,11 +1128,13 @@ while not_done:
     elif choice == 2:
         choose_analysis_type(module_order, data_sets)
     elif choice == 3:
+        generate_images_for_animation(coincident_events, data_sets)
+    elif choice == 4:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
                       module_order, detector_types, data_sets)
-    elif choice == 4:
-        export_clusters(coincident_events, triggers, data_sets)
     elif choice == 5:
+        export_clusters(coincident_events, triggers, data_sets)
+    elif choice == 6:
         print('\nBye!')
         not_done = False
     

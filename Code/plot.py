@@ -414,7 +414,7 @@ def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
     plt.title(name)
     
 def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, 
-                   count_range, ADC_filter, m_range):
+                   count_range, ADC_filter, m_range, tof_range):
     
     fig.set_figheight(4)
     fig.set_figwidth(14)
@@ -447,7 +447,8 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
     plot_path = (get_plot_path(data_set) + name + 'Count range: ' 
                  + str(count_range) + ', ADC filter: ' 
                  + str(ADC_filter)  
-                 + ', Multiplicity filter: ' + str(m_range) + '.pdf')
+                 + ', Multiplicity filter: ' + str(m_range) 
+                 + ', ToF range: ' + str(tof_range) + '.pdf')
     
     return fig, plot_path
     
