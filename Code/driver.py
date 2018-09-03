@@ -836,19 +836,19 @@ def export_clusters(coincident_events, triggers, data_sets):
     
        
     folder = get_output_path(data_sets)
-
+    print('0%')
     ce_path = folder + 'coincident_events.dat'
     np.savetxt(ce_path, np_matrix, delimiter=",")
-
+    print('25%')
     ToF_path = folder + 'ToF.dat'
     np.savetxt(ToF_path, temp_ce['ToF'], delimiter=",")
-
+    print('50%')
     trigpath = folder + 'triggers.dat'
     np.savetxt(trigpath, triggers, delimiter=",")
-
+    print('75%')
     stamppath = folder + 'timestamps.dat'
     np.savetxt(stamppath, temp_ce['Time'], delimiter=",")
-    
+    print('100%')
     print('Done!')
     
 def get_output_path(data_set):
