@@ -298,21 +298,59 @@ def choose_data_set():
         max_size = input('>> ')
         max_size = int(max_size)
     
+    discard_glitch = False
+    print('Discard glitch events (y/n)?')
+    glitch_ans = input('>> ')
+    if glitch_ans == 'y':
+        discard_glitch = True
+    
     coincident_events = pd.DataFrame()
     events = pd.DataFrame()
     triggers = pd.DataFrame()
+    measurement_time = 0
     for i, data_set in enumerate(data_sets):
         print()
         print('-- File ' + str(i+1) + '/' + str(len(data_sets)) + ' --')
         data_temp = clu.import_data(data_set, max_size)
         ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions)
-        coincident_events = coincident_events.append(ce_temp)
+        
+        
+        if discard_glitch:
+            ce = ce_temp
+            ce_red = ce[(ce['wM'] >= 80) & (ce['gM'] >= 40)]
+            red_start = 0
+            red_end = 0
+            if len(ce_red.index) == 0:
+                pass
+            else:
+                red_start = ce_red.head(1)['Time'].values[0]
+                red_end = ce_red.tail(1)['Time'].values[0]
+                ce = ce_temp[ (ce_temp['Time'] < red_start)
+                             |(ce_temp['Time'] > red_end)]       
+            ce_start = ce_temp.head(1)['Time'].values[0]
+            ce_end = ce_temp.tail(1)['Time'].values[0]
+            
+            coincident_events = coincident_events.append(ce)
+            
+            measurement_time += ((ce_end - ce_start) - (red_end - red_start)) * 62.5e-9
+        else:
+            start_time = ce_temp.head(1)['Time'].values[0]
+            end_time = ce_temp.tail(1)['Time'].values[0]
+            measurement_time += (end_time - start_time) * 62.5e-9
+            coincident_events = coincident_events.append(ce_temp)
+            
         events = events.append(e_temp)
         triggers = triggers.append(t_temp)
+        
+    if len(data_sets) < 2:
+        pass
+    else:
+        data_sets = [data_sets[0], '...']
     
     data_sets = str(data_sets)
     
-    return coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types
+    return (coincident_events, events, data_sets, triggers, 
+            number_of_detectors, module_order, detector_types, measurement_time)
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -789,12 +827,13 @@ def main_meny(data_sets):
     while (not_int or not_in_range):
         print()
        # print('*************************************************')
-        print('******************* main meny *******************')
+        print('******************* main menu *******************')
        # print('*************************************************')
         print('-------------------------------------------------')
-        print('Data set(s)     : ' + data_sets)
-        print('Module order    : ' + str(module_order))
-        print('Detector type(s): ' + str(detector_types))
+        print('Data set(s)      : ' + data_sets)
+        print('Module order     : ' + str(module_order))
+        print('Detector type(s) : ' + str(detector_types))
+        print('Measurement time : ' + str(round((measurement_time/60), 4)) + ' minutes')
         print('-------------------------------------------------')
         print('1. Change module order')
         print('2. Perform an analysis')
@@ -819,7 +858,7 @@ def main_meny(data_sets):
     return choice
 
 def save_clusters(coincident_events, events, triggers, number_of_detectors,
-                  module_order, detector_types, data_set):
+                  module_order, detector_types, data_set, measurement_time):
     print('Saving...')
     print('0%')
     dirname = os.path.dirname(__file__)
@@ -838,11 +877,13 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     mod_or     = pd.DataFrame({'module_order': module_order})
     det_types  = pd.DataFrame({'detector_types': detector_types})
     da_set     = pd.DataFrame({'data_set': [data_set]})
+    mt         = pd.DataFrame({'measurement_time': [measurement_time]})
         
     number_det.to_hdf(path, 'number_of_detectors', complevel = 9)
     mod_or.to_hdf(path, 'module_order', complevel = 9)
     det_types.to_hdf(path, 'detector_types', complevel = 9)
     da_set.to_hdf(path, 'data_set', complevel = 9)
+    mt.to_hdf(path, 'measurement_time', complevel=9)
     print('100%')
     print('Done!')
     
@@ -933,7 +974,7 @@ def unzip_meny():
           + 'Press ' + str(len(zips)+1) + ' to unzip all.')
     to_unzip = [int(x) for x in input('>> ').split()]
     
-    if len(to_unzip) == 1 and to_unzip[0] == 11:
+    if len(to_unzip) == 1 and to_unzip[0] == len(zips)+1:
         to_unzip = np.arange(1,len(zips)+1,1)
     
     print('Unzipping...')
@@ -963,23 +1004,13 @@ def unzip_meny():
     
     print('Done!')
 
-def create_animation(coincident_events, data_sets):
-    images = []
-    folder = get_plot_path("['mvmelst_210.mvmelst']")
-    plot_path = folder + 'test.gif'
-    file_names = os.listdir(folder)
-    files = [file for file in file_names if file[-9:] != '.DS_Store' and file != '.gitignore']
-    for filename in files:
-        images.append(imageio.imread(folder + filename))
-    imageio.mimsave(plot_path, images)
-
 def generate_images_for_animation(coincident_events, data_sets):
     start = 0
     stop = 150000
-    step = 100
+    step = 500
     tof_vec = range(start, stop, step)
     ce = coincident_events
-    count_range = [1, 100]
+    count_range = [1, 500]
     ADC_filter = None
     m_range = None
     name = ('6. Coincidence Histogram (Front, Top, Side)\n' + 'Data set: '
@@ -1014,7 +1045,46 @@ def generate_images_for_animation(coincident_events, data_sets):
     imageio.mimsave(output_path, images)
     
     shutil.rmtree(temp_folder, ignore_errors=True)
-        
+
+def animation_menu(coincident_events, data_sets):
+    
+    analysis_name_vec = ['PHS (1D)', 'PHS (2D)', 'PHS (3D)', 
+                         'Coincidence Histogram (2D)', 
+                         'Coincidence Histogram (3D)', 
+                         'Coincidence Histogram (Front, Top, Side)',
+                         'Multiplicity',
+                         'Scatter Map (collected charge in wires and grids)', 
+                         'ToF Histogram', 'Events per channel', 
+                         'Timestamp and Trigger']
+    
+    animationDone = False
+    while animationDone is False:
+        print()
+        print('************ Choose animation type **************')
+        print('-------------------------------------------------')
+        print('1. Time-of-Flight sweep')
+        print('2. Time-stamp sweep')
+        print('-------------------------------------------------')
+        print('3. Back to main menu')
+        print()
+        print('Enter a number between 1-2. Press 3 to go back to\nthe main menu.')
+        ans = input('>> ')
+        ans = int(ans)
+
+        if ans == 1:
+            ToF_menu(analysis_name_vec)
+        elif ans == 2:
+            pass
+        elif ans == 3:
+            animationDone = True
+
+def ToF_menu(analysis_name_vec):
+    print()
+    print('*************** Choose plot type ****************')
+    print('-------------------------------------------------')
+    for i in range(3, 6):
+        print(str(i+1) + '. ' + analysis_name_vec[i])
+    
         
         
         
@@ -1108,13 +1178,14 @@ if answer == 'y':
         
     
     data_sets = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
+    measurement_time = pd.read_hdf(clu_path, 'measurement_time')['measurement_time'].iloc[0]
     create_plot_folder(data_sets)
 
 else:
     folder = os.path.join(dirname, '../Data/')
     files = os.listdir(folder)
     files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
-    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types = choose_data_set()
+    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types, measurement_time = choose_data_set()
     create_plot_folder(data_sets)
 
 create_output_folder(data_sets)
@@ -1128,10 +1199,10 @@ while not_done:
     elif choice == 2:
         choose_analysis_type(module_order, data_sets)
     elif choice == 3:
-        generate_images_for_animation(coincident_events, data_sets)
+        animation_menu(coincident_events, data_sets)
     elif choice == 4:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
-                      module_order, detector_types, data_sets)
+                      module_order, detector_types, data_sets, measurement_time)
     elif choice == 5:
         export_clusters(coincident_events, triggers, data_sets)
     elif choice == 6:

@@ -625,14 +625,7 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
     plt.ylabel('Counts  [a.u.]')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
-    
-#    folder = get_output_path(data_set)
-#    
-#    ToF_path = folder + 'ToF.txt'
-#    
-#    np.savetxt(ToF_path, df['ToF'], delimiter=",")
-    
-    
+             
     return fig, plot_path
 
     
@@ -679,6 +672,7 @@ def plot_event_count(fig, name, module_order, number_of_detectors, data_set, eve
     plot_path = (get_plot_path(data_set) + name + ', module order: ' + 
                  str(module_order) + ', count range: ' + str(v_range) 
                  + ', is log: ' + str(log) + '.pdf')
+    
     return fig, plot_path
 
 # =============================================================================
@@ -689,6 +683,9 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
                                triggers):
     
     fig.suptitle(name, x=0.5, y=1.08)
+    
+    fig.set_figheight(4)
+    fig.set_figwidth(8)
     
     df = coincident_events
     #df = df[(df.wCh != -1) & (df.gCh != -1)]
@@ -710,18 +707,7 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     plt.tight_layout()
     
     plot_path = get_plot_path(data_set) + name + '.pdf'
-    
-#    folder = get_output_path(data_set)
-#    
-#    trigpath = folder + 'triggers.txt'
-#    stamppath = folder + 'timestamps.txt'
-#    
-#    timestamps = df['Time'].values
-#    np.savetxt(trigpath, triggers, delimiter=",")
-#    np.savetxt(stamppath, timestamps, delimiter=",")
-    
-
-    
+        
     return fig, plot_path
     
     
