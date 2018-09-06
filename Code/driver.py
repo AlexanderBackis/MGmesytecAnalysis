@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import zipfile
 import shutil
 import imageio
+import warnings
 
 def choose_specifications(options):
     
@@ -323,16 +324,27 @@ def choose_data_set():
             if len(ce_red.index) == 0:
                 pass
             else:
-                red_start = ce_red.head(1)['Time'].values[0]
-                red_end = ce_red.tail(1)['Time'].values[0]
-                ce = ce_temp[ (ce_temp['Time'] < red_start)
-                             |(ce_temp['Time'] > red_end)]       
-            ce_start = ce_temp.head(1)['Time'].values[0]
-            ce_end = ce_temp.tail(1)['Time'].values[0]
+                # Filter glitch events in begining and end by diving data
+                # in two parts (f: first, s: second) and finding first 
+                # and last glitch event.
+                
+                mid_point = ce.tail(1)['Time'].values[0] // 2
+                ce_f = ce_temp[(ce_temp['Time'] < mid_point)]
+                ce_s = ce_temp[(ce_temp['Time'] > mid_point)]
+                ce_red_f = ce_f[(ce_f['wM'] >= 80) & (ce_f['gM'] >= 40)]
+                ce_red_s = ce_s[(ce_s['wM'] >= 80) & (ce_s['gM'] >= 40)]
+                
+                data_start = ce_red_f.tail(1)['Time'].values[0]
+                data_end = ce_red_s.head(1)['Time'].values[0]
+                ce = ce_temp[ (ce_temp['Time'] > data_start)
+                             |(ce_temp['Time'] < data_end)]    
+                
+            start_time = ce.head(1)['Time'].values[0]
+            end_time = ce.tail(1)['Time'].values[0]
             
             coincident_events = coincident_events.append(ce)
             
-            measurement_time += ((ce_end - ce_start) - (red_end - red_start)) * 62.5e-9
+            measurement_time += (end_time - start_time) * 62.5e-9
         else:
             start_time = ce_temp.head(1)['Time'].values[0]
             end_time = ce_temp.tail(1)['Time'].values[0]
@@ -1004,47 +1016,118 @@ def unzip_meny():
     
     print('Done!')
 
-def generate_images_for_animation(coincident_events, data_sets):
-    start = 0
-    stop = 150000
-    step = 500
+def perspectives_animation(coincident_events, data_sets, start, stop, step):
     tof_vec = range(start, stop, step)
     ce = coincident_events
-    count_range = [1, 500]
+    count_range = [1, 50]
     ADC_filter = None
     m_range = None
-    name = ('6. Coincidence Histogram (Front, Top, Side)\n' + 'Data set: '
+    name = ('Coincidence Histogram (Front, Top, Side)\n' + 'Data set: '
             + str(data_sets))
     temp_folder = get_plot_path('temp_folder')
     mkdir_p(temp_folder)
-    
+    number_bins = 500
+    isAnimation=True
+    print()
+    print('Animating...')
     for i in range(0, (stop-start)//step-1):
-        print(str(i) + '/' + str((stop-start)//step))
+        print( str(round((i/(((stop-start)//step)-2))*100)) + '%')
         fig = plt.figure()
         min_tof = tof_vec[i]
         max_tof = tof_vec[i+1]
         tof_range = [min_tof, max_tof]
         ce_temp = ce[(ce['ToF'] >= min_tof) & (ce['ToF'] <= max_tof)]
+        
+        plt.subplot2grid((2, 3), (1, 0), colspan=3)
+        plt.hist(ce.ToF, bins=number_bins, range=[start, stop], color='b')
+        plt.hist(ce_temp.ToF, bins=number_bins, range=[start, stop], color='r')
+        plt.title('ToF')
+        plt.xlabel('ToF [TDC channels]')
+        plt.ylabel('Counts  [a.u.]')
+
 
         fig, path = pl.plot_all_sides(fig, name, module_order, ce_temp,
                                       data_sets, number_of_detectors,
                                       count_range, ADC_filter, m_range,
-                                      tof_range)
+                                      tof_range, isAnimation)
         fig.savefig(temp_folder + str(i) + '.png')
         plt.close()
     
     images = []
     files = os.listdir(temp_folder)
-    files = [file for file in files if file[-9:] != '.DS_Store' 
+    files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
              and file != '.gitignore']
     
     output_path = get_output_path(data_sets) + 'ToF sweep.gif'
     
-    for filename in files:
-        images.append(imageio.imread(temp_folder + filename))
+    
+    for filename in sorted(files, key=int):
+        images.append(imageio.imread(temp_folder + filename + '.png'))
     imageio.mimsave(output_path, images)
     
     shutil.rmtree(temp_folder, ignore_errors=True)
+    print('Done!')
+
+def animation_3D(coincident_events, data_sets, start, stop, step):
+    tof_vec = range(start, stop, step)
+    ce = coincident_events
+    ce = ce[(ce.wM < 80) & (ce.gM < 40)]
+    ADC_filter = None
+    m_range = None
+    name = ('Coincidence Histogram (3D)\n' + 'Data set: '
+            + str(data_sets))
+    temp_folder = get_plot_path('temp_folder')
+    mkdir_p(temp_folder)
+    number_bins = 500
+    alpha = 0.8
+    isAnimation = True
+    countThres = None
+    ADC_filter = None
+    print()
+    print('Animating...')
+    for i in range(0, (stop-start)//step-1):
+        print( str(round((i/(((stop-start)//step)-2))*100)) + '%')
+        fig = plt.figure()
+        fig.set_size_inches(14, 7)
+        min_tof = tof_vec[i]
+        max_tof = tof_vec[i+1]
+        tof_range = [min_tof, max_tof]
+        ce_temp = ce[(ce['ToF'] >= min_tof) & (ce['ToF'] <= max_tof)]
+        
+        plt.subplot(1,2,2)
+        plt.hist(ce.ToF, bins=number_bins, range=[start, stop], color='b')
+        plt.hist(ce_temp.ToF, bins=number_bins, range=[start, stop], color='r')
+        plt.title('ToF')
+        plt.xlabel('ToF [TDC channels]')
+        plt.ylabel('Counts  [a.u.]')
+
+        plt.subplot(1,2,1)
+        pl.plot_all_sides_3D(fig, name, ce_temp, module_order, 
+                             countThres, alpha, data_sets, number_of_detectors,
+                             ADC_filter, m_range, isAnimation)
+        
+        plt.tight_layout()
+        
+        fig.savefig(temp_folder + str(i) + '.png')
+        plt.close()
+
+    
+    images = []
+    files = os.listdir(temp_folder)
+    files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
+             and file != '.gitignore']
+    
+    output_path = get_output_path(data_sets) + 'ToF sweep.gif'
+    
+    
+    for filename in sorted(files, key=int):
+        images.append(imageio.imread(temp_folder + filename + '.png'))
+    imageio.mimsave(output_path, images)
+    
+    shutil.rmtree(temp_folder, ignore_errors=True)
+    print('Done!')
+    
+    
 
 def animation_menu(coincident_events, data_sets):
     
@@ -1073,17 +1156,163 @@ def animation_menu(coincident_events, data_sets):
 
         if ans == 1:
             ToF_menu(analysis_name_vec)
+            animationDone = True
         elif ans == 2:
-            pass
+            TS_menu(analysis_name_vec)
+            animationDone = True
         elif ans == 3:
             animationDone = True
 
 def ToF_menu(analysis_name_vec):
+    
+    animationSelected = False
+    while animationSelected is False:
+        print()
+        print('*************** Choose plot type ****************')
+        print('-------------------------------------------------')
+        for i in range(4, 6):
+            print(str(i+1) + '. ' + analysis_name_vec[i])
+        print('-------------------------------------------------')
+        print('7. Back to previous menu.')
+        print()
+        print('Enter a number between 5-6. Press 7 to go back.')
+        selection = input('>> ')
+        selection = int(selection)
+        
+        if selection == 5:
+            start, stop, step = get_ToF_start_stop_step()
+            animation_3D(coincident_events, data_sets, start, stop, step)
+            animationSelected = True
+        elif selection == 6:
+            start, stop, step = get_ToF_start_stop_step()
+            perspectives_animation(coincident_events, data_sets, start, stop,
+                                   step)
+            animationSelected = True
+        elif selection == 7:
+            animationSelected = True
+
+
+def TS_menu(analysis_name_vec):
+    animationSelected = False
+    while animationSelected is False:
+        print()
+        print('*************** Choose plot type ****************')
+        print('-------------------------------------------------')
+        for i in range(5, 6, 1):
+            print(str(i+1) + '. ' + analysis_name_vec[i])
+        print('-------------------------------------------------')
+        print(str(i+2) + '. Back to previous menu.')
+        print()
+        print('Enter a number between 6-6. Press 7 to go back.')
+        selection = input('>> ')
+        selection = int(selection)
+        
+        if selection == 6:
+            start, stop, step = get_TS_start_stop_step()
+            perspectives_animation_TS(coincident_events, data_sets, start, 
+                                      stop, step)
+            animationSelected = True
+        
+        if selection == i+2:
+            animationSelected = True
+
+        
+def get_ToF_start_stop_step():
+    start = input('Start ToF: ')
+    start = int(start)
+    stop = input('End ToF  : ')
+    stop = int(stop)
+    step = input('Step     : ')
+    step = int(step)
+    return start, stop, step
+
+def get_TS_start_stop_step():
+    start = input('Start Time: ')
+    start = int(start)
+    stop = input('End Time  : ')
+    stop = int(stop)
+    step = input('Step      : ')
+    step = int(step)
+    return start, stop, step
+
+
+def perspectives_animation_TS(coincident_events, data_sets, start, stop, step):
+    TS_vec = range(start, stop, step)
+    ce = coincident_events
+    ce = ce[(ce['Time'] >= start) & (ce['Time'] <= stop)]
+    ce = ce[(ce['wCh'] != -1) & (ce['gCh'] != -1)]
+    event_numbers = ce.index.tolist()
+    count_range = [1, 200]
+    ADC_filter = None
+    m_range = None
+    name = ('Coincidence Histogram (Front, Top, Side)\n' + 'Data set: '
+            + str(data_sets))
+    temp_folder = get_plot_path('temp_folder')
+    mkdir_p(temp_folder)
+    isAnimation = True
+    tof_range = [0, np.inf]
     print()
-    print('*************** Choose plot type ****************')
-    print('-------------------------------------------------')
-    for i in range(3, 6):
-        print(str(i+1) + '. ' + analysis_name_vec[i])
+    print('Animating...')
+    for i in range(0, (stop-start)//step-1):
+        print(str(round((i/(((stop-start)//step)-2))*100)) + '%')
+        fig = plt.figure()
+        min_ts = TS_vec[i]
+        max_ts = TS_vec[i+1]
+        ce_temp = ce[(ce['Time'] >= min_ts) & (ce['Time'] <= max_ts)]
+
+        plt.subplot2grid((2, 3), (1, 0), colspan=3)
+        plt.plot(event_numbers, ce.Time, color='blue', marker='.',
+                 linestyle='None', label='Coincident event')
+        
+        bus6 = ce[(ce['Bus'] == 6) & (ce['wM'] < 80) & (ce['gM'] < 40)]
+        bus6_numbers = bus6.index.tolist()
+        plt.plot(bus6_numbers, bus6.Time, color='green', marker='o',
+                 linestyle='None', label='Bus 6: Good event')
+        
+        glitches = ce[(ce['Bus'] == 6) & (ce['wM'] >= 80) & (ce['gM'] >= 40)]
+       
+        glitch_numbers = glitches.index.tolist()
+        plt.plot(glitch_numbers, glitches.Time, color='purple', marker='x',
+                     linestyle='None', label='Bus 6: Glitch event')
+        
+        
+        
+        plt.legend()
+        
+        event_numbers_temp = ce_temp.index.tolist()
+        plt.plot(event_numbers_temp, ce_temp.Time, color='red', marker='.',
+                 linestyle='None', label='_nolegend_')
+        
+
+        
+       
+        plt.title('Time stamp vs Event number')
+        plt.xlabel('Event numbers [a.u.]')
+        plt.ylabel('Time stamp  [TDC channels]')
+
+        if ce_temp.shape[0] > 2:
+            fig, __ = pl.plot_all_sides(fig, name, module_order, ce_temp,
+                                        data_sets, number_of_detectors,
+                                        count_range, ADC_filter, m_range,
+                                        tof_range, isAnimation)
+       
+            fig.savefig(temp_folder + str(i) + '.png')
+        plt.close()
+    
+    images = []
+    files = os.listdir(temp_folder)
+    files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
+             and file != '.gitignore']
+    
+    output_path = get_output_path(data_sets) + 'Perspectives_TS_sweep.gif'
+    
+    
+    for filename in sorted(files, key=int):
+        images.append(imageio.imread(temp_folder + filename + '.png'))
+    imageio.mimsave(output_path, images)
+    
+    shutil.rmtree(temp_folder, ignore_errors=True)
+    print('Done!')
     
         
         
@@ -1108,7 +1337,7 @@ print(' __  __       _ _   _         _____      _     _ \n' +
 print('   MESYTEC OUTPUT: IMPORT, CLUSTER AND ANALYSE    ')
 print()
     
-
+warnings.filterwarnings("ignore", module="matplotlib")
 dirname = os.path.dirname(__file__)
 coincident_events = None
 events = None

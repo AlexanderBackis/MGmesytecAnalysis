@@ -222,7 +222,8 @@ def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors,
 # =============================================================================  
     
 def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha, 
-                      data_set, number_of_detectors, ADC_filter, m_range):
+                      data_set, number_of_detectors, ADC_filter, m_range,
+                      isAnimation=False):
     
     df_tot = pd.DataFrame()
     
@@ -283,42 +284,54 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
                         
     return scatter3d(fig, hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], 
                      hist[3][0:loc], countThres, data_set, alpha, name, 
-                     number_of_detectors, ADC_filter, m_range)
+                     number_of_detectors, ADC_filter, m_range, isAnimation)
 
     
-def scatter3d(fig, x,y,z, cs, countThres, data_set, alpha, name, 
-              number_of_detectors, ADC_filter, m_range, colorsMap='jet'):
+def scatter3d(fig, x, y, z, cs, countThres, data_set, alpha, name, 
+              number_of_detectors, ADC_filter, m_range, isAnimation, 
+              colorsMap='jet'):
+    
+    
     cm = plt.get_cmap(colorsMap)
+    #norm = Normalize(vmin=1, vmax=50, clip=False)
 
     scalarMap = cmx.ScalarMappable(norm=LogNorm(), cmap=cm)
+
 
     name = (name + '\nCount limit: ' 
             + str(countThres) + ' counts')
     fig.suptitle(name ,x=0.5, y=1.06)
-    ax = Axes3D(fig)
-    ax.scatter(x, y, z, c=scalarMap.to_rgba(cs), marker= "o", s=50, 
+    
+    if isAnimation:
+        ax1 = fig.add_subplot(121, projection='3d')
+    else:
+        ax1 = Axes3D(fig)
+
+    
+    ax1.scatter(x, y, z, c=scalarMap.to_rgba(cs), marker= "o", s=50, 
                alpha = alpha)
    
-    ax.set_xlabel('Layer')
-    ax.set_ylabel('Wire')
-    ax.set_zlabel('Grid')
+    ax1.set_xlabel('Layer')
+    ax1.set_ylabel('Wire')
+    ax1.set_zlabel('Grid')
     
-    ax.set_xticks(np.arange(0, 12*number_of_detectors + 2, step=2))
-    ax.set_xticklabels(np.arange(0, 12*number_of_detectors + 2, step=2))
-    ax.set_xlim([0,12*number_of_detectors])
-    
-    ax.set_yticks(np.arange(0, 25, step=5))
-    ax.set_yticklabels(np.arange(0, 25, step=5))
-    ax.set_ylim([0,20])
-   
-    ax.set_zticks(np.arange(0, 50, step=10))
-    ax.set_zticklabels(np.arange(0, 50, step=10))
-    ax.set_zlim([0,40])
+#    ax.set_xticks(np.arange(0, 12*number_of_detectors + 2, step=2))
+#    ax.set_xticklabels(np.arange(0, 12*number_of_detectors + 2, step=2))
+    ax1.set_xlim([0,12*number_of_detectors])
+#    
+#    ax.set_yticks(np.arange(0, 25, step=5))
+#    ax.set_yticklabels(np.arange(0, 25, step=5))
+    ax1.set_ylim([0,20])
+#   
+#    ax.set_zticks(np.arange(0, 50, step=10))
+#    ax.set_zticklabels(np.arange(0, 50, step=10))
+    ax1.set_zlim([0,40])
     
     
     scalarMap.set_array(cs)
     fig.colorbar(scalarMap)
-    
+#    cbar = plt.colorbar(cs, ax1)
+#    cbar.set_clim(vmin=1, vmax=50)
     
     plot_path = (get_plot_path(data_set) + name + ', ADC filter: ' 
                  + str(ADC_filter) + ', Multiplicity filter: ' 
@@ -345,17 +358,23 @@ def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
             df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
                             & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
             
-        df_clu['wCh'] += (80 * i)
+        df_clu['wCh'] += (80 * i) + (i // 3) * 80
         df_clu['gCh'] += (-80 + 1)
         df_tot = pd.concat([df_tot, df_clu])        
     
-    plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot.gCh, bins=[12*number_of_detectors, 40], 
-               range=[[0.5,12*number_of_detectors + 0.5],[0.5,40.5]], norm=LogNorm(), vmin=count_range[0], vmax=count_range[1],
-               cmap = 'jet')
+    if df.shape[0] > 1:
+        plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot.gCh, bins=[12*number_of_detectors + 8, 40], 
+                   range=[[0.5,12*number_of_detectors + 0.5 + 8],[0.5,40.5]], norm=LogNorm(), vmin=count_range[0], vmax=count_range[1],
+                   cmap = 'jet')
+        plt.colorbar()
     
     plt.xlabel("Layer")
     plt.ylabel("Grid")
-    plt.colorbar()
+        
+    locs_x = [0.5, 12.5, 16.5, 28.5, 32.5, 44.5]
+    ticks_x = [1, 12, 13, 25, 26, 38]
+    plt.xticks(locs_x,ticks_x)
+    
     plt.title(name)
     
 def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
@@ -373,16 +392,24 @@ def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
             df_clu = df_clu[  (df_clu.wADC >= minADC) & (df_clu.wADC <= maxADC) 
                             & (df_clu.gADC >= minADC) & (df_clu.gADC <= maxADC)]
         
-        df_clu['wCh'] += (80 * i)
-        df_tot = pd.concat([df_tot, df_clu])  
+        df_clu['wCh'] += (80 * i) + (i // 3) * 80
         
-    plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot['wCh'] % 20 + 1, 
-               bins=[12*number_of_detectors, 20], range=[[0.5,12*number_of_detectors + 0.5],[0.5,20.5]], norm=LogNorm(), vmin=count_range[0], 
-               vmax=count_range[1], cmap = 'jet')
+        df_tot = pd.concat([df_tot, df_clu])  
+    
+    if df.shape[0] > 1:
+        plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot['wCh'] % 20 + 1, 
+                   bins=[12*number_of_detectors + 8, 20], range=[[0.5,12*number_of_detectors + 0.5 + 8],[0.5,20.5]], norm=LogNorm(), vmin=count_range[0], 
+                   vmax=count_range[1], cmap = 'jet')
+        plt.colorbar()
     
     plt.xlabel("Layer")
     plt.ylabel("Wire")
-    plt.colorbar()
+    
+    
+    locs_x = [0.5, 12.5, 16.5, 28.5, 32.5, 44.5]
+    ticks_x = [1, 12, 13, 25, 26, 38]
+    plt.xticks(locs_x,ticks_x)
+    
     plt.title(name)
     
 def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
@@ -403,21 +430,26 @@ def plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
         df_clu['gCh'] += (-80 + 1)
         df_tot = pd.concat([df_tot, df_clu])
     
+    if df.shape[0] > 1:
+        plt.hist2d(df_tot['wCh'] % 20 + 1, df_tot['gCh'],
+                   bins=[20, 40], range=[[0.5,20.5],[0.5,40.5]], norm=LogNorm(), 
+                   vmin=count_range[0], vmax=count_range[1], cmap = 'jet')
+        plt.colorbar()
         
-    plt.hist2d(df_tot['wCh'] % 20 + 1, df_tot['gCh'],
-               bins=[20, 40], range=[[0.5,20.5],[0.5,40.5]], norm=LogNorm(), 
-               vmin=count_range[0], vmax=count_range[1], cmap = 'jet')
-    
     plt.xlabel("Wire")
     plt.ylabel("Grid")
-    plt.colorbar()
     plt.title(name)
     
 def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors, 
-                   count_range, ADC_filter, m_range, tof_range):
+                   count_range, ADC_filter, m_range, tof_range, 
+                   isAnimation=False):
     
-    fig.set_figheight(4)
-    fig.set_figwidth(14)
+    if isAnimation:
+        fig.set_figheight(8)
+        fig.set_figwidth(14)
+    else:
+        fig.set_figheight(4)
+        fig.set_figwidth(14)
     
     if m_range != None:
         minWM = m_range[0]
@@ -428,15 +460,18 @@ def plot_all_sides(fig, name, bus_vec, df, data_set, number_of_detectors,
         df = df[  (df.wM >= minWM) & (df.wM <= maxWM) 
                  & (df.gM >= minGM) & (df.wM <= maxGM)]
     
+    height = 1
+    if isAnimation:
+        height=2
     
-    
-    plt.subplot(1,3,1)
+        
+    plt.subplot(height,3,1)
     plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
                    ADC_filter)
-    plt.subplot(1,3,2)
+    plt.subplot(height,3,2)
     plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
                    ADC_filter)
-    plt.subplot(1,3,3)
+    plt.subplot(height,3,3)
     plot_2D_side_3(bus_vec, df, fig, number_of_detectors, count_range,
                    ADC_filter)
     
@@ -688,7 +723,7 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     fig.set_figwidth(8)
     
     df = coincident_events
-    #df = df[(df.wCh != -1) & (df.gCh != -1)]
+
     event_number = np.arange(1, df.shape[0]+1,1)
     trigger_number = np.arange(1,len(triggers)+1,1)
     
@@ -696,13 +731,13 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     plt.title('Timestamp vs. Event number', x=0.5, y=1.04)
     plt.xlabel('Event number')
     plt.ylabel('Timestamp')
-    plt.plot(event_number, df.Time, color = 'b')
+    plt.plot(event_number, df.Time, color='blue')
     
     plt.subplot(1,2,2)
     plt.title('Trigger-time vs. Trigger number', x=0.5, y=1.04)
     plt.xlabel('Trigger number')
     plt.ylabel('Trigger time')
-    plt.plot(trigger_number, triggers, color = 'b')
+    plt.plot(trigger_number, triggers, color='blue')
     
     plt.tight_layout()
     
