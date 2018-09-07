@@ -100,9 +100,6 @@ def import_data(file_name, max_size = np.inf):
             else:
                 data += struct.unpack('I' * (len(piece)//4), piece)
 
-#            print(str(int(round(((imported_data * (1 << 20))/file_size),2)*100)) + '%')
-
-
     print('100%!')
     print('Done!')
     return data

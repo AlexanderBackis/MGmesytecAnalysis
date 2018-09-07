@@ -334,8 +334,18 @@ def choose_data_set():
                 ce_red_f = ce_f[(ce_f['wM'] >= 80) & (ce_f['gM'] >= 40)]
                 ce_red_s = ce_s[(ce_s['wM'] >= 80) & (ce_s['gM'] >= 40)]
                 
-                data_start = ce_red_f.tail(1)['Time'].values[0]
-                data_end = ce_red_s.head(1)['Time'].values[0]
+                data_start = None
+                data_end = None
+                if ce_red_f.shape[0] > 0:
+                    data_start = ce_red_f.tail(1)['Time'].values[0]
+                else:
+                    data_start = 0
+                
+                if ce_red_s.shape[0] > 0:
+                    data_end = ce_red_s.head(1)['Time'].values[0]
+                else:
+                    data_end = np.inf
+                
                 ce = ce_temp[ (ce_temp['Time'] > data_start)
                              |(ce_temp['Time'] < data_end)]    
                 
@@ -1019,7 +1029,23 @@ def unzip_meny():
 def perspectives_animation(coincident_events, data_sets, start, stop, step):
     tof_vec = range(start, stop, step)
     ce = coincident_events
-    count_range = [1, 50]
+    ce = ce[(ce.wM < 80) & (ce.gM < 40)]
+    
+    print('Further specification (y/n)?')
+    ansAni = input('>> ')
+    count_range = None
+    if ansAni == 'y':
+        count_min = input('Lower count boundary: ')
+        count_max = input('Upper count boundary: ')
+        count_min = int(count_min)
+        count_max = int(count_max)
+        
+        if count_min <= 0:
+            count_min = 1
+        
+        count_range = [count_min, count_max]
+    else:
+        count_range = [0, 100]
     ADC_filter = None
     m_range = None
     name = ('Coincidence Histogram (Front, Top, Side)\n' + 'Data set: '
@@ -1058,7 +1084,7 @@ def perspectives_animation(coincident_events, data_sets, start, stop, step):
     files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
              and file != '.gitignore']
     
-    output_path = get_output_path(data_sets) + 'ToF sweep.gif'
+    output_path = get_output_path(data_sets) + 'Perspectives_ToF_sweep.gif'
     
     
     for filename in sorted(files, key=int):
@@ -1079,9 +1105,9 @@ def animation_3D(coincident_events, data_sets, start, stop, step):
     temp_folder = get_plot_path('temp_folder')
     mkdir_p(temp_folder)
     number_bins = 500
-    alpha = 0.8
+    alpha = 1
     isAnimation = True
-    countThres = None
+    countThres = [1, np.inf]
     ADC_filter = None
     print()
     print('Animating...')
@@ -1117,7 +1143,7 @@ def animation_3D(coincident_events, data_sets, start, stop, step):
     files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
              and file != '.gitignore']
     
-    output_path = get_output_path(data_sets) + 'ToF sweep.gif'
+    output_path = get_output_path(data_sets) + '3D_ToF_sweep.gif'
     
     
     for filename in sorted(files, key=int):

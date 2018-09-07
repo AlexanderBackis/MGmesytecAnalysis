@@ -281,6 +281,19 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
                     hist[2][loc] = k + 1
                     hist[3][loc] = H[i,j,k]
                     loc = loc + 1
+    
+    if isAnimation:
+        hist[0][loc] = 1000
+        hist[1][loc] = 1000
+        hist[2][loc] = 1000
+        hist[3][loc] = 1
+        loc = loc + 1
+        hist[0][loc] = 1001
+        hist[1][loc] = 1000
+        hist[2][loc] = 1000
+        hist[3][loc] = 300
+        loc = loc + 1
+        
                         
     return scatter3d(fig, hist[0][0:loc], hist[2][0:loc], hist[1][0:loc], 
                      hist[3][0:loc], countThres, data_set, alpha, name, 
@@ -348,6 +361,8 @@ def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
     name = 'Front view'
     df_tot = pd.DataFrame()
     
+    locs = []
+    ticks = []
     for i, bus in enumerate(bus_vec):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
@@ -360,7 +375,7 @@ def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
             
         df_clu['wCh'] += (80 * i) + (i // 3) * 80
         df_clu['gCh'] += (-80 + 1)
-        df_tot = pd.concat([df_tot, df_clu])        
+        df_tot = pd.concat([df_tot, df_clu])
     
     if df.shape[0] > 1:
         plt.hist2d(np.floor(df_tot['wCh'] / 20).astype(int) + 1, df_tot.gCh, bins=[12*number_of_detectors + 8, 40], 
@@ -371,9 +386,9 @@ def plot_2D_side_1(bus_vec, df, fig, number_of_detectors, count_range,
     plt.xlabel("Layer")
     plt.ylabel("Grid")
         
-    locs_x = [0.5, 12.5, 16.5, 28.5, 32.5, 44.5]
+    locs_x = [1, 12, 17, 28, 33, 44]
     ticks_x = [1, 12, 13, 25, 26, 38]
-    plt.xticks(locs_x,ticks_x)
+    plt.xticks(locs_x, ticks_x)
     
     plt.title(name)
     
@@ -381,7 +396,7 @@ def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
                    ADC_filter):
     name = 'Top view'
     df_tot = pd.DataFrame()
-    
+
     for i, bus in enumerate(bus_vec):
         df_clu = df[df.Bus == bus]
         df_clu = df_clu[(df_clu.wCh != -1) & (df_clu.gCh != -1)]
@@ -406,9 +421,9 @@ def plot_2D_side_2(bus_vec, df, fig, number_of_detectors, count_range,
     plt.ylabel("Wire")
     
     
-    locs_x = [0.5, 12.5, 16.5, 28.5, 32.5, 44.5]
+    locs_x = [1, 12, 17, 28, 33, 44]
     ticks_x = [1, 12, 13, 25, 26, 38]
-    plt.xticks(locs_x,ticks_x)
+    plt.xticks(locs_x, ticks_x)
     
     plt.title(name)
     
