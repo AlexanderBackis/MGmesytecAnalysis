@@ -969,7 +969,7 @@ def export_clusters(coincident_events, triggers, data_sets):
     temp_ce = coincident_events
     temp_ce = temp_ce[  (temp_ce.wM >= mw_min) & (temp_ce.wM <= mw_max) 
                       & (temp_ce.gM >= mg_min) & (temp_ce.gM <= mg_max)]
-    np_matrix = temp_ce[['Time', 'ToF', 'wCh', 'wADC', 'gCh', 'gADC']].values
+    np_matrix = temp_ce[['Time', 'ToF', 'wCh', 'wADC', 'gCh', 'gADC', 'E']].values
     
        
     folder = get_output_path(data_sets)
