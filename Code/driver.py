@@ -116,6 +116,13 @@ def choose_specifications(options):
         min_tof = int(min_tof)
         max_tof = int(max_tof)
         return [min_tof, max_tof]
+    
+    def get_E_range():
+        min_ToF = input('Minimum energy [meV]: ')
+        max_ToF = input('Maximum energy [meV]: ')
+        min_ToF = int(min_ToF)
+        max_ToF = int(max_ToF)
+        return [min_ToF, max_ToF]
 
     get_spec =  {'Count range': get_count_range, 
                  'ADC filter': get_ADC_filter,
@@ -130,13 +137,15 @@ def choose_specifications(options):
                  'Number of bins': get_number_of_bins,
                  'Range': get_range,
                  'Choose specific bus(es)': get_buses,
-                 'ToF filter': get_ToF_filter}
+                 'ToF filter': get_ToF_filter,
+                 'Energy range': get_E_range}
     
     spec_type_names = ['Count range', 'ADC filter', 'Multiplicity filter', 
                        'Lower and upper count threshold', 'Time-stamp filter',
                        'Exclude channels', 'Include channels', 'Log/Lin-scale',
                        'ADC threshold', 'Transparacy factor', 'Number of bins',
-                       'Range', 'Choose specific bus(es)', 'ToF filter']
+                       'Range', 'Choose specific bus(es)', 'ToF filter', 
+                       'Energy range']
     
     specifications = {}
     for specification in spec_type_names:
@@ -304,6 +313,13 @@ def choose_data_set():
     glitch_ans = input('>> ')
     if glitch_ans == 'y':
         discard_glitch = True
+        
+    print('Is t_d known (y/n)?')
+    t_d = 0
+    td_ans = input('>> ')
+    if td_ans == 'y':
+        t_d = input('t_d [us]: ')
+        t_d = float(t_d)
     
     coincident_events = pd.DataFrame()
     events = pd.DataFrame()
@@ -313,7 +329,7 @@ def choose_data_set():
         print()
         print('-- File ' + str(i+1) + '/' + str(len(data_sets)) + ' --')
         data_temp = clu.import_data(data_set, max_size)
-        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions)
+        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions, t_d)
         
         
         if discard_glitch:
@@ -404,7 +420,7 @@ def choose_analysis_type(module_order, data_set):
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
-                         'Timestamp and Trigger']
+                         'Timestamp and Trigger', 'Energy Histogram']
     
     figs = []
     paths = []
@@ -808,6 +824,41 @@ def choose_analysis_type(module_order, data_set):
             print('Loading...')
             fig, path = pl.plot_timestamp_and_trigger(fig, name, data_set, 
                                     temp_ce, triggers)
+            print('Done!')
+            
+        
+        if analysis_type == 12:
+            choice = input('\nFurther specifications? (y/n).\n>> ')
+            
+            rnge =  [1, 1000]
+            number_bins = 1000
+            
+            if choice == 'y':
+                options = ['Number of bins', 'Energy range', 'ADC filter', 
+                           'Log/Lin-scale']
+                specs = choose_specifications(options)
+                ADC_filter = None
+                if specs['Number of bins'] != None:
+                    number_bins = specs['Number of bins']
+                
+                if specs['Energy range'] != None:
+                    rnge = specs['Energy range']
+                
+                if specs['ADC filter'] != None:
+                    ADC_filter = specs['ADC filter']
+                
+                if specs['Log/Lin-scale'] is not None:
+                    log = specs['Log/Lin-scale']
+                    
+                
+                print('Loading...')
+                fig, path = pl.plot_E_histogram(fig, name, coincident_events, 
+                                                  data_set, number_bins, rnge,
+                                                  ADC_filter, log)
+            else:
+                print('Loading...')
+                fig, path = pl.plot_E_histogram(fig, name, coincident_events, 
+                                                  data_set, number_bins, rnge)
             print('Done!')
             
                 

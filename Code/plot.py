@@ -759,6 +759,30 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     plot_path = get_plot_path(data_set) + name + '.pdf'
         
     return fig, plot_path
+
+# =============================================================================
+# 12. Energy histogram
+# =============================================================================
+    
+def plot_E_histogram(fig, name, df, data_set, number_bins = None, 
+                     rnge=None, ADC_filter = None, log = False):
+    
+    if ADC_filter != None:
+        minADC = ADC_filter[0]
+        maxADC = ADC_filter[1]
+        df = df[  (df.wADC >= minADC) & (df.wADC <= maxADC) 
+                & (df.gADC >= minADC) & (df.gADC <= maxADC)]
+    
+    
+    hist, bins, patches = plt.hist(df.E, bins=number_bins, range=rnge, 
+                                   log=log, color='b')
+    plt.title(name)
+    plt.xlabel('E [meV]')
+    plt.ylabel('Counts')
+    plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
+                 'Number of bins: ' + str(number_bins) + '.pdf')
+             
+    return fig, plot_path
     
     
     

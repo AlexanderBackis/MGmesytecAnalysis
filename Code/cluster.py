@@ -109,7 +109,7 @@ def import_data(file_name, max_size = np.inf):
 #                               CLUSTER DATA
 # =============================================================================
 
-def cluster_data(data, ILL_buses = []):
+def cluster_data(data, ILL_buses = [], t_d = 0):
     """ Clusters the imported data and stores it two data frames: one for 
         individual events and one for coicident events (i.e. candidate neutron 
         events). 
@@ -156,13 +156,24 @@ def cluster_data(data, ILL_buses = []):
             
     """
     print('Clustering...')
-    ess_ch_to_coord = create_ess_channel_to_coordinate_map()
-    ill_ch_to_coord = create_ill_channel_to_coordinate_map()
     
+    offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
+    offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
+    offset_3 = {'x': -1.579114, 'y': -3.164503,  'z': 5.227986}
+    
+    theta_1 = 8.02676 * (np.pi/180)
+    theta_2 = 11.45566 * (np.pi/180)
+    theta_3 = 14.78793 * (np.pi/180)
+    
+    detector_1 = create_ill_channel_to_coordinate_map(theta_1, offset_1)
+    detector_2 = create_ess_channel_to_coordinate_map(theta_2, offset_2)
+    detector_3 = create_ess_channel_to_coordinate_map(theta_3, offset_3)
+    
+    detector_vec = [detector_1, detector_2, detector_3]
 
     size = len(data)
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
-                                    'wADC', 'gADC', 'wM', 'gM', 'x', 'y', 'z']
+                                    'wADC', 'gADC', 'wM', 'gM', 'd', 'E']
     coincident_events = create_dict(size, coincident_event_parameters)
     
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
@@ -207,22 +218,22 @@ def cluster_data(data, ILL_buses = []):
             if (previousBus in ILL_buses) and (Bus in ILL_buses):
                 pass
             else:
-                if previousBus != Bus and previousBus != -1:
-                    wCh = coincident_events['wCh'][index]
-                    gCh = coincident_events['gCh'][index]
-                    if wCh != -1 and gCh != -1 and previousBus != -1:
-                        coord = get_coordinate(previousBus, wCh, gCh, 
-                                               ess_ch_to_coord, 
-                                               ill_ch_to_coord, 
-                                               ILL_buses)
-                        coincident_events['x'][index] = coord['x']
-                        coincident_events['y'][index] = coord['y']
-                        coincident_events['z'][index] = coord['z']
-                
-                    else:
-                        coincident_events['x'][index] = -1
-                        coincident_events['y'][index] = -1
-                        coincident_events['z'][index] = -1
+#                if previousBus != Bus and previousBus != -1:
+#                    wCh = coincident_events['wCh'][index]
+#                    gCh = coincident_events['gCh'][index]
+#                    if wCh != -1 and gCh != -1 and previousBus != -1:
+#                        coord = get_coordinate(previousBus, wCh, gCh, 
+#                                               ess_ch_to_coord, 
+#                                               ill_ch_to_coord, 
+#                                               ILL_buses)
+#                        coincident_events['x'][index] = coord['x']
+#                        coincident_events['y'][index] = coord['y']
+#                        coincident_events['z'][index] = coord['z']
+#                
+#                    else:
+#                        coincident_events['x'][index] = -1
+#                        coincident_events['y'][index] = -1
+#                        coincident_events['z'][index] = -1
                 
                 previousBus             = Bus
                 maxADCw                 = 0
@@ -281,8 +292,6 @@ def cluster_data(data, ILL_buses = []):
                 triggers[trigger_index] = TriggerTime
                 trigger_index += 1
             
-            
-            
             #Assign timestamp to coindicent events
             ToF = Time - TriggerTime
             for i in range(0,nbrCoincidentEvents):
@@ -293,23 +302,20 @@ def cluster_data(data, ILL_buses = []):
             for i in range(0,nbrEvents):
                 events['Time'][index_event-i] = Time
                 
-            #Assign coordinate
-            for i in range(0,nbrCoincidentEvents):
-                wCh = coincident_events['wCh'][index]
-                gCh = coincident_events['gCh'][index]
+            #Assign d
+            for i in range(0, nbrCoincidentEvents):
+                wCh = coincident_events['wCh'][index-i]
+                gCh = coincident_events['gCh'][index-i]
                 if (wCh != 0 and gCh != 0) and (wCh != -1 and gCh != -1):
                     eventBus = coincident_events['Bus'][index]
-                    coord = get_coordinate(eventBus, wCh, gCh, ess_ch_to_coord, 
-                                           ill_ch_to_coord, ILL_buses)
-                
-                    coincident_events['x'][index] = coord['x']
-                    coincident_events['y'][index] = coord['y']
-                    coincident_events['z'][index] = coord['z']
-                
+                    ToF = coincident_events['ToF'][index-i]
+                    d = get_d(eventBus, wCh, gCh, detector_vec)
+                    E = get_E(ToF, d, t_d)
+                    coincident_events['d'][index-i] = d
+                    coincident_events['E'][index-i] = E
                 else:
-                    coincident_events['x'][index] = -1
-                    coincident_events['y'][index] = -1
-                    coincident_events['z'][index] = -1
+                    coincident_events['d'][index-i] = -1
+                    coincident_events['E'][index-i] = -1
                 
             #Reset temporary variables
             nbrCoincidentEvents  =  0
@@ -348,8 +354,6 @@ def cluster_data(data, ILL_buses = []):
     
     print('Done!')
     
-    
-    
     return coincident_events_df, events_df, triggers_df
 
 # =============================================================================
@@ -365,9 +369,10 @@ def create_dict(size, names):
     
     return clu
 
-def create_ess_channel_to_coordinate_map():
+def create_ess_channel_to_coordinate_map(theta, offset):
     dirname = os.path.dirname(__file__)
-    file_path = os.path.join(dirname, '../Coordinates/Coordinates_MG_SEQ_ESS.xlsx')
+    file_path = os.path.join(dirname, 
+                             '../Coordinates/Coordinates_MG_SEQ_ESS.xlsx')
     matrix = pd.read_excel(file_path).values
     coordinates = matrix[1:801]
     ess_ch_to_coord = np.empty((3,120,80),dtype='object')
@@ -383,36 +388,102 @@ def create_ess_channel_to_coordinate_map():
             coordinate_count = j % 3
             coordinate[axises[coordinate_count]] = col
             if coordinate_count == 2:
-                ess_ch_to_coord[module, grid_ch, wire_ch] = coordinate
+                x = coordinate['x']
+                y = coordinate['y']
+                z = coordinate['z']
+                # Convert from [mm] to [m]
+                x = x/1000
+                y = y/1000
+                z = z/1000
+                # Shift to match internal and external coordinate system
+                z, x, y = x, y, z
+                # Apply rotation
+                #x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                # Apply translation
+                x += offset['x']
+                y += offset['y']
+                z += offset['z']
+
+                ess_ch_to_coord[module, grid_ch, wire_ch] = {'x': x, 'y': y,
+                                                             'z': z}
                 coordinate = {'x': -1, 'y': -1, 'z': -1}
 
     return ess_ch_to_coord
     
-def create_ill_channel_to_coordinate_map():
-    WireSpacing  = 23.5 #  [mm]
-    LayerSpacing = 10   #  [mm]
-    GridSpacing  = 23.5 #  [mm]
+def create_ill_channel_to_coordinate_map(theta, offset):
+        
+    WireSpacing  = 10     #  [mm]
+    LayerSpacing = 23.5   #  [mm]
+    GridSpacing  = 23.5   #  [mm]
     
     x_offset = 46.514
     y_offset = 37.912   
     z_offset = 37.95
     
+    test = True
     ill_ch_to_coord = np.empty((3,120,80),dtype='object')
     for Bus in range(0,3):
         for GridChannel in range(80,120):
             for WireChannel in range(0,80):
-                    x = (WireChannel % 20)  * WireSpacing   + x_offset
-                    y = (WireChannel // 20) * LayerSpacing  + y_offset + (Bus * 4 * LayerSpacing)
-                    z = GridChannel         * GridSpacing   + z_offset
-                    ill_ch_to_coord[Bus,GridChannel,WireChannel] = {'x': x, 'y': y, 'z': z}
+                    x = (WireChannel % 20)*WireSpacing + x_offset
+                    y = ((WireChannel // 20)*LayerSpacing 
+                         + (Bus*4*LayerSpacing) + y_offset)
+                    z = ((GridChannel-80)*GridSpacing) + z_offset 
+                    # Convert from [mm] to [m]
+                    x = x/1000
+                    y = y/1000
+                    z = z/1000
+                    # Shift to match internal and external coordinate system
+                    z, x, y = x, y, z
+                    # Apply rotation
+                    #x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                    # Apply translation
+                    x += offset['x']
+                    y += offset['y']
+                    z += offset['z']
+                                        
+                    ill_ch_to_coord[Bus,GridChannel,WireChannel] = {'x': x,
+                                                                    'y': y,
+                                                                    'z': z}
     
     return ill_ch_to_coord
 
-def get_coordinate(Bus, WireChannel, GridChannel, ess_ch_to_coord, ill_ch_to_coord, ILL_buses):
-    if Bus in ILL_buses:
-        return ill_ch_to_coord[Bus%3, GridChannel, WireChannel]
-    else:
-        return ess_ch_to_coord[Bus%3, GridChannel, WireChannel]
+def get_d(Bus, WireChannel, GridChannel, detector_vec):
+    coord = None
+    d = None
+    if 0 <= Bus <= 2:
+        coord = detector_vec[0][Bus%3, GridChannel, WireChannel]
+    elif 3 <= Bus <= 5:
+        coord = detector_vec[1][Bus%3, GridChannel, WireChannel]
+    elif 6 <= Bus <= 8:
+        coord = detector_vec[2][Bus%3, GridChannel, WireChannel]
+            
+    return np.sqrt(coord['x'] ** 2 + coord['y'] ** 2 + coord['z'] ** 2)
+
+def get_new_x(x, y, theta):
+    return np.cos(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
+    
+def get_new_y(x, y, theta):
+    return np.sin(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
+
+def get_E(ToF, d, t_d):
+    L_1 = 20.01 # Source to sample
+    L = L_1 + d # Source to detector
+    ToF_real = ToF * 62.5e-9 + t_d * 1e-6
+    m_n = 1.674927351e-27
+    E_meV = -1
+    if ToF_real != 0:
+        E_J = (m_n/2) * ((L/ToF_real) ** 2)
+        E_meV = E_J * 6.24150913e18 * 1000 # meV
+    return E_meV
+    
+    
+    
+    
+
+
+    
+
     
     
     
