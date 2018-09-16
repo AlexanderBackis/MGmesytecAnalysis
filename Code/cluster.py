@@ -173,8 +173,10 @@ def cluster_data(data, ILL_buses = [], t_d = 0):
 
     size = len(data)
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
-                                    'wADC', 'gADC', 'wM', 'gM', 'd', 'E']
+                                    'wADC', 'gADC', 'wM', 'gM']
     coincident_events = create_dict(size, coincident_event_parameters)
+    coincident_events.update({'d': np.zeros([size],dtype=float)})
+    coincident_events.update({'E': np.zeros([size],dtype=float)}) 
     
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
     events = create_dict(size, event_parameters)
