@@ -761,7 +761,7 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     return fig, plot_path
 
 # =============================================================================
-# 12. Energy histogram
+# 12. Delta E histogram
 # =============================================================================
     
 def plot_E_histogram(fig, name, df, data_set, number_bins = None, 
@@ -774,10 +774,10 @@ def plot_E_histogram(fig, name, df, data_set, number_bins = None,
                 & (df.gADC >= minADC) & (df.gADC <= maxADC)]
     
     
-    hist, bins, patches = plt.hist(df.E, bins=number_bins, range=rnge, 
+    hist, bins, patches = plt.hist(df.Delta_E, bins=number_bins, range=rnge, 
                                    log=log, color='b')
     plt.title(name)
-    plt.xlabel('E [meV]')
+    plt.xlabel('$E_f$ - $E_i$ [meV]')
     plt.ylabel('Counts')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')

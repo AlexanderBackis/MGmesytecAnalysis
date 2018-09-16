@@ -314,12 +314,9 @@ def choose_data_set():
     if glitch_ans == 'y':
         discard_glitch = True
         
-    print('Is t_d known (y/n)?')
-    t_d = 0
-    td_ans = input('>> ')
-    if td_ans == 'y':
-        t_d = input('t_d [us]: ')
-        t_d = float(t_d)
+    print('Enter incident neutron energy E_i:')
+    E_i = input('E_i [meV]: ')
+    E_i = int(E_i)
     
     coincident_events = pd.DataFrame()
     events = pd.DataFrame()
@@ -329,7 +326,7 @@ def choose_data_set():
         print()
         print('-- File ' + str(i+1) + '/' + str(len(data_sets)) + ' --')
         data_temp = clu.import_data(data_set, max_size)
-        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions, t_d)
+        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions, E_i)
         
         
         if discard_glitch:
@@ -420,7 +417,7 @@ def choose_analysis_type(module_order, data_set):
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
-                         'Timestamp and Trigger', 'Energy Histogram']
+                         'Timestamp and Trigger', 'Delta E Histogram']
     
     figs = []
     paths = []
@@ -832,6 +829,7 @@ def choose_analysis_type(module_order, data_set):
             
             rnge =  [1, 1000]
             number_bins = 1000
+            log = False
             
             if choice == 'y':
                 options = ['Number of bins', 'Energy range', 'ADC filter', 
@@ -969,7 +967,8 @@ def export_clusters(coincident_events, triggers, data_sets):
     temp_ce = coincident_events
     temp_ce = temp_ce[  (temp_ce.wM >= mw_min) & (temp_ce.wM <= mw_max) 
                       & (temp_ce.gM >= mg_min) & (temp_ce.gM <= mg_max)]
-    np_matrix = temp_ce[['Time', 'ToF', 'wCh', 'wADC', 'gCh', 'gADC', 'E']].values
+    np_matrix = temp_ce[['Time', 'ToF', 'wCh', 'wADC', 'gCh', 'gADC', 'd',
+                         'Delta_E']].values
     
        
     folder = get_output_path(data_sets)

@@ -109,7 +109,7 @@ def import_data(file_name, max_size = np.inf):
 #                               CLUSTER DATA
 # =============================================================================
 
-def cluster_data(data, ILL_buses = [], t_d = 0):
+def cluster_data(data, ILL_buses = [], E_i = -1):
     """ Clusters the imported data and stores it two data frames: one for 
         individual events and one for coicident events (i.e. candidate neutron 
         events). 
@@ -157,6 +157,8 @@ def cluster_data(data, ILL_buses = [], t_d = 0):
     """
     print('Clustering...')
     
+    t_d = get_td(E_i)
+    
     offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
     offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
     offset_3 = {'x': -1.579114, 'y': -3.164503,  'z': 5.227986}
@@ -176,7 +178,7 @@ def cluster_data(data, ILL_buses = [], t_d = 0):
                                     'wADC', 'gADC', 'wM', 'gM']
     coincident_events = create_dict(size, coincident_event_parameters)
     coincident_events.update({'d': np.zeros([size],dtype=float)})
-    coincident_events.update({'E': np.zeros([size],dtype=float)}) 
+    coincident_events.update({'Delta_E': np.zeros([size],dtype=float)}) 
     
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
     events = create_dict(size, event_parameters)
@@ -312,12 +314,12 @@ def cluster_data(data, ILL_buses = [], t_d = 0):
                     eventBus = coincident_events['Bus'][index]
                     ToF = coincident_events['ToF'][index-i]
                     d = get_d(eventBus, wCh, gCh, detector_vec)
-                    E = get_E(ToF, d, t_d)
+                    Delta_E = get_Delta_E(E_i, ToF, d, t_d)
                     coincident_events['d'][index-i] = d
-                    coincident_events['E'][index-i] = E
+                    coincident_events['Delta_E'][index-i] = Delta_E
                 else:
-                    coincident_events['d'][index-i] = -1
-                    coincident_events['E'][index-i] = -1
+                    coincident_events['d'][index-i] = float('NaN')
+                    coincident_events['Delta_E'][index-i] = float('NaN')
                 
             #Reset temporary variables
             nbrCoincidentEvents  =  0
@@ -374,7 +376,7 @@ def create_dict(size, names):
 def create_ess_channel_to_coordinate_map(theta, offset):
     dirname = os.path.dirname(__file__)
     file_path = os.path.join(dirname, 
-                             '../Coordinates/Coordinates_MG_SEQ_ESS.xlsx')
+                             '../Tables/Coordinates_MG_SEQ_ESS.xlsx')
     matrix = pd.read_excel(file_path).values
     coordinates = matrix[1:801]
     ess_ch_to_coord = np.empty((3,120,80),dtype='object')
@@ -468,19 +470,37 @@ def get_new_x(x, y, theta):
 def get_new_y(x, y, theta):
     return np.sin(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
 
-def get_E(ToF, d, t_d):
+def get_Delta_E(E_i, ToF, d, t_d):
     L_1 = 20.01 # Source to sample
+    m_n = 1.674927351e-27
+    meV_to_J = 1.60218e-19 * 0.001
+    E_i_J = E_i * meV_to_J
+    v_i = np.sqrt(E_i_J*2/m_n)
+    t_1 = L_1 / v_i
     L = L_1 + d # Source to detector
     ToF_real = ToF * 62.5e-9 + t_d * 1e-6
-    m_n = 1.674927351e-27
-    E_meV = -1
-    if ToF_real != 0:
-        E_J = (m_n/2) * ((L/ToF_real) ** 2)
-        E_meV = E_J * 6.24150913e18 * 1000 # meV
-    return E_meV
+    t_f = ToF_real - t_1
     
+   
+    E_J = (m_n/2) * ((d/t_f) ** 2)
+    E_f = E_J * 6.24150913e18 * 1000 # meV
     
+    return E_f - E_i
     
+def get_td(E_i):
+    td_table = import_td_table()
+    return td_table[E_i]
+
+
+def import_td_table():
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/' + 'Delay_table.xlsx')
+    matrix = pd.read_excel(path).values
+    td_table = {}
+    for row in matrix:
+        td_table.update({int(row[0]): row[1]})
+    return td_table
+
     
 
 
