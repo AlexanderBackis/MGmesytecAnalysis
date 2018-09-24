@@ -109,7 +109,8 @@ def import_data(file_name, max_size = np.inf):
 #                               CLUSTER DATA
 # =============================================================================
 
-def cluster_data(data, ILL_buses = [], E_i = -1):
+def cluster_data(data, ILL_buses = [], E_i = -1, 
+                 calibration = 'High_Resolution'):
     """ Clusters the imported data and stores it two data frames: one for 
         individual events and one for coicident events (i.e. candidate neutron 
         events). 
@@ -158,6 +159,7 @@ def cluster_data(data, ILL_buses = [], E_i = -1):
     print('Clustering...')
     
     t_d = get_td(E_i)
+    T_0 = get_T0(calibration, E_i)
     
     offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
     offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
@@ -177,8 +179,9 @@ def cluster_data(data, ILL_buses = [], E_i = -1):
     coincident_event_parameters = ['Bus', 'Time', 'ToF', 'wCh', 'gCh', 
                                     'wADC', 'gADC', 'wM', 'gM']
     coincident_events = create_dict(size, coincident_event_parameters)
-    coincident_events.update({'d': np.zeros([size],dtype=float)})
-    coincident_events.update({'Delta_E': np.zeros([size],dtype=float)}) 
+    coincident_events.update({'d': np.zeros([size], dtype=float)})
+    coincident_events.update({'dE': np.zeros([size], dtype=float)})
+    coincident_events.update({'tf': np.zeros([size], dtype=float)}) 
     
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
     events = create_dict(size, event_parameters)
@@ -213,45 +216,23 @@ def cluster_data(data, ILL_buses = [], E_i = -1):
         if (word & TypeMask) == Header:
             isOpen = True
             isTrigger = (word & TriggerMask) == Trigger
-        
         elif ((word & DataMask) == DataBusStart) & isOpen:
-            
             Bus = (word & BusMask) >> BusShift
             isData = True
-            
             if (previousBus in ILL_buses) and (Bus in ILL_buses):
                 pass
-            else:
-#                if previousBus != Bus and previousBus != -1:
-#                    wCh = coincident_events['wCh'][index]
-#                    gCh = coincident_events['gCh'][index]
-#                    if wCh != -1 and gCh != -1 and previousBus != -1:
-#                        coord = get_coordinate(previousBus, wCh, gCh, 
-#                                               ess_ch_to_coord, 
-#                                               ill_ch_to_coord, 
-#                                               ILL_buses)
-#                        coincident_events['x'][index] = coord['x']
-#                        coincident_events['y'][index] = coord['y']
-#                        coincident_events['z'][index] = coord['z']
-#                
-#                    else:
-#                        coincident_events['x'][index] = -1
-#                        coincident_events['y'][index] = -1
-#                        coincident_events['z'][index] = -1
-                
-                previousBus             = Bus
-                maxADCw                 = 0
-                maxADCg                 = 0
-                nbrCoincidentEvents    += 1
-                nbrEvents              += 1
-                index                  += 1
+            else:                
+                previousBus = Bus
+                maxADCw = 0
+                maxADCg = 0
+                nbrCoincidentEvents += 1
+                nbrEvents += 1
+                index += 1
                 
                 coincident_events['wCh'][index] = -1
                 coincident_events['gCh'][index] = -1
-                coincident_events['Bus'][index] = Bus
-            
+                coincident_events['Bus'][index] = Bus  
         elif ((word & DataMask) == DataEvent) & isOpen:
-            
             Channel = ((word & ChannelMask) >> ChannelShift)
             ADC = (word & ADCMask)
             index_event += 1
@@ -278,14 +259,10 @@ def cluster_data(data, ILL_buses = [], E_i = -1):
                     maxADCg = ADC
                 
                 events['Channel'][index_event] = Channel
-            
-        
         elif ((word & DataMask) == DataExTs) & isOpen:
-            extended_time_stamp = (word & ExTsMask) << ExTsShift
-         
+            extended_time_stamp = (word & ExTsMask) << ExTsShift   
         elif ((word & TypeMask) == EoE) & isOpen:
             time_stamp = (word & TimeStampMask)
-            
             if extended_time_stamp != None:
                 Time = extended_time_stamp | time_stamp
             else:
@@ -295,17 +272,14 @@ def cluster_data(data, ILL_buses = [], E_i = -1):
                 TriggerTime = Time                    
                 triggers[trigger_index] = TriggerTime
                 trigger_index += 1
-            
             #Assign timestamp to coindicent events
             ToF = Time - TriggerTime
             for i in range(0,nbrCoincidentEvents):
                 coincident_events['Time'][index-i] = Time
                 coincident_events['ToF'][index-i] = ToF
-            
             #Assign timestamp to events
             for i in range(0,nbrEvents):
                 events['Time'][index_event-i] = Time
-                
             #Assign d
             for i in range(0, nbrCoincidentEvents):
                 wCh = coincident_events['wCh'][index-i]
@@ -314,12 +288,14 @@ def cluster_data(data, ILL_buses = [], E_i = -1):
                     eventBus = coincident_events['Bus'][index]
                     ToF = coincident_events['ToF'][index-i]
                     d = get_d(eventBus, wCh, gCh, detector_vec)
-                    Delta_E = get_Delta_E(E_i, ToF, d, t_d)
+                    dE, t_f = get_dE(E_i, ToF, d, t_d, T_0)
                     coincident_events['d'][index-i] = d
-                    coincident_events['Delta_E'][index-i] = Delta_E
+                    coincident_events['dE'][index-i] = dE
+                    coincident_events['tf'][index-i] = t_f
                 else:
-                    coincident_events['d'][index-i] = float('NaN')
-                    coincident_events['Delta_E'][index-i] = float('NaN')
+                    coincident_events['d'][index-i] = -1
+                    coincident_events['tf'][index-i] = -1
+                    coincident_events['dE'][index-i] = np.nan
                 
             #Reset temporary variables
             nbrCoincidentEvents  =  0
@@ -462,7 +438,7 @@ def get_d(Bus, WireChannel, GridChannel, detector_vec):
     elif 6 <= Bus <= 8:
         coord = detector_vec[2][Bus%3, GridChannel, WireChannel]
             
-    return np.sqrt(coord['x'] ** 2 + coord['y'] ** 2 + coord['z'] ** 2)
+    return np.sqrt((coord['x'] ** 2) + (coord['y'] ** 2) + (coord['z'] ** 2))
 
 def get_new_x(x, y, theta):
     return np.cos(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
@@ -470,23 +446,23 @@ def get_new_x(x, y, theta):
 def get_new_y(x, y, theta):
     return np.sin(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
 
-def get_Delta_E(E_i, ToF, d, t_d):
-    L_1 = 20.01 # Source to sample
-    m_n = 1.674927351e-27
-    meV_to_J = 1.60218e-19 * 0.001
-    E_i_J = E_i * meV_to_J
-    v_i = np.sqrt(E_i_J*2/m_n)
-    t_1 = L_1 / v_i
-    L = L_1 + d # Source to detector
-    ToF_real = ToF * 62.5e-9 + t_d * 1e-6
-    t_f = ToF_real - t_1
-    
-   
-    E_J = (m_n/2) * ((d/t_f) ** 2)
-    E_f = E_J * 6.24150913e18 * 1000 # meV
-    
-    return E_f - E_i
-    
+def get_dE(E_i, ToF, d, t_d, T_0):
+    # Declare parameters
+    L_1 = 20.01                             # Source to sample
+    m_n = 1.674927351e-27                   # Neutron mass
+    meV_to_J = 1.60218e-19 * 0.001          # Convert meV to J
+    J_to_meV = 6.24150913e18 * 1000         # Convert J to meV
+    # Calculate dE
+    E_i_J = E_i * meV_to_J                  # Convert E_i to J
+    v_i = np.sqrt((E_i_J*2)/m_n)            # Get velocity of E_i
+    t_1 = L_1 / v_i + T_0 * 1e-6            # Use velocity to find t_1
+    ToF_real = ToF * 62.5e-9 #+ t_d * 1e-6  # Time from source to detector
+    t_f = ToF_real - t_1                    # Time from sample to detector
+    E_J = (m_n/2) * ((d/t_f) ** 2)          # Energy E_f in Joule
+    E_f = E_J * J_to_meV                    # Convert to meV
+    return (E_f - E_i), t_f
+
+
 def get_td(E_i):
     td_table = import_td_table()
     return td_table[E_i]
@@ -501,6 +477,20 @@ def import_td_table():
         td_table.update({int(row[0]): row[1]})
     return td_table
 
+
+def import_T0_table():
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/' + 'T0_vs_Energy.xlsx')
+    matrix = pd.read_excel(path).values
+    t0_table = {}
+    for row in matrix:
+        t0_table.update({str(row[0]): row[1]})
+    return t0_table
+
+def get_T0(calibration, energy):
+    T0_table = import_T0_table()
+    return T0_table[calibration]
+    
     
 
 

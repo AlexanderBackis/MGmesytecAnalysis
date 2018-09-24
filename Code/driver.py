@@ -318,6 +318,16 @@ def choose_data_set():
     E_i = input('E_i [meV]: ')
     E_i = int(E_i)
     
+    print('Choose calibration: ')
+    calibrations =  ['High_Resolution', 'High_Flux', 'RRM']
+    for i, calibration in enumerate(calibrations):
+        print('    ' + str(i+1) + '. ' + calibration)
+    print('Enter a number between 1-3.')
+    selection = input('>> ')
+    selection = int(selection)
+    calibration = calibrations[selection-1]
+    calibration = 'Van__3x3_' + calibration + '_Calibration_' + str(E_i)
+    
     coincident_events = pd.DataFrame()
     events = pd.DataFrame()
     triggers = pd.DataFrame()
@@ -326,7 +336,8 @@ def choose_data_set():
         print()
         print('-- File ' + str(i+1) + '/' + str(len(data_sets)) + ' --')
         data_temp = clu.import_data(data_set, max_size)
-        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions, E_i)
+        ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions, E_i,
+                                                   calibration)
         
         
         if discard_glitch:
@@ -376,7 +387,7 @@ def choose_data_set():
             
         events = events.append(e_temp)
         triggers = triggers.append(t_temp)
-        
+                
     if len(data_sets) < 2:
         pass
     else:
@@ -385,7 +396,8 @@ def choose_data_set():
     data_sets = str(data_sets)
     
     return (coincident_events, events, data_sets, triggers, 
-            number_of_detectors, module_order, detector_types, measurement_time)
+            number_of_detectors, module_order, detector_types, 
+            measurement_time, E_i)
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -417,7 +429,8 @@ def choose_analysis_type(module_order, data_set):
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
-                         'Timestamp and Trigger', 'Delta E Histogram']
+                         'Timestamp and Trigger', 'Delta E Histogram', 
+                         'ToF vs d (with corresponding dE)']
     
     figs = []
     paths = []
@@ -824,39 +837,23 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
             
         
-        if analysis_type == 12:
-            choice = input('\nFurther specifications? (y/n).\n>> ')
+        if analysis_type == 12:            
+            rnge =  [-E_i, E_i]
+            number_bins = 400
+            log = True
+            ADC_filter = None
             
-            rnge =  [1, 1000]
-            number_bins = 1000
-            log = False
-            
-            if choice == 'y':
-                options = ['Number of bins', 'Energy range', 'ADC filter', 
-                           'Log/Lin-scale']
-                specs = choose_specifications(options)
-                ADC_filter = None
-                if specs['Number of bins'] != None:
-                    number_bins = specs['Number of bins']
-                
-                if specs['Energy range'] != None:
-                    rnge = specs['Energy range']
-                
-                if specs['ADC filter'] != None:
-                    ADC_filter = specs['ADC filter']
-                
-                if specs['Log/Lin-scale'] is not None:
-                    log = specs['Log/Lin-scale']
-                    
-                
-                print('Loading...')
-                fig, path = pl.plot_E_histogram(fig, name, coincident_events, 
-                                                  data_set, number_bins, rnge,
-                                                  ADC_filter, log)
-            else:
-                print('Loading...')
-                fig, path = pl.plot_E_histogram(fig, name, coincident_events, 
-                                                  data_set, number_bins, rnge)
+            print('Loading...')
+            fig, path = pl.plot_E_histogram(fig, name, coincident_events, 
+                                            data_set, E_i, number_bins, rnge, 
+                                            ADC_filter, log)
+
+            print('Done!')
+        
+        if analysis_type == 13:
+            print('Loading...')
+            fig, path = pl.ToF_vs_d_and_dE(fig, name, coincident_events, 
+                                           data_set, E_i)
             print('Done!')
             
                 
@@ -929,7 +926,8 @@ def main_meny(data_sets):
     return choice
 
 def save_clusters(coincident_events, events, triggers, number_of_detectors,
-                  module_order, detector_types, data_set, measurement_time):
+                  module_order, detector_types, data_set, measurement_time, 
+                  E_i):
     print('Saving...')
     print('0%')
     dirname = os.path.dirname(__file__)
@@ -949,12 +947,14 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     det_types  = pd.DataFrame({'detector_types': detector_types})
     da_set     = pd.DataFrame({'data_set': [data_set]})
     mt         = pd.DataFrame({'measurement_time': [measurement_time]})
+    ei = pd.DataFrame({'E_i': [E_i]})
         
     number_det.to_hdf(path, 'number_of_detectors', complevel = 9)
     mod_or.to_hdf(path, 'module_order', complevel = 9)
     det_types.to_hdf(path, 'detector_types', complevel = 9)
     da_set.to_hdf(path, 'data_set', complevel = 9)
     mt.to_hdf(path, 'measurement_time', complevel=9)
+    ei.to_hdf(path, 'E_i', complevel=9)
     print('100%')
     print('Done!')
     
@@ -968,7 +968,7 @@ def export_clusters(coincident_events, triggers, data_sets):
     temp_ce = temp_ce[  (temp_ce.wM >= mw_min) & (temp_ce.wM <= mw_max) 
                       & (temp_ce.gM >= mg_min) & (temp_ce.gM <= mg_max)]
     np_matrix = temp_ce[['Time', 'ToF', 'wCh', 'wADC', 'gCh', 'gADC', 'd',
-                         'Delta_E']].values
+                         'dE']].values
     
        
     folder = get_output_path(data_sets)
@@ -1470,6 +1470,7 @@ if answer == 'y':
     number_of_detectors = pd.read_hdf(clu_path, 'number_of_detectors')['number_of_detectors'].iloc[0]
     module_order_df = pd.read_hdf(clu_path, 'module_order')
     detector_types_df = pd.read_hdf(clu_path, 'detector_types')
+    E_i = pd.read_hdf(clu_path, 'E_i')['E_i'].iloc[0]
     print('100%')
     print('Done!')
     
@@ -1480,8 +1481,7 @@ if answer == 'y':
     module_order =  []
     for row in module_order_df['module_order']:
         module_order.append(row)
-        
-    
+         
     data_sets = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
     measurement_time = pd.read_hdf(clu_path, 'measurement_time')['measurement_time'].iloc[0]
     create_plot_folder(data_sets)
@@ -1490,7 +1490,7 @@ else:
     folder = os.path.join(dirname, '../Data/')
     files = os.listdir(folder)
     files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
-    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types, measurement_time = choose_data_set()
+    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types, measurement_time, E_i = choose_data_set()
     create_plot_folder(data_sets)
 
 create_output_folder(data_sets)
@@ -1507,7 +1507,8 @@ while not_done:
         animation_menu(coincident_events, data_sets)
     elif choice == 4:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
-                      module_order, detector_types, data_sets, measurement_time)
+                      module_order, detector_types, data_sets, 
+                      measurement_time, E_i)
     elif choice == 5:
         export_clusters(coincident_events, triggers, data_sets)
     elif choice == 6:

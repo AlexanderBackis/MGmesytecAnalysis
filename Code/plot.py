@@ -764,7 +764,7 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
 # 12. Delta E histogram
 # =============================================================================
     
-def plot_E_histogram(fig, name, df, data_set, number_bins = None, 
+def plot_E_histogram(fig, name, df, data_set, E_i, number_bins = None, 
                      rnge=None, ADC_filter = None, log = False):
     
     if ADC_filter != None:
@@ -772,17 +772,124 @@ def plot_E_histogram(fig, name, df, data_set, number_bins = None,
         maxADC = ADC_filter[1]
         df = df[  (df.wADC >= minADC) & (df.wADC <= maxADC) 
                 & (df.gADC >= minADC) & (df.gADC <= maxADC)]
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    
+    hist, bins, patches = plt.hist(df.dE, bins=number_bins, range=rnge, 
+                                   log=log, color='b', histtype='step', 
+                                   zorder=5)
+
     
     
-    hist, bins, patches = plt.hist(df.Delta_E, bins=number_bins, range=rnge, 
-                                   log=log, color='b')
-    plt.title(name)
+    plt.title('12. Delta E histogram' + '\n' + str(E_i) + ' meV, Vanadium')
     plt.xlabel('$E_f$ - $E_i$ [meV]')
     plt.ylabel('Counts')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
+    
              
     return fig, plot_path
+
+# =============================================================================
+# 13. ToF vs d + dE
+# =============================================================================
+    
+def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
+        df = df[df.d != -1]
+        bus_ranges = [[0,2], [3,5], [6,8]]
+        
+        name = ('13. Histogram of $E_f$ - $E_i$, Vanadium, ' + str(E_i) + 'meV')
+        
+        fig.suptitle(name, x=0.5, y=1.05)
+        
+        detectors = ['ILL', 'ESS_1', 'ESS_2']
+    
+        fig.set_figheight(4)
+        fig.set_figwidth(12)
+        
+        color_vec = ['darkorange', 'magenta', 'blue']
+        
+        dE_bins = 400
+        dE_range = [-E_i, E_i]
+        
+        ToF_bins = 200
+        ToF_range = [0, 20e3]
+        
+        d_bins = 100
+        d_range = [5.9, 6.5]
+        
+        tf_bins = 200
+        tf_range = [0, 20e3]
+        
+        for i, bus_range in enumerate(bus_ranges):
+#            # Plot ToF vs d
+            title = detectors[i]
+#            plt.subplot(3, 3, 3+i+1)
+            bus_min = bus_range[0]
+            bus_max = bus_range[1]
+            df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+#            plt.hist2d(df_temp.tf * 1e6, df_temp.d, 
+#                       bins = [ToF_bins, d_bins], range=[ToF_range, d_range],
+#                       norm=LogNorm(), vmin=1, vmax=6e3, cmap='jet')
+#            plt.xlabel('t_f [$\mu$s]')
+#            plt.ylabel('d [m]')
+#            plt.title(title + ', $t_f$ vs d')
+#            plt.colorbar()
+            # Plot dE
+            plt.subplot(1, 3, i+1)
+            plt.grid(True, which='major', zorder=0)
+            plt.grid(True, which='minor', linestyle='--',zorder=0)
+            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color=color_vec[i], histtype='step', label=title, 
+                     zorder=3)
+            plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color='black', histtype='step', label='All detectors', 
+                     zorder=2)
+            plt.ylim(1, 5e4)
+            plt.legend()
+            plt.xlabel('$\Delta E$ [meV]')
+            plt.ylabel('Counts')
+            plt.title(title)
+#            # Plot tf
+#            plt.subplot(3, 3, i+1)
+#            plt.grid(True, which='major', zorder=0)
+#            plt.grid(True, which='minor', linestyle='--',zorder=0)
+#            plt.hist(df_temp.tf * 1e6, bins=tf_bins, range=tf_range, 
+#                     log=LogNorm(), 
+#                     color=color_vec[i], histtype='step', 
+#                     zorder=3)
+#            plt.ylim(1, 5e4)
+#            plt.xlim(tf_range)
+#            plt.xlabel('$t_f$ [$\mu$s]')
+#            plt.ylabel('Counts')
+#            plt.title(title + ', Histogram of $t_f$')
+            
+            
+#        # Plot dE comparrison
+#            plt.subplot2grid((3, 3), (2, 0), colspan=3)
+#            plt.grid(True, which='major', zorder=0)
+#            plt.grid(True, which='minor', linestyle='--',zorder=0)
+#            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+#                     color=color_vec[i], histtype='step', label = title,
+#                     zorder=i+2)
+#        
+#        plt.subplot2grid((3, 3), (2, 0), colspan=3)
+#        plt.grid(True, which='major', zorder=0)
+#        plt.grid(True, which='minor', linestyle='--',zorder=0)
+#        plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+#                     color=color_vec[i], histtype='step', zorder=4)
+#        plt.xlabel('dE [meV]')
+#        plt.ylabel('Counts')
+        
+        
+            
+        
+        plt.tight_layout()
+        plot_path = get_plot_path(data_set) + name + '.pdf'
+        
+        return fig, plot_path
+    
+    
     
     
     
