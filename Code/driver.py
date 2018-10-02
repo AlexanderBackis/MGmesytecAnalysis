@@ -429,8 +429,11 @@ def choose_analysis_type(module_order, data_set):
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
-                         'Timestamp and Trigger', 'Delta E Histogram', 
-                         'ToF vs d (with corresponding dE)']
+                         'Timestamp and Trigger', 
+                         'Delta E Histogram (separate detectors)', 
+                         'Delta E',
+                         'ToF vs d + dE',
+                         'Compare cold and thermal']
     
     figs = []
     paths = []
@@ -838,22 +841,27 @@ def choose_analysis_type(module_order, data_set):
             
         
         if analysis_type == 12:            
-            rnge =  [-E_i, E_i]
-            number_bins = 400
-            log = True
-            ADC_filter = None
             
             print('Loading...')
-            fig, path = pl.plot_E_histogram(fig, name, coincident_events, 
-                                            data_set, E_i, number_bins, rnge, 
-                                            ADC_filter, log)
+            fig, path = pl.dE_histogram(fig, name, coincident_events, 
+                                        data_set, E_i)
 
             print('Done!')
         
         if analysis_type == 13:
             print('Loading...')
+            fig, path = pl.dE_single(fig, name, coincident_events, 
+                                           data_set, E_i)
+            print('Done!')
+        
+        if analysis_type == 14:
+            print('Loading...')
             fig, path = pl.ToF_vs_d_and_dE(fig, name, coincident_events, 
                                            data_set, E_i)
+            print('Done!')
+            
+        if analysis_type == 15:
+            fig, path = pl.compare_cold_and_thermal(fig, name, data_set, E_i)
             print('Done!')
             
                 

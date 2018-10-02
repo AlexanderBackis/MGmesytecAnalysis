@@ -761,50 +761,122 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     return fig, plot_path
 
 # =============================================================================
-# 12. Delta E histogram
+# 12. Delta E histogram (separate detectors)
 # =============================================================================
     
-def plot_E_histogram(fig, name, df, data_set, E_i, number_bins = None, 
-                     rnge=None, ADC_filter = None, log = False):
-    
-    if ADC_filter != None:
-        minADC = ADC_filter[0]
-        maxADC = ADC_filter[1]
-        df = df[  (df.wADC >= minADC) & (df.wADC <= maxADC) 
-                & (df.gADC >= minADC) & (df.gADC <= maxADC)]
-    plt.grid(True, which='major', zorder=0)
-    plt.grid(True, which='minor', linestyle='--',zorder=0)
-    
-    hist, bins, patches = plt.hist(df.dE, bins=number_bins, range=rnge, 
-                                   log=log, color='b', histtype='step', 
-                                   zorder=5)
-
-    
-    
-    plt.title('12. Delta E histogram' + '\n' + str(E_i) + ' meV, Vanadium')
-    plt.xlabel('$E_f$ - $E_i$ [meV]')
-    plt.ylabel('Counts')
-    plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
-                 'Number of bins: ' + str(number_bins) + '.pdf')
-    
-             
-    return fig, plot_path
-
-# =============================================================================
-# 13. ToF vs d + dE
-# =============================================================================
-    
-def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
+def dE_histogram(fig, name, df, data_set, E_i):
         df = df[df.d != -1]
         bus_ranges = [[0,2], [3,5], [6,8]]
         
-        name = ('13. Histogram of $E_f$ - $E_i$, Vanadium, ' + str(E_i) + 'meV')
+        name = ('12. Histogram of $E_f$ - $E_i$, Vanadium, ' + str(E_i) + 'meV')
         
         fig.suptitle(name, x=0.5, y=1.05)
         
         detectors = ['ILL', 'ESS_1', 'ESS_2']
     
         fig.set_figheight(4)
+        fig.set_figwidth(12)
+        
+        color_vec = ['darkorange', 'magenta', 'blue']
+        
+        dE_bins = 400
+        dE_range = [-E_i, E_i]
+        
+        for i, bus_range in enumerate(bus_ranges):
+            title = detectors[i]
+            bus_min = bus_range[0]
+            bus_max = bus_range[1]
+            df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+            plt.subplot(1, 3, i+1)
+            plt.grid(True, which='major', zorder=0)
+            plt.grid(True, which='minor', linestyle='--',zorder=0)
+            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color=color_vec[i], histtype='step', label=title, 
+                     zorder=3)
+            plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color='black', histtype='step', label='All detectors', 
+                     zorder=2)
+#            plt.ylim(1, 5e4)
+            plt.legend()
+            plt.xlabel('$\Delta E$ [meV]')
+            plt.ylabel('Counts')
+            plt.title(title)
+        
+        plt.tight_layout()
+        plot_path = get_plot_path(data_set) + name + '.pdf'
+        
+        return fig, plot_path
+
+# =============================================================================
+# 13. Delta E
+# =============================================================================
+    
+def dE_single(fig, name, df, data_set, E_i):
+        df = df[df.d != -1]
+        df = df[(df.wADC > 400) & (df.gADC > 400)]
+        df = df[(df.wM == 1) & (df.gM < 5)]
+        bus_min = 6
+        bus_max = 8
+        df = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+        
+        
+        bus_ranges = [[0,2], [3,5], [6,8]]
+        color_vec = ['darkorange', 'magenta', 'blue']
+        detectors = ['ILL', 'ESS_1', 'ESS_2']
+        dE_bins = 400
+        dE_range = [-E_i, E_i]
+        
+        name = ('13. Vanadium, ' + str(E_i) + 'meV')
+        plt.grid(True, which='major', zorder=0)
+        plt.grid(True, which='minor', linestyle='--',zorder=0)
+        
+#        for i, bus_range in enumerate(bus_ranges):
+#            bus_min = bus_range[0]
+#            bus_max = bus_range[1]
+#            df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+#
+#            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+#                     color=color_vec[i], histtype='step', label=detectors[i], 
+#                     zorder=3)
+        
+        hist, bins, patches = plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color='black', histtype='step',  
+                     zorder=2)
+        #plt.legend(loc='upper left')
+        plt.xlabel('$\Delta E$ [meV]')
+        plt.ylabel('Counts')
+        plt.title(name + ', Histogram of $E_i$ - $E_f$')
+        
+        folder = get_output_path(data_set)
+        hist_path = folder + name + ', histogram.dat'
+        bins_path = folder + name + ', bins.dat'
+        np.savetxt(hist_path, hist, delimiter=",")
+        np.savetxt(bins_path, bins, delimiter=",")
+            
+        
+#        
+
+        
+        return fig, plot_path
+    
+    
+# =============================================================================
+# 14. ToF vs d + dE
+# =============================================================================
+        
+    
+def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
+        df = df[df.d != -1]
+        df = df[df.tf > 0]
+        bus_ranges = [[0,2], [3,5], [6,8]]
+        
+        name = ('14. Histogram of $E_i$ - $E_f$, Vanadium, ' + str(E_i) + 'meV')
+        
+        fig.suptitle(name, x=0.5, y=1.05)
+        
+        detectors = ['ILL', 'ESS_1', 'ESS_2']
+    
+        fig.set_figheight(9)
         fig.set_figwidth(12)
         
         color_vec = ['darkorange', 'magenta', 'blue']
@@ -824,19 +896,19 @@ def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
         for i, bus_range in enumerate(bus_ranges):
 #            # Plot ToF vs d
             title = detectors[i]
-#            plt.subplot(3, 3, 3+i+1)
+            plt.subplot(3, 3, i+1)
             bus_min = bus_range[0]
             bus_max = bus_range[1]
             df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
-#            plt.hist2d(df_temp.tf * 1e6, df_temp.d, 
-#                       bins = [ToF_bins, d_bins], range=[ToF_range, d_range],
-#                       norm=LogNorm(), vmin=1, vmax=6e3, cmap='jet')
-#            plt.xlabel('t_f [$\mu$s]')
-#            plt.ylabel('d [m]')
-#            plt.title(title + ', $t_f$ vs d')
-#            plt.colorbar()
+            plt.hist2d(df_temp.tf * 1e6, df_temp.d, 
+                       bins = [ToF_bins, d_bins],
+                       norm=LogNorm(), vmin=1, vmax=6e3, cmap='jet')
+            plt.xlabel('$t_f$ [$\mu$s]')
+            plt.ylabel('d [m]')
+            plt.title(title + ', $t_f$ vs d')
+            plt.colorbar()
             # Plot dE
-            plt.subplot(1, 3, i+1)
+            plt.subplot(3, 3, 3+i+1)
             plt.grid(True, which='major', zorder=0)
             plt.grid(True, which='minor', linestyle='--',zorder=0)
             plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
@@ -845,56 +917,133 @@ def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
             plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
                      color='black', histtype='step', label='All detectors', 
                      zorder=2)
-            plt.ylim(1, 5e4)
-            plt.legend()
+            plt.legend(loc='upper left')
             plt.xlabel('$\Delta E$ [meV]')
             plt.ylabel('Counts')
             plt.title(title)
-#            # Plot tf
-#            plt.subplot(3, 3, i+1)
-#            plt.grid(True, which='major', zorder=0)
-#            plt.grid(True, which='minor', linestyle='--',zorder=0)
-#            plt.hist(df_temp.tf * 1e6, bins=tf_bins, range=tf_range, 
-#                     log=LogNorm(), 
-#                     color=color_vec[i], histtype='step', 
-#                     zorder=3)
-#            plt.ylim(1, 5e4)
-#            plt.xlim(tf_range)
-#            plt.xlabel('$t_f$ [$\mu$s]')
-#            plt.ylabel('Counts')
-#            plt.title(title + ', Histogram of $t_f$')
-            
-            
-#        # Plot dE comparrison
-#            plt.subplot2grid((3, 3), (2, 0), colspan=3)
-#            plt.grid(True, which='major', zorder=0)
-#            plt.grid(True, which='minor', linestyle='--',zorder=0)
-#            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-#                     color=color_vec[i], histtype='step', label = title,
-#                     zorder=i+2)
-#        
-#        plt.subplot2grid((3, 3), (2, 0), colspan=3)
-#        plt.grid(True, which='major', zorder=0)
-#        plt.grid(True, which='minor', linestyle='--',zorder=0)
-#        plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-#                     color=color_vec[i], histtype='step', zorder=4)
-#        plt.xlabel('dE [meV]')
-#        plt.ylabel('Counts')
-        
-        
-            
+            # Plot ToF
+            plt.subplot(3, 3, 6+i+1)
+            plt.grid(True, which='major', zorder=0)
+            plt.grid(True, which='minor', linestyle='--',zorder=0)
+            plt.hist(df_temp.ToF * 62.5e-9 * 1e3, bins=1000,
+                     log=LogNorm(), 
+                     color=color_vec[i], histtype='step', 
+                     zorder=3)
+            plt.xlabel('ToF [$\mu$s]')
+            plt.ylabel('Counts')
+            plt.title(title + ', Histogram of ToF')
         
         plt.tight_layout()
         plot_path = get_plot_path(data_set) + name + '.pdf'
         
         return fig, plot_path
     
-    
-    
-    
-    
+# =============================================================================
+# 15. Compare cold and thermal
+# =============================================================================
+        
+def compare_cold_and_thermal(fig, name, data_set, E_i):
+    dirname = os.path.dirname(__file__)
+    clusters_folder = os.path.join(dirname, '../Clusters/')
+    clu_files = os.listdir(clusters_folder)
+    clu_files = [file for file in clu_files if file[-3:] == '.h5']
 
     
+    name = ('15. Vanadium, ' + str(E_i) + 'meV\n Comparrison between cold and'
+            + ' thermal')
+    
+    dE_bins = 400
+    dE_range = [-E_i, E_i]
+    
+    print()
+    print('**************** Choose cold data ***************')
+    print('-------------------------------------------------')
+    not_int = True
+    not_in_range = True
+    file_number = None
+    while (not_int or not_in_range):
+        for i, file in enumerate(clu_files):
+            print(str(i+1) + '. ' + file)
+    
+        file_number = input('\nEnter a number between 1-' + 
+                            str(len(clu_files)) + '.\n>> ')
+    
+        try:
+            file_number = int(file_number)
+            not_int = False
+            not_in_range = (file_number < 1) | (file_number > len(clu_files))
+        except ValueError:
+            pass
+    
+        if not_int or not_in_range:
+            print('\nThat is not a valid number.')
+    
+    clu_set = clu_files[int(file_number) - 1]
+    clu_path_cold = clusters_folder + clu_set
+    
+    print()
+    print('*************** Choose thermal data *************')
+    print('-------------------------------------------------')
+    not_int = True
+    not_in_range = True
+    file_number = None
+    while (not_int or not_in_range):
+        for i, file in enumerate(clu_files):
+            print(str(i+1) + '. ' + file)
+    
+        file_number = input('\nEnter a number between 1-' + 
+                            str(len(clu_files)) + '.\n>> ')
+    
+        try:
+            file_number = int(file_number)
+            not_int = False
+            not_in_range = (file_number < 1) | (file_number > len(clu_files))
+        except ValueError:
+            pass
+    
+        if not_int or not_in_range:
+            print('\nThat is not a valid number.')
+    
+    clu_set = clu_files[int(file_number) - 1]
+    clu_path_thermal = clusters_folder + clu_set
+    
+    print('Loading...')
+    tc = pd.read_hdf(clu_path_thermal, 'coincident_events')
+    cc = pd.read_hdf(clu_path_cold, 'coincident_events')
+    tc = filter_clusters(tc)
+    cc = filter_clusters(cc)
+    
+    size_cold = cc.shape[0]
+    size_thermal = tc.shape[0]
+    
+
+    plt.title(name)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    
+    plt.hist(tc.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color='red', histtype='step', density=True,
+                     zorder=2, label='Thermal sample')
+    
+    plt.hist(cc.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                     color='blue', histtype='step', density=True,
+                     zorder=2, label='Cold sample')
+    
+    plt.legend(loc='upper left')
+    
+    plt.xlabel('$E_i$ - $E_f$ [meV]')
+    plt.ylabel('Normalized counts')
+    
+    plot_path = get_plot_path(data_set) + name + '.pdf'
+    
+    return fig, plot_path
+    
+# =============================================================================
+# 16. Compare MG and Helium-tubes
+# =============================================================================
+    
+def compare_MG_and_He3():
+    pass
 
     
 
@@ -911,7 +1060,16 @@ def get_output_path(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Output/' + data_set + '/')
     return folder
-    
+
+def import_helium_tubes():
+    pass
+
+def filter_clusters(df):
+    df = df[df.d != -1]
+    df = df[df.tf > 0]
+    df = df[(df.wADC > 400) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    return df
 
 
 

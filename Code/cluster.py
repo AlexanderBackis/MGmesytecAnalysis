@@ -378,7 +378,7 @@ def create_ess_channel_to_coordinate_map(theta, offset):
                 # Shift to match internal and external coordinate system
                 z, x, y = x, y, z
                 # Apply rotation
-                #x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
                 # Apply translation
                 x += offset['x']
                 y += offset['y']
@@ -396,9 +396,9 @@ def create_ill_channel_to_coordinate_map(theta, offset):
     LayerSpacing = 23.5   #  [mm]
     GridSpacing  = 23.5   #  [mm]
     
-    x_offset = 46.514
-    y_offset = 37.912   
-    z_offset = 37.95
+    x_offset = 46.514     #  [mm]
+    y_offset = 37.912     #  [mm]
+    z_offset = 37.95      #  [mm]
     
     test = True
     ill_ch_to_coord = np.empty((3,120,80),dtype='object')
@@ -416,7 +416,7 @@ def create_ill_channel_to_coordinate_map(theta, offset):
                     # Shift to match internal and external coordinate system
                     z, x, y = x, y, z
                     # Apply rotation
-                    #x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                    x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
                     # Apply translation
                     x += offset['x']
                     y += offset['y']
@@ -441,10 +441,10 @@ def get_d(Bus, WireChannel, GridChannel, detector_vec):
     return np.sqrt((coord['x'] ** 2) + (coord['y'] ** 2) + (coord['z'] ** 2))
 
 def get_new_x(x, y, theta):
-    return np.cos(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
+    return np.cos(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
     
 def get_new_y(x, y, theta):
-    return np.sin(np.tan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
+    return np.sin(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
 
 def get_dE(E_i, ToF, d, t_d, T_0):
     # Declare parameters
@@ -455,12 +455,14 @@ def get_dE(E_i, ToF, d, t_d, T_0):
     # Calculate dE
     E_i_J = E_i * meV_to_J                  # Convert E_i to J
     v_i = np.sqrt((E_i_J*2)/m_n)            # Get velocity of E_i
-    t_1 = L_1 / v_i + T_0 * 1e-6            # Use velocity to find t_1
-    ToF_real = ToF * 62.5e-9 #+ t_d * 1e-6  # Time from source to detector
+    t_1 = (L_1 / v_i) + T_0 * 1e-6          # Use velocity to find t_1
+    ToF_real = ToF * 62.5e-9                # Time from source to detector
+    if E_i <= 25: 
+        ToF_real += 16666.66666e-6 
     t_f = ToF_real - t_1                    # Time from sample to detector
     E_J = (m_n/2) * ((d/t_f) ** 2)          # Energy E_f in Joule
     E_f = E_J * J_to_meV                    # Convert to meV
-    return (E_f - E_i), t_f
+    return (E_i - E_f), t_f
 
 
 def get_td(E_i):
