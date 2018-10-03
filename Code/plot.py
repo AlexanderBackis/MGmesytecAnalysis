@@ -1042,8 +1042,56 @@ def compare_cold_and_thermal(fig, name, data_set, E_i):
 # 16. Compare MG and Helium-tubes
 # =============================================================================
     
-def compare_MG_and_He3():
-    pass
+def compare_MG_and_He3(fig, name, df, data_set, E_i):
+    
+    name = ('16. Vanadium, ' + str(E_i) + 'meV\n Comparrison between He3 and'
+            + ' Multi-Grid')
+    
+    dirname = os.path.dirname(__file__)
+    he_folder = os.path.join(dirname, '../Tables/Helium3_spectrum/')
+    energies_path = he_folder + 'e_list_HR.dat'
+    dE_path = he_folder + 'energy_HR.dat'
+    hist_path = he_folder + 'histo_HR.dat'
+    
+    energies = np.loadtxt(energies_path)
+    dE = np.loadtxt(dE_path, delimiter=',', ndmin=2)
+    hist = np.loadtxt(hist_path, delimiter=',', ndmin=2)
+    
+    energy_dict = {}
+    for i, energy in enumerate(energies):
+        hist_dict = {'bins': dE[:, i], 'histogram': hist[:, i]}
+        energy_dict.update({energy: hist_dict})
+    
+    dE_bins = 400
+    dE_range = [-E_i, E_i]
+    df = filter_clusters(df)
+    hist, bins, patches = plt.hist(df.dE, bins=dE_bins, range=dE_range)
+    plt.clf()
+    plt.title(name)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    
+    binCenters = 0.5 * (bins[1:] + bins[:-1])
+    norm_MG = 1 / sum(hist)
+    plt.plot(binCenters+1.1, hist * norm_MG, color='crimson', zorder=3, 
+             label='Multi-Grid')
+    
+    
+    data = energy_dict[E_i]
+    norm_he3 = 1 / sum(data['histogram'])
+    plt.plot(data['bins']-1, data['histogram'] * norm_he3, color='teal',
+             label='He3', zorder=2)
+    
+    plt.xlabel('$E_i$ - $E_f$ [meV]')
+    plt.ylabel('Normalized counts')
+    plt.yscale('log')
+    
+    plt.legend(loc='upper left')
+    
+    plot_path = get_plot_path(data_set) + name + '.pdf'
+    
+    return fig, plot_path
+    
 
     
 
@@ -1069,6 +1117,7 @@ def filter_clusters(df):
     df = df[df.tf > 0]
     df = df[(df.wADC > 400) & (df.gADC > 400)]
     df = df[(df.wM == 1) & (df.gM < 5)]
+    #df = df[(df.Bus >= 6) & (df.Bus <= 8)]
     return df
 
 

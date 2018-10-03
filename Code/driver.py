@@ -433,7 +433,8 @@ def choose_analysis_type(module_order, data_set):
                          'Delta E Histogram (separate detectors)', 
                          'Delta E',
                          'ToF vs d + dE',
-                         'Compare cold and thermal']
+                         'Compare cold and thermal',
+                         'Compare MG and Helium-tubes']
     
     figs = []
     paths = []
@@ -864,6 +865,11 @@ def choose_analysis_type(module_order, data_set):
             fig, path = pl.compare_cold_and_thermal(fig, name, data_set, E_i)
             print('Done!')
             
+        if analysis_type == 16:
+            print('Loading...')
+            fig, path = pl.compare_MG_and_He3(fig, name, coincident_events, 
+                                              data_set, E_i)
+            print('Done!')
                 
         if analysis_type <= len(analysis_name_vec):
             figs.append(fig)
