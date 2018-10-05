@@ -367,10 +367,13 @@ def create_ess_channel_to_coordinate_map(theta, offset):
                              '../Tables/Coordinates_MG_SEQ_ESS.xlsx')
     matrix = pd.read_excel(file_path).values
     coordinates = matrix[1:801]
-    ess_ch_to_coord = np.empty((3,120,80),dtype='object')
+    ess_ch_to_coord = np.empty((3,124,80),dtype='object')
     coordinate = {'x': -1, 'y': -1, 'z': -1}
     axises =  ['x','y','z']
-
+    
+    c_offset = [[-1, 1, -1], [-1, -1, 1], [-1, 1, 1]]
+    c_count = 0
+    
     for i, row in enumerate(coordinates):
         grid_ch = i // 20 + 80
         for j, col in enumerate(row):
@@ -387,6 +390,27 @@ def create_ess_channel_to_coordinate_map(theta, offset):
                 x = x/1000
                 y = y/1000
                 z = z/1000
+                # Insert corners of vessels
+                if wire_ch == 0 and grid_ch == 80 and module == 0:
+                    ess_ch_to_coord[0][120][0] = {'x': offset['x'], 'y': offset['y'], 'z': offset['z']}
+                if (  (wire_ch == 0 and grid_ch == 119 and module == 0)
+                    | (wire_ch == 60 and grid_ch == 80 and module == 2)
+                    | (wire_ch == 60 and grid_ch == 119 and module == 2)
+                    ):
+                    x_temp = x + 46.514/1000 * c_offset[c_count][0] + np.finfo(float).eps
+                    y_temp = y + 37.912/1000 * c_offset[c_count][1] + np.finfo(float).eps
+                    z_temp = z + 37.95/1000 * c_offset[c_count][2] + np.finfo(float).eps
+                    z_temp, x_temp, y_temp = x_temp, y_temp, z_temp
+                    x_temp, z_temp = get_new_x(x_temp, z_temp, theta), get_new_y(x_temp, z_temp, theta)
+                    # Apply translation
+                    x_temp += offset['x']
+                    y_temp += offset['y']
+                    z_temp += offset['z']
+                    ess_ch_to_coord[0][121+c_count][0] = {'x': x_temp, 
+                                                          'y': y_temp,
+                                                          'z': z_temp}
+                    c_count += 1
+                
                 # Shift to match internal and external coordinate system
                 z, x, y = x, y, z
                 # Apply rotation
@@ -412,8 +436,11 @@ def create_ill_channel_to_coordinate_map(theta, offset):
     y_offset = 37.912     #  [mm]
     z_offset = 37.95      #  [mm]
     
-    test = True
-    ill_ch_to_coord = np.empty((3,120,80),dtype='object')
+    corners =   [[0, 80], [0, 119], [60, 80], [60, 119]]
+    corner_offset = [[-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1]]
+    
+    # Make for longer to include the for corners of the vessel
+    ill_ch_to_coord = np.empty((3,124,80),dtype='object')
     for Bus in range(0,3):
         for GridChannel in range(80,120):
             for WireChannel in range(0,80):
@@ -437,6 +464,51 @@ def create_ill_channel_to_coordinate_map(theta, offset):
                     ill_ch_to_coord[Bus,GridChannel,WireChannel] = {'x': x,
                                                                     'y': y,
                                                                     'z': z}
+        if Bus == 0:
+            for i, corner in enumerate(corners[1:2]):
+                WireChannel = corner[0]
+                GridChannel = corner[1]
+                x = (WireChannel % 20)*WireSpacing + x_offset
+                y = ((WireChannel // 20)*LayerSpacing + (Bus*4*LayerSpacing) + y_offset)
+                z = ((GridChannel-80)*GridSpacing) + z_offset 
+                x += corner_offset[i+1][0] * x_offset
+                y += corner_offset[i+1][1] * y_offset
+                z += corner_offset[i+1][2] * z_offset
+                x = x/1000 + np.finfo(float).eps
+                y = y/1000 + np.finfo(float).eps
+                z = z/1000 + np.finfo(float).eps
+                z, x, y = x, y, z
+
+                x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                x += offset['x']
+                y += offset['y']
+                z += offset['z']
+                ill_ch_to_coord[0, 121+i, 0] = {'x': x, 'y': y, 'z': z}
+        
+            ill_ch_to_coord[Bus, 120, 0] = {'x': offset['x'], 'y': offset['y'], 'z': offset['z']}
+
+            
+        if Bus == 2:
+            for i, corner in enumerate(corners[2:]):
+                WireChannel = corner[0]
+                GridChannel = corner[1]
+                x = (WireChannel % 20)*WireSpacing + x_offset
+                y = ((WireChannel // 20)*LayerSpacing + (Bus*4*LayerSpacing) + y_offset)
+                z = ((GridChannel-80)*GridSpacing) + z_offset 
+                x += corner_offset[i+2][0] * x_offset
+                y += corner_offset[i+2][1] * y_offset
+                z += corner_offset[i+2][2] * z_offset
+                x = x/1000
+                y = y/1000
+                z = z/1000
+                z, x, y = x, y, z
+                x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                x += offset['x']
+                y += offset['y']
+                z += offset['z']
+                ill_ch_to_coord[0, 122+i, 0] = {'x': x, 'y': y, 'z': z}
+            
+    
     
     return ill_ch_to_coord
 
@@ -469,8 +541,10 @@ def get_dE(E_i, ToF, d, t_d, T_0):
     v_i = np.sqrt((E_i_J*2)/m_n)            # Get velocity of E_i
     t_1 = (L_1 / v_i) + T_0 * 1e-6          # Use velocity to find t_1
     ToF_real = ToF * 62.5e-9                # Time from source to detector
-    if E_i <= 25: 
-        ToF_real += 16666.66666e-6 
+    if E_i == 8: 
+        ToF_real += (16666.66666e-6) - 0.0043893
+    if E_i == 25:
+        ToF_real += (16666.66666e-6) - 0.013340625
     t_f = ToF_real - t_1                    # Time from sample to detector
     E_J = (m_n/2) * ((d/t_f) ** 2)          # Energy E_f in Joule
     E_f = E_J * J_to_meV                    # Convert to meV

@@ -16,7 +16,9 @@ from matplotlib.colors import Normalize
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.cm as cmx
 import matplotlib.patheffects as path_effects
-
+import plotly.io as pio
+import plotly as py
+import plotly.graph_objs as go
     
 # =============================================================================
 # 1. PHS (1D)
@@ -768,7 +770,7 @@ def dE_histogram(fig, name, df, data_set, E_i):
         df = df[df.d != -1]
         bus_ranges = [[0,2], [3,5], [6,8]]
         
-        name = ('12. Histogram of $E_f$ - $E_i$, Vanadium, ' + str(E_i) + 'meV')
+        name = ('12. Histogram of $E_i$ - $E_f$, Vanadium, ' + str(E_i) + 'meV')
         
         fig.suptitle(name, x=0.5, y=1.05)
         
@@ -798,7 +800,7 @@ def dE_histogram(fig, name, df, data_set, E_i):
                      zorder=2)
 #            plt.ylim(1, 5e4)
             plt.legend()
-            plt.xlabel('$\Delta E$ [meV]')
+            plt.xlabel('$E_i$ - $E_f$ [meV]')
             plt.ylabel('Counts')
             plt.title(title)
         
@@ -854,7 +856,7 @@ def dE_single(fig, name, df, data_set, E_i):
         np.savetxt(bins_path, bins, delimiter=",")
             
         
-#        
+        plot_path = get_plot_path(data_set) + name + '.pdf'
 
         
         return fig, plot_path
@@ -918,14 +920,14 @@ def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
                      color='black', histtype='step', label='All detectors', 
                      zorder=2)
             plt.legend(loc='upper left')
-            plt.xlabel('$\Delta E$ [meV]')
+            plt.xlabel('$E_i$ - $E_f$ [meV]')
             plt.ylabel('Counts')
             plt.title(title)
             # Plot ToF
             plt.subplot(3, 3, 6+i+1)
             plt.grid(True, which='major', zorder=0)
             plt.grid(True, which='minor', linestyle='--',zorder=0)
-            plt.hist(df_temp.ToF * 62.5e-9 * 1e3, bins=1000,
+            plt.hist(df_temp.ToF * 62.5e-9 * 1e6, bins=1000,
                      log=LogNorm(), 
                      color=color_vec[i], histtype='step', 
                      zorder=3)
@@ -1091,6 +1093,54 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i):
     plot_path = get_plot_path(data_set) + name + '.pdf'
     
     return fig, plot_path
+
+# =============================================================================
+# 17. Plotly interactive ToF
+# =============================================================================
+    
+def plotly_interactive_ToF(df, data_set, E_i):
+    df = filter_clusters(df)
+    data = [go.Histogram(visible = False,
+                         name = str(thres),
+                         x = df[df.wADC >= thres].ToF,
+                         nbinsx = 1000)
+            for thres in np.arange(0, 4100, 100)]
+    
+    data[10]['visible'] = True
+    
+    steps = []
+    for i in range(len(data)):
+        step = dict(
+                method = 'restyle',  
+                args = ['visible', [False] * len(data)],
+                label = str(i*4100//len(data))
+        )
+        step['args'][1][i] = True # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    sliders = [dict(
+        active = 10,
+        currentvalue = {"prefix": "Wire threshold [ADC channels]: "},
+        pad = {"t": 50},
+        steps = steps,
+    )]
+    
+    layout = go.Layout(
+            xaxis=dict(
+                range=[0, 3e5],
+                title='ToF [TDC channels]'
+                ),
+            yaxis=dict(
+                type='log',
+                autorange=True,
+                title='Counts'
+                ),
+            sliders=sliders,
+            title='ToF Histogram')
+    
+    fig = dict(data=data, layout=layout)
+    py.offline.plot(fig, filename='Sine Wave Slider.html')
+    
     
 
     
@@ -1115,9 +1165,8 @@ def import_helium_tubes():
 def filter_clusters(df):
     df = df[df.d != -1]
     df = df[df.tf > 0]
-    df = df[(df.wADC > 400) & (df.gADC > 400)]
+#    df = df[(df.wADC > 400) & (df.gADC > 400)]
     df = df[(df.wM == 1) & (df.gM < 5)]
-    #df = df[(df.Bus >= 6) & (df.Bus <= 8)]
     return df
 
 

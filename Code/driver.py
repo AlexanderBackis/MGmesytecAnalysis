@@ -434,7 +434,8 @@ def choose_analysis_type(module_order, data_set):
                          'Delta E',
                          'ToF vs d + dE',
                          'Compare cold and thermal',
-                         'Compare MG and Helium-tubes']
+                         'Compare MG and Helium-tubes',
+                         'Plotly interactive ToF Histogram']
     
     figs = []
     paths = []
@@ -870,8 +871,13 @@ def choose_analysis_type(module_order, data_set):
             fig, path = pl.compare_MG_and_He3(fig, name, coincident_events, 
                                               data_set, E_i)
             print('Done!')
+        
+        if analysis_type == 17:
+            print('Loading...')
+            pl.plotly_interactive_ToF(coincident_events, data_set, E_i)
+            print('Done!')
                 
-        if analysis_type <= len(analysis_name_vec):
+        if (analysis_type <= len(analysis_name_vec)) and (analysis_type != 17):
             figs.append(fig)
             paths.append(path)
         
