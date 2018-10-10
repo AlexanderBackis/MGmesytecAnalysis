@@ -19,6 +19,9 @@ import matplotlib.patheffects as path_effects
 import plotly.io as pio
 import plotly as py
 import plotly.graph_objs as go
+import scipy
+import peakutils
+from scipy.optimize import curve_fit
     
 # =============================================================================
 # 1. PHS (1D)
@@ -813,15 +816,16 @@ def dE_histogram(fig, name, df, data_set, E_i):
 # 13. Delta E
 # =============================================================================
     
-def dE_single(fig, name, df, data_set, E_i):
+def dE_single(fig, name, df, data_set, E_i, left_edge=175, right_edge=220):
         df = df[df.d != -1]
         df = df[(df.wADC > 400) & (df.gADC > 400)]
         df = df[(df.wM == 1) & (df.gM < 5)]
-        bus_min = 6
-        bus_max = 8
-        df = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+        df = df[df.tf > 0]
         
-        
+        def find_nearest(array, value):
+            idx = (np.abs(array - value)).argmin()
+            return idx
+
         bus_ranges = [[0,2], [3,5], [6,8]]
         color_vec = ['darkorange', 'magenta', 'blue']
         detectors = ['ILL', 'ESS_1', 'ESS_2']
@@ -831,29 +835,116 @@ def dE_single(fig, name, df, data_set, E_i):
         name = ('13. Vanadium, ' + str(E_i) + 'meV')
         plt.grid(True, which='major', zorder=0)
         plt.grid(True, which='minor', linestyle='--',zorder=0)
+                
+        hist, bins, patches = plt.hist(df.dE, bins=dE_bins, range=dE_range, 
+                                       log=LogNorm(), color='black', 
+                                       histtype='step', zorder=2, 
+                                       label='All detectors')
         
-#        for i, bus_range in enumerate(bus_ranges):
-#            bus_min = bus_range[0]
-#            bus_max = bus_range[1]
-#            df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
-#
-#            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-#                     color=color_vec[i], histtype='step', label=detectors[i], 
-#                     zorder=3)
+        bin_centers = 0.5 * (bins[1:] + bins[:-1])
         
-        hist, bins, patches = plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-                     color='black', histtype='step',  
-                     zorder=2)
-        #plt.legend(loc='upper left')
+        area = sum(hist[left_edge:right_edge])
+        peak = peakutils.peak.indexes(hist[left_edge:right_edge])
+        plt.plot(bin_centers[left_edge:right_edge][peak],
+                 hist[left_edge:right_edge][peak], 'bx', label='Maximum', 
+                 zorder=5)
+        M = hist[left_edge:right_edge][peak]
+        HM = M / 2
+
+
+        left_idx = find_nearest(hist[left_edge:left_edge+peak[0]], HM)
+        right_idx = find_nearest(hist[left_edge+peak[0]:right_edge], HM)
+        
+        sl = []
+        sr = []
+        
+        if hist[left_edge+left_idx] > HM:
+            sl = [-1, 0]
+        else:
+            sl = [0, 1]
+        
+        if hist[left_edge+peak[0]+right_idx] < HM:
+            rl = [-1, 0]
+        else:
+            rl = [0, 1]
+        
+        left_x = [bin_centers[left_edge+left_idx+sl[0]], 
+                  bin_centers[left_edge+left_idx+sl[1]]]
+        left_y = [hist[left_edge+left_idx+sl[0]], hist[left_edge+left_idx+sl[1]]]
+        right_x = [bin_centers[left_edge+peak[0]+right_idx+rl[0]], 
+                   bin_centers[left_edge+peak[0]+right_idx+rl[1]]]
+        right_y = [hist[left_edge+peak[0]+right_idx+rl[0]], 
+                   hist[left_edge+peak[0]+right_idx+rl[1]]]
+
+        par_left = np.polyfit(left_x, left_y, deg=1)
+        f_left = np.poly1d(par_left)
+        par_right = np.polyfit(right_x, right_y, deg=1)
+        f_right = np.poly1d(par_right)
+        
+        xx_left = np.linspace(left_x[0], left_x[1], 100)
+        xx_right = np.linspace(right_x[0], right_x[1], 100)
+        yy_left = f_left(xx_left)
+        yy_right = f_right(xx_right)
+        plt.plot(xx_left, yy_left, 'blue', label=None)
+        plt.plot(xx_right, yy_right, 'blue', label=None)
+        
+        left_idx = find_nearest(yy_left, HM)
+        right_idx = find_nearest(yy_right, HM)
+        
+        
+        
+        plt.plot([xx_left[left_idx], xx_right[right_idx]], 
+                 [HM, HM], 'g', label='FWHM')
+        
+        L = xx_left[left_idx]
+        R = xx_right[right_idx]
+        FWHM = R - L
+#        noise_level = ((hist[right_edge] + hist[left_edge])/2) 
+#        peak_area = (area - 
+#                     noise_level
+#                     * (bin_centers[right_edge] - bin_centers[left_edge])
+#                     )
+        
+        
+        x_l = bin_centers[left_edge]
+        y_l = hist[left_edge]
+        x_r = bin_centers[right_edge-1]
+        y_r = hist[right_edge-1]
+        par_back = np.polyfit([x_l, x_r], [y_l, y_r], deg=1)
+        f_back = np.poly1d(par_back)
+        xx_back = np.linspace(x_l, x_r, 100)
+        yy_back = f_back(xx_back)
+        
+        plt.plot(xx_back, yy_back, 'orange', label='Background')
+        
+        bins_under_peak = abs(right_edge - 1 - left_edge)
+        
+        area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2 
+                      + bins_under_peak * y_l)
+        
+        peak_area = area - area_noise
+        
+        plt.text(0, 1, 'Area: ' + str(int(peak_area)) + ' [counts]' + '\nFWHM: ' + str(round(FWHM,3)) + '  [meV]', ha='center', va='center', 
+                 bbox={'facecolor':'white', 'alpha':0.8, 'pad':10})
+#        
+#        plt.plot([bin_centers[left_edge], bin_centers[right_edge]], 
+#                 [hist[left_edge], hist[right_edge]], 'bx', mew=3, ms=10,
+#                 label='Peak edges', zorder=5)
+                 
+        plt.plot(bin_centers[left_edge:right_edge], hist[left_edge:right_edge],
+                 'r.-', label='Peak')
+        
+        plt.legend(loc='upper left')
         plt.xlabel('$\Delta E$ [meV]')
         plt.ylabel('Counts')
-        plt.title(name + ', Histogram of $E_i$ - $E_f$')
+        name = name + ', Histogram of $E_i$ - $E_f$\n(thermal sample)'
+        plt.title(name)
         
-        folder = get_output_path(data_set)
-        hist_path = folder + name + ', histogram.dat'
-        bins_path = folder + name + ', bins.dat'
-        np.savetxt(hist_path, hist, delimiter=",")
-        np.savetxt(bins_path, bins, delimiter=",")
+#        folder = get_output_path(data_set)
+#        hist_path = folder + name + ', histogram.dat'
+#        bins_path = folder + name + ', bins.dat'
+#        np.savetxt(hist_path, hist, delimiter=",")
+#        np.savetxt(bins_path, bins, delimiter=",")
             
         
         plot_path = get_plot_path(data_set) + name + '.pdf'
@@ -867,20 +958,16 @@ def dE_single(fig, name, df, data_set, E_i):
 # =============================================================================
         
     
-def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
+def ToF_vs_d_and_dE(fig, name, df, data_set, E_i, plot_separate):
         df = df[df.d != -1]
         df = df[df.tf > 0]
+        df = df[(df.wADC > 300) & (df.gADC > 300)]
         bus_ranges = [[0,2], [3,5], [6,8]]
         
         name = ('14. Histogram of $E_i$ - $E_f$, Vanadium, ' + str(E_i) + 'meV')
         
-        fig.suptitle(name, x=0.5, y=1.05)
-        
-        detectors = ['ILL', 'ESS_1', 'ESS_2']
-    
-        fig.set_figheight(9)
-        fig.set_figwidth(12)
-        
+        detectors = ['ILL', 'ESS (Natural Al)', 'ESS (Pure Al)']
+            
         color_vec = ['darkorange', 'magenta', 'blue']
         
         dE_bins = 400
@@ -894,49 +981,73 @@ def ToF_vs_d_and_dE(fig, name, df, data_set, E_i):
         
         tf_bins = 200
         tf_range = [0, 20e3]
-        
-        for i, bus_range in enumerate(bus_ranges):
-#            # Plot ToF vs d
-            title = detectors[i]
-            plt.subplot(3, 3, i+1)
-            bus_min = bus_range[0]
-            bus_max = bus_range[1]
-            df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
-            plt.hist2d(df_temp.tf * 1e6, df_temp.d, 
-                       bins = [ToF_bins, d_bins],
-                       norm=LogNorm(), vmin=1, vmax=6e3, cmap='jet')
-            plt.xlabel('$t_f$ [$\mu$s]')
-            plt.ylabel('d [m]')
-            plt.title(title + ', $t_f$ vs d')
-            plt.colorbar()
-            # Plot dE
-            plt.subplot(3, 3, 3+i+1)
+        if plot_separate:
+            fig.set_figheight(9)
+            fig.set_figwidth(12)
+            fig.suptitle(name, x=0.5, y=1.05)
+            for i, bus_range in enumerate(bus_ranges):
+#                # Plot ToF vs d
+                title = detectors[i]
+                plt.subplot(3, 3, i+1)
+                bus_min = bus_range[0]
+                bus_max = bus_range[1]
+                df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+                plt.hist2d(df_temp.tf * 1e6, df_temp.d, 
+                           bins = [ToF_bins, d_bins],
+                           norm=LogNorm(), vmin=1, vmax=6e3, cmap='jet')
+                plt.xlabel('$t_f$ [$\mu$s]')
+                plt.ylabel('d [m]')
+                plt.title(title + ', $t_f$ vs d')
+                plt.colorbar()
+                # Plot dE
+                plt.subplot(3, 3, 3+i+1)
+                plt.grid(True, which='major', zorder=0)
+                plt.grid(True, which='minor', linestyle='--',zorder=0)
+                plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                         color=color_vec[i], histtype='step', label=title, 
+                         zorder=3)
+                plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                         color='black', histtype='step', label='All detectors', 
+                         zorder=2)
+                plt.legend(loc='upper left')
+                plt.xlabel('$E_i$ - $E_f$ [meV]')
+                plt.ylabel('Counts')
+                plt.title(title)
+                # Plot ToF
+                plt.subplot(3, 3, 6+i+1)
+                plt.grid(True, which='major', zorder=0)
+                plt.grid(True, which='minor', linestyle='--',zorder=0)
+                plt.hist(df_temp.ToF * 62.5e-9 * 1e6, bins=1000,
+                         log=LogNorm(), 
+                         color=color_vec[i], histtype='step', 
+                         zorder=3)
+                plt.xlabel('ToF [$\mu$s]')
+                plt.ylabel('Counts')
+                plt.title(title + ', Histogram of ToF')
+        else:
             plt.grid(True, which='major', zorder=0)
             plt.grid(True, which='minor', linestyle='--',zorder=0)
-            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-                     color=color_vec[i], histtype='step', label=title, 
-                     zorder=3)
+            plt.xlabel('$E_i$ - $E_f$ [meV]')
+            plt.ylabel('Counts')
+            for i, bus_range in enumerate(bus_ranges):
+                title = detectors[i]
+                bus_min = bus_range[0]
+                bus_max = bus_range[1]
+                df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
+                plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                         color=color_vec[i], histtype='step', label=title, 
+                         zorder=3)
             plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
                      color='black', histtype='step', label='All detectors', 
                      zorder=2)
             plt.legend(loc='upper left')
-            plt.xlabel('$E_i$ - $E_f$ [meV]')
-            plt.ylabel('Counts')
-            plt.title(title)
-            # Plot ToF
-            plt.subplot(3, 3, 6+i+1)
-            plt.grid(True, which='major', zorder=0)
-            plt.grid(True, which='minor', linestyle='--',zorder=0)
-            plt.hist(df_temp.ToF * 62.5e-9 * 1e6, bins=1000,
-                     log=LogNorm(), 
-                     color=color_vec[i], histtype='step', 
-                     zorder=3)
-            plt.xlabel('ToF [$\mu$s]')
-            plt.ylabel('Counts')
-            plt.title(title + ', Histogram of ToF')
+            plt.title(name)
         
         plt.tight_layout()
         plot_path = get_plot_path(data_set) + name + '.pdf'
+                
+                
+                
         
         return fig, plot_path
     
@@ -1044,7 +1155,8 @@ def compare_cold_and_thermal(fig, name, data_set, E_i):
 # 16. Compare MG and Helium-tubes
 # =============================================================================
     
-def compare_MG_and_He3(fig, name, df, data_set, E_i):
+def compare_MG_and_He3(fig, name, df, data_set, E_i, MG_offset, He3_offset,
+                       only_pure_al):
     
     name = ('16. Vanadium, ' + str(E_i) + 'meV\n Comparrison between He3 and'
             + ' Multi-Grid')
@@ -1067,6 +1179,11 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i):
     dE_bins = 400
     dE_range = [-E_i, E_i]
     df = filter_clusters(df)
+    MG_label = 'Multi-Grid'
+    if only_pure_al:
+        df = df[(df.Bus >= 6) | (df.Bus <= 8)]
+        MG_label += ' (Pure Aluminium)'
+        name += ' (Pure Aluminium)'
     hist, bins, patches = plt.hist(df.dE, bins=dE_bins, range=dE_range)
     plt.clf()
     plt.title(name)
@@ -1075,13 +1192,12 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i):
     
     binCenters = 0.5 * (bins[1:] + bins[:-1])
     norm_MG = 1 / sum(hist)
-    plt.plot(binCenters+1.1, hist * norm_MG, color='crimson', zorder=3, 
+    plt.plot(binCenters+MG_offset, hist * norm_MG, color='crimson', zorder=3, 
              label='Multi-Grid')
-    
     
     data = energy_dict[E_i]
     norm_he3 = 1 / sum(data['histogram'])
-    plt.plot(data['bins']-1, data['histogram'] * norm_he3, color='teal',
+    plt.plot(data['bins']+He3_offset, data['histogram'] * norm_he3, color='teal',
              label='He3', zorder=2)
     
     plt.xlabel('$E_i$ - $E_f$ [meV]')
@@ -1100,20 +1216,97 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i):
     
 def plotly_interactive_ToF(df, data_set, E_i):
     df = filter_clusters(df)
+    nbr_bins = 400
+    thres_range = np.arange(0, 500, 10)
+    
+    
     data = [go.Histogram(visible = False,
                          name = str(thres),
                          x = df[df.wADC >= thres].ToF,
-                         nbinsx = 1000)
-            for thres in np.arange(0, 4100, 100)]
+                         xbins=dict(
+                            start=0,
+                            end=3e5,
+                            size=(3e5)/nbr_bins
+                        ))
+            for thres in thres_range]
     
     data[10]['visible'] = True
+    
+#    bin_vec = np.arange(-E_i, E_i, 2*E_i/nbr_bins) + (2*E_i/nbr_bins)/2
+    
+#    hist_and_bins_vec = [np.histogram(df[df.wADC >= thres].dE, bins=nbr_bins, 
+#                             range=[-E_i, E_i]) for thres in thres_range]
+#        
+#    bin_vec = hist_and_bins_vec[0][1]
+#    bin_vec += (hist_and_bins_vec[0][1][1] - hist_and_bins_vec[0][1][0])/2
+#    bin_vec = bin_vec[0:-1]
+    
+    
+    
+    
+    
+ #   hist_and_bins = [[bin_vec, hist] for hist in hist_vec]
+    
+    
+    
+    data2 = [go.Histogram(visible = False,
+                         name = str(thres),
+                         x = df[df.wADC >= thres].dE,
+                         xbins=dict(
+                            start=-E_i,
+                            end=E_i,
+                            size=2*E_i/nbr_bins),
+                        )
+            for thres in thres_range]
+    
+    data2[10]['visible'] = True
+    
+#    
+#    def exponenial_func(x, a, b, c):
+#        return a*np.exp(b*x)+c
+#    
+#    paras_vec = []
+#    bins_1 = bin_vec[:150]
+#    bins_2 = bin_vec[250:]
+#    bins =np.append(bins_1, bins_2)
+#    for hist_and_bins in hist_and_bins_vec:
+#        hist = hist_and_bins[0][-100:]
+#        #paras, __ = curve_fit(exponenial_func, bins, hist, p0=(1, 0.00001, 100))
+#        #paras_vec.append(paras)
+#        hist_1 = hist_and_bins[0][:150]
+#        hist_2 = hist_and_bins[0][250:]
+#        hist = np.append(hist_1, hist_2)
+##        z = np.polyfit(bins, hist, 3, w=np.sqrt(hist))
+##        f = np.poly1d(z)
+##        paras_vec.append(f)
+#        paras, __ = curve_fit(exponenial_func, bins, hist, p0=(100, 0.001, 1))
+#        print(paras)
+#        paras_vec.append(paras)
+#        
+#        
+#    
+#    data3 = [go.Scatter(visible=False,
+#                        x=bins,
+#                        y=exponenial_func(bins, *[5, 1, 50]),
+#                        mode='markers',
+#                        marker=dict(
+#                                size=3,
+#                                color='rgb(0, 0, 0)',
+#                                symbol='circle-open'
+#                                ),
+#                        name='Baseline'
+#                        ) for paras in paras_vec]
+#    
+#    data3[10]['visible'] = True
+    
+    
     
     steps = []
     for i in range(len(data)):
         step = dict(
                 method = 'restyle',  
                 args = ['visible', [False] * len(data)],
-                label = str(i*4100//len(data))
+                label = str(i*500//len(data))
         )
         step['args'][1][i] = True # Toggle i'th trace to "visible"
         steps.append(step)
@@ -1124,22 +1317,32 @@ def plotly_interactive_ToF(df, data_set, E_i):
         pad = {"t": 50},
         steps = steps,
     )]
+
+    fig = py.tools.make_subplots(rows=1, cols=2, subplot_titles=('ToF Histogram', 
+                                'Histogram of E<sub>i</sub> - E<sub>f')) 
     
-    layout = go.Layout(
-            xaxis=dict(
-                range=[0, 3e5],
-                title='ToF [TDC channels]'
-                ),
-            yaxis=dict(
-                type='log',
-                autorange=True,
-                title='Counts'
-                ),
-            sliders=sliders,
-            title='ToF Histogram')
+    for trace in data:
+        fig.append_trace(trace, 1, 1)
     
-    fig = dict(data=data, layout=layout)
-    py.offline.plot(fig, filename='Sine Wave Slider.html')
+    for trace in data2:
+        fig.append_trace(trace, 1, 2)
+    
+#    for trace in data3:
+#        fig.append_trace(trace, 1, 2)
+        
+    fig['layout']['xaxis1'].update(title='ToF [TDC channels]', range=[0, 3e5], 
+                                   showgrid=True)
+    fig['layout']['yaxis1'].update(title='Counts', range=[.1, 5], type='log')
+    fig['layout']['xaxis2'].update(title='dE [meV]', range=[-E_i, E_i], 
+                                   showgrid=True)
+    fig['layout']['yaxis2'].update(title='Counts', range=[.1, 5], type='log')
+    fig.layout.sliders = sliders
+    fig.layout.title = ('Interactive ToF and dE Histograms, Vandadium, ' 
+                        + str(E_i) + ' meV') 
+    fig.layout.showlegend = False
+    
+   # fig = dict(data=data, layout=layout)
+    py.offline.plot(fig, filename='MultiGridInvestigation.html')
     
     
 
@@ -1165,7 +1368,7 @@ def import_helium_tubes():
 def filter_clusters(df):
     df = df[df.d != -1]
     df = df[df.tf > 0]
-#    df = df[(df.wADC > 400) & (df.gADC > 400)]
+    df = df[(df.wADC > 300) & (df.gADC > 300)]
     df = df[(df.wM == 1) & (df.gM < 5)]
     return df
 

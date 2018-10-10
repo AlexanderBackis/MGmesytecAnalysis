@@ -346,7 +346,7 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
     
     print('Done!')
     
-    return coincident_events_df, events_df, triggers_df, detector_vec
+    return coincident_events_df, events_df, triggers_df #, detector_vec
 
 # =============================================================================
 # Helper Functions

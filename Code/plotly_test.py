@@ -23,33 +23,32 @@ import plotly.io as pio
 
 py.offline.init_notebook_mode(connected=True)
 
-data = [dict(
-        visible = False,
-        line=dict(color='#00CED1', width=6),
-        name = '𝜈 = ' + str(step),
-        x = np.arange(0,10,0.01),
-        y = np.sin(step*np.arange(0,10,0.01))) for step in np.arange(0,5,0.1)]
-#data[10]['visible'] = True
 
+from plotly.tools import make_subplots
+
+fig = make_subplots(1, 2)
+
+fig.add_scatter(y=[1, 3, 2], row=1, col=1, visible=True)
+fig.add_scatter(y=[3, 1, 1.5], row=1, col=1, visible='legendonly')
+fig.add_scatter(y=[2, 2, 1], row=1, col=1, visible='legendonly')
+fig.add_scatter(y=[1, 3, 2], row=1, col=2, visible=True)
+fig.add_scatter(y=[1.5, 2, 2.5], row=1, col=2, visible='legendonly')
+fig.add_scatter(y=[2.5, 1.2, 2.9], row=1, col=2, visible='legendonly')
 
 steps = []
-for i in range(len(data)):
+for i in range(3):
     step = dict(
         method = 'restyle',  
-        args = ['visible', [False] * len(data)],
+        args = ['visible', ['legendonly'] * len(fig.data)],
     )
-    step['args'][1][i] = True # Toggle i'th trace to "visible"
+    step['args'][1][i] = True
+    step['args'][1][i+3] = True
     steps.append(step)
 
 sliders = [dict(
-    active = 10,
-    currentvalue = {"prefix": "Hojoj: "},
-    pad = {"t": 50},
-    steps = steps
+    steps = steps,
 )]
 
-layout = dict(sliders=sliders)
+fig.layout.sliders = sliders
 
-fig = dict(data=data, layout=layout)
-
-plot(fig, filename='Sine Wave Slider.html')
+go.FigureWidget(fig)

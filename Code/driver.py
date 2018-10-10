@@ -851,15 +851,33 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
         
         if analysis_type == 13:
+            print('Change left and right edge (y/n)?')
+            edge_ans = input('>> ')
+            if edge_ans == 'y':
+                left_edge = input('Left edge [0<...<400]: ')
+                right_edge = input('Right edge [0<...<400]: ')
+                left_edge = int(left_edge)
+                right_edge = int(right_edge)
+            else:
+                left_edge = 175
+                right_edge = 220
+                
             print('Loading...')
             fig, path = pl.dE_single(fig, name, coincident_events, 
-                                           data_set, E_i)
+                                           data_set, E_i, left_edge, 
+                                           right_edge)
             print('Done!')
         
         if analysis_type == 14:
+            print('Plot separate (y/n)?')
+            sep_ans = input('>> ')
+            plot_separate = False
+            if sep_ans == 'y':
+                plot_separate = True
+                
             print('Loading...')
             fig, path = pl.ToF_vs_d_and_dE(fig, name, coincident_events, 
-                                           data_set, E_i)
+                                           data_set, E_i, plot_separate)
             print('Done!')
             
         if analysis_type == 15:
@@ -867,9 +885,25 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
             
         if analysis_type == 16:
+            print('Change MG and He3 offset (y/n)?')
+            edge_ans = input('>> ')
+            if edge_ans == 'y':
+                MG_offset = input('MG offset [meV]: ')
+                He3_offset = input('He3 offset [meV]: ')
+                MG_offset = float(MG_offset)
+                He3_offset = float(He3_offset)
+            else:
+                MG_offset = 0
+                He3_offset = 0
+            print('Use only pure aluminium vessel (y/n)?')
+            al_ans = input('>> ')
+            only_pure_al = False
+            if al_ans == 'y':
+                only_pure_al = True
             print('Loading...')
             fig, path = pl.compare_MG_and_He3(fig, name, coincident_events, 
-                                              data_set, E_i)
+                                              data_set, E_i, MG_offset, 
+                                              He3_offset, only_pure_al)
             print('Done!')
         
         if analysis_type == 17:
