@@ -313,7 +313,11 @@ def choose_data_set():
     glitch_ans = input('>> ')
     if glitch_ans == 'y':
         discard_glitch = True
-        
+    print('Keep only coincident events (y/n)?')
+    ce_ans = input('>> ')
+    keep_only_ce = False
+    if ce_ans == 'y':
+        keep_only_ce = True 
     print('Enter incident neutron energy E_i:')
     E_i = input('E_i [meV]: ')
     E_i = int(E_i)
@@ -327,6 +331,7 @@ def choose_data_set():
     selection = int(selection)
     calibration = calibrations[selection-1]
     calibration = 'Van__3x3_' + calibration + '_Calibration_' + str(E_i)
+    
     
     coincident_events = pd.DataFrame()
     events = pd.DataFrame()
@@ -343,8 +348,6 @@ def choose_data_set():
         if discard_glitch:
             ce = ce_temp
             ce_red = ce[(ce['wM'] >= 80) & (ce['gM'] >= 40)]
-            red_start = 0
-            red_end = 0
             if len(ce_red.index) == 0:
                 pass
             else:
@@ -369,14 +372,25 @@ def choose_data_set():
                     data_end = ce_red_s.head(1)['Time'].values[0]
                 else:
                     data_end = np.inf
-                
+                print('Data start: ' + str(ce.head(1)['Time'].values[0]))
+                print('Data end: ' + str(ce.tail(1)['Time'].values[0]))
+                print('No-glitch-data start: ' + str(data_start))
+                print('No-glitch-data end: ' + str(data_end))
+                print('Size ce before reduction: ' + str(ce.shape[0]))
                 ce = ce_temp[ (ce_temp['Time'] > data_start)
-                             |(ce_temp['Time'] < data_end)]    
+                             |(ce_temp['Time'] < data_end)]
+                print('Size ce after reduction: ' + str(ce.shape[0]))
+                print('Size e before reduction: ' + str(e_temp.shape[0]))
+                e = e_temp[  (e_temp['Time'] > data_start)
+                           | (e_temp['Time'] < data_end)]
+                print('Size e after reduction: ' + str(e.shape[0]))
                 
             start_time = ce.head(1)['Time'].values[0]
             end_time = ce.tail(1)['Time'].values[0]
             
             coincident_events = coincident_events.append(ce)
+            if not keep_only_ce:
+                events = events.append(e)
             
             measurement_time += (end_time - start_time) * 62.5e-9
         else:
@@ -384,9 +398,14 @@ def choose_data_set():
             end_time = ce_temp.tail(1)['Time'].values[0]
             measurement_time += (end_time - start_time) * 62.5e-9
             coincident_events = coincident_events.append(ce_temp)
+            if not keep_only_ce:
+                events = events.append(e_temp)
+                
+        if not keep_only_ce:
+            triggers = triggers.append(t_temp)
             
-        events = events.append(e_temp)
-        triggers = triggers.append(t_temp)
+        print('len(e): ' + str(events.shape[0]))
+        print('len(triggers): ' + str(triggers.shape[0]))
                 
     if len(data_sets) < 2:
         pass
@@ -435,7 +454,8 @@ def choose_analysis_type(module_order, data_set):
                          'ToF vs d + dE',
                          'Compare cold and thermal',
                          'Compare MG and Helium-tubes',
-                         'Plotly interactive ToF Histogram']
+                         'Plotly interactive ToF Histogram',
+                         'dE - loglog-plot']
     
     figs = []
     paths = []
@@ -861,10 +881,18 @@ def choose_analysis_type(module_order, data_set):
             else:
                 left_edge = 175
                 right_edge = 220
+            
+            samples = ['Vanadium', 'C4H2I2S']
+            print('Select a sample: ')
+            for i, sample in enumerate(samples):
+                print('    ' + str(i+1) + '. ' + sample)
+            idx = input('>> ')
+            idx = int(idx)
+            sample = samples[idx-1]
                 
             print('Loading...')
             fig, path = pl.dE_single(fig, name, coincident_events, 
-                                           data_set, E_i, left_edge, 
+                                           data_set, E_i, sample, left_edge, 
                                            right_edge)
             print('Done!')
         
@@ -900,17 +928,64 @@ def choose_analysis_type(module_order, data_set):
             only_pure_al = False
             if al_ans == 'y':
                 only_pure_al = True
+            print('Adjust peak edges (y/n)?')
+            adjust_ans = input('>> ')
+            if adjust_ans == 'y':
+                MG_l = input('MG left edge: ')
+                MG_r = input('MG right edge: ')
+                MG_l = int(MG_l)
+                MG_r = int(MG_r)
+            else:
+                MG_l = 175
+                MG_r = 220
+                
+                
             print('Loading...')
             fig, path = pl.compare_MG_and_He3(fig, name, coincident_events, 
                                               data_set, E_i, MG_offset, 
-                                              He3_offset, only_pure_al)
+                                              He3_offset, only_pure_al,
+                                              MG_l, MG_r)
             print('Done!')
         
         if analysis_type == 17:
             print('Loading...')
             pl.plotly_interactive_ToF(coincident_events, data_set, E_i)
             print('Done!')
-                
+            
+        if analysis_type == 18:
+            print('Plot multiple energies (y/n)?')
+            df_vec = []
+            E_i_vec = []
+            plot_ans = input('>> ')
+            if plot_ans == 'y':
+                clusters_folder = os.path.join(dirname, '../Clusters/')
+                clu_files = os.listdir(clusters_folder)
+                clu_files = [file for file in clu_files if file[-3:] == '.h5']
+    
+                print()
+                print('************ Choose clusters to plot ************')
+                print('-------------------------------------------------')
+                for i, file in enumerate(clu_files):
+                    print(str(i+1) + '. ' + file)
+                print('Enter data sets to plot, use space(s) to separate choices.')
+                choices = [int(x) for x in input('>> ').split()]
+                for choice in choices:
+                    file_name = clu_files[choice-1]
+                    clu_path = clusters_folder + file_name
+                    df_temp = pd.read_hdf(clu_path, 'coincident_events')
+                    E_i_temp = pd.read_hdf(clu_path, 'E_i')['E_i'].iloc[0]
+                    df_vec.append(df_temp)
+                    E_i_vec.append(E_i_temp)
+            else:
+                df_vec = [coincident_events]
+                E_i_vec = [E_i]
+            
+            
+            
+            print('Loading...')
+            fig, path = pl.de_loglog(fig, name, df_vec, data_set, E_i_vec)
+            print('Done!')    
+            
         if (analysis_type <= len(analysis_name_vec)) and (analysis_type != 17):
             figs.append(fig)
             paths.append(path)

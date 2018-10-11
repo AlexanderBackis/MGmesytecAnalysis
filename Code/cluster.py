@@ -158,7 +158,7 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
     """
     print('Clustering...')
     
-    t_d = get_td(E_i)
+#    t_d = get_td(E_i)
     T_0 = get_T0(calibration, E_i)
     
     offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
@@ -300,7 +300,7 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
                     eventBus = coincident_events['Bus'][index]
                     ToF = coincident_events['ToF'][index-i]
                     d = get_d(eventBus, wCh, gCh, detector_vec)
-                    dE, t_f = get_dE(E_i, ToF, d, t_d, T_0)
+                    dE, t_f = get_dE(E_i, ToF, d, T_0)
                     coincident_events['d'][index-i] = d
                     coincident_events['dE'][index-i] = dE
                     coincident_events['tf'][index-i] = t_f
@@ -530,7 +530,7 @@ def get_new_x(x, y, theta):
 def get_new_y(x, y, theta):
     return np.sin(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
 
-def get_dE(E_i, ToF, d, t_d, T_0):
+def get_dE(E_i, ToF, d, T_0):
     # Declare parameters
     L_1 = 20.01                             # Source to sample
     m_n = 1.674927351e-27                   # Neutron mass
@@ -543,8 +543,12 @@ def get_dE(E_i, ToF, d, t_d, T_0):
     ToF_real = ToF * 62.5e-9                # Time from source to detector
     if E_i == 8: 
         ToF_real += (16666.66666e-6) - 0.0043893
+    if E_i == 21:
+        ToF_real += (16666.66666e-6) - 0.01227875
     if E_i == 25:
         ToF_real += (16666.66666e-6) - 0.013340625
+    if E_i == 35:
+        ToF_real += (16666.66666e-6) - 0.01514625
     t_f = ToF_real - t_1                    # Time from sample to detector
     E_J = (m_n/2) * ((d/t_f) ** 2)          # Energy E_f in Joule
     E_f = E_J * J_to_meV                    # Convert to meV

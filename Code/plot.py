@@ -816,7 +816,8 @@ def dE_histogram(fig, name, df, data_set, E_i):
 # 13. Delta E
 # =============================================================================
     
-def dE_single(fig, name, df, data_set, E_i, left_edge=175, right_edge=220):
+def dE_single(fig, name, df, data_set, E_i, sample, 
+              left_edge=175, right_edge=220):
         df = df[df.d != -1]
         df = df[(df.wADC > 400) & (df.gADC > 400)]
         df = df[(df.wM == 1) & (df.gM < 5)]
@@ -832,7 +833,7 @@ def dE_single(fig, name, df, data_set, E_i, left_edge=175, right_edge=220):
         dE_bins = 400
         dE_range = [-E_i, E_i]
         
-        name = ('13. Vanadium, ' + str(E_i) + 'meV')
+        name = ('13. ' + sample + ', ' + str(E_i) + 'meV')
         plt.grid(True, which='major', zorder=0)
         plt.grid(True, which='minor', linestyle='--',zorder=0)
                 
@@ -937,7 +938,7 @@ def dE_single(fig, name, df, data_set, E_i, left_edge=175, right_edge=220):
         plt.legend(loc='upper left')
         plt.xlabel('$\Delta E$ [meV]')
         plt.ylabel('Counts')
-        name = name + ', Histogram of $E_i$ - $E_f$\n(thermal sample)'
+        name = name + ', Histogram of $E_i$ - $E_f$'
         plt.title(name)
         
 #        folder = get_output_path(data_set)
@@ -1156,10 +1157,16 @@ def compare_cold_and_thermal(fig, name, data_set, E_i):
 # =============================================================================
     
 def compare_MG_and_He3(fig, name, df, data_set, E_i, MG_offset, He3_offset,
-                       only_pure_al):
+                       only_pure_al, MG_l, MG_r):
+    
+    def find_nearest(array, value):
+        idx = (np.abs(array - value)).argmin()
+        return idx
     
     name = ('16. Vanadium, ' + str(E_i) + 'meV\n Comparrison between He3 and'
             + ' Multi-Grid')
+    
+    use_peak_norm = True
     
     dirname = os.path.dirname(__file__)
     he_folder = os.path.join(dirname, '../Tables/Helium3_spectrum/')
@@ -1176,7 +1183,7 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i, MG_offset, He3_offset,
         hist_dict = {'bins': dE[:, i], 'histogram': hist[:, i]}
         energy_dict.update({energy: hist_dict})
     
-    dE_bins = 400
+    dE_bins = 390
     dE_range = [-E_i, E_i]
     df = filter_clusters(df)
     MG_label = 'Multi-Grid'
@@ -1192,12 +1199,29 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i, MG_offset, He3_offset,
     
     binCenters = 0.5 * (bins[1:] + bins[:-1])
     norm_MG = 1 / sum(hist)
-    plt.plot(binCenters+MG_offset, hist * norm_MG, color='crimson', zorder=3, 
+    if use_peak_norm:
+        norm_MG = calculate_peak_norm(binCenters, hist, MG_l, MG_r)
+        
+    plt.plot(binCenters+MG_offset, hist / norm_MG, color='crimson', zorder=3, 
              label='Multi-Grid')
     
     data = energy_dict[E_i]
+    print('Number of bins: ' + str(len(data['bins'])))
     norm_he3 = 1 / sum(data['histogram'])
-    plt.plot(data['bins']+He3_offset, data['histogram'] * norm_he3, color='teal',
+    if use_peak_norm:
+        He3_l = find_nearest(data['bins']+He3_offset, binCenters[MG_l]+MG_offset)
+        He3_r = find_nearest(data['bins']+He3_offset, binCenters[MG_r]+MG_offset)
+        norm_he3 = calculate_peak_norm(data['bins']+He3_offset, 
+                                       data['histogram'], He3_l, He3_r)
+    
+        plt.plot([binCenters[MG_l]+MG_offset, data['bins'][He3_l]+He3_offset], 
+                 [hist[MG_l]/norm_MG, data['histogram'][He3_l]/norm_he3], 'b-x', 
+                 label='Peak edges', zorder=20)
+        plt.plot([binCenters[MG_r]+MG_offset, data['bins'][He3_r]+He3_offset], 
+                 [hist[MG_r]/norm_MG, data['histogram'][He3_r]/norm_he3], 'b-x', 
+                 label=None, zorder=20)
+    
+    plt.plot(data['bins']+He3_offset, data['histogram'] / norm_he3, color='teal',
              label='He3', zorder=2)
     
     plt.xlabel('$E_i$ - $E_f$ [meV]')
@@ -1205,6 +1229,17 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i, MG_offset, He3_offset,
     plt.yscale('log')
     
     plt.legend(loc='upper left')
+    
+    text_string = r"$\bf{" + 'MultiGrid' + "}$" + '\n'
+    text_string += 'Area: ' + str(int(norm_MG)) + ' [counts]\n'
+    text_string += 'FWHM: ' + '\n'
+    text_string += r"$\bf{" + 'He3' + "}$" + '\n'
+    text_string += 'Area: ' + str(round(norm_he3,3)) + ' [counts]\n'
+    text_string += 'FWHM: '
+    
+    
+    plt.text(0.6*E_i, 0.04, text_string, ha='center', va='center', 
+                 bbox={'facecolor':'white', 'alpha':0.8, 'pad':10}, fontsize=8)
     
     plot_path = get_plot_path(data_set) + name + '.pdf'
     
@@ -1344,8 +1379,38 @@ def plotly_interactive_ToF(df, data_set, E_i):
    # fig = dict(data=data, layout=layout)
     py.offline.plot(fig, filename='MultiGridInvestigation.html')
     
-    
 
+# =============================================================================
+# 18. dE - loglog-plot
+# =============================================================================   
+
+def de_loglog(fig, name, df_vec, data_set, E_i_vec):
+    
+    print(E_i_vec)
+    dE_bins = 500
+        
+    name = ('18. $C_4 H_2 I_2 S$, Histogram of $E_i$ - $E_f$' )
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+        
+    for df, E_i in zip(df_vec, E_i_vec):
+        dE_range = [-E_i, E_i]
+        df = filter_clusters(df)
+        plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+                 histtype='step', zorder=2, label=str(E_i) + ' meV')
+    
+    
+    
+    plt.legend(loc='lower left')
+    plt.xlabel('$\Delta E$ [meV]')
+    plt.ylabel('Counts')
+    plt.xlim(1, max(E_i_vec))
+    plt.xscale('log')
+    plt.title(name)
+        
+    plot_path = get_plot_path(data_set) + name + '.pdf'
+        
+    return fig, plot_path
     
 
 # =============================================================================
@@ -1371,6 +1436,23 @@ def filter_clusters(df):
     df = df[(df.wADC > 300) & (df.gADC > 300)]
     df = df[(df.wM == 1) & (df.gM < 5)]
     return df
+
+def calculate_peak_norm(bin_centers, hist, left_edge, right_edge):
+    x_l = bin_centers[left_edge]
+    y_l = hist[left_edge]
+    x_r = bin_centers[right_edge-1]
+    y_r = hist[right_edge-1]
+    area = sum(hist[left_edge:right_edge])
+    print('Area: ' + str(area))
+    bins_under_peak = abs(right_edge - 1 - left_edge)
+    print('Bins under peak: ' + str(bins_under_peak))
+    area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2 
+                  + bins_under_peak * y_l)
+    print('Area noise: ' + str(area_noise))
+    peak_area = area - area_noise
+    print('Peak area: ' + str(peak_area))
+    return peak_area
+    
 
 
 
