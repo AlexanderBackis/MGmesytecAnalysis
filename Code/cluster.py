@@ -160,6 +160,8 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
     
 #    t_d = get_td(E_i)
     T_0 = get_T0(calibration, E_i)
+    t_off = get_t_off(E_i)
+    print('t_off: ' + str(t_off))
     
     offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
     offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
@@ -300,7 +302,7 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
                     eventBus = coincident_events['Bus'][index]
                     ToF = coincident_events['ToF'][index-i]
                     d = get_d(eventBus, wCh, gCh, detector_vec)
-                    dE, t_f = get_dE(E_i, ToF, d, T_0)
+                    dE, t_f = get_dE(E_i, ToF, d, T_0, t_off)
                     coincident_events['d'][index-i] = d
                     coincident_events['dE'][index-i] = dE
                     coincident_events['tf'][index-i] = t_f
@@ -530,18 +532,19 @@ def get_new_x(x, y, theta):
 def get_new_y(x, y, theta):
     return np.sin(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
 
-def get_dE(E_i, ToF, d, T_0):
+
+def get_dE(E_i, ToF, d, T_0, t_off):
     # Declare parameters
-    L_1 = 20.01                             # Source to sample
-    m_n = 1.674927351e-27                   # Neutron mass
-    meV_to_J = 1.60218e-19 * 0.001          # Convert meV to J
-    J_to_meV = 6.24150913e18 * 1000         # Convert J to meV
+    L_1 = 20.01                                # Source to sample
+    m_n = 1.674927351e-27                      # Neutron mass
+    meV_to_J = 1.60218e-19 * 0.001             # Convert meV to J
+    J_to_meV = 6.24150913e18 * 1000            # Convert J to meV
     # Calculate dE
-    E_i_J = E_i * meV_to_J                  # Convert E_i to J
-    v_i = np.sqrt((E_i_J*2)/m_n)            # Get velocity of E_i
-    t_1 = (L_1 / v_i) + T_0 * 1e-6          # Use velocity to find t_1
-    ToF_real = ToF * 62.5e-9                # Time from source to detector
-    if E_i == 8: 
+    E_i_J = E_i * meV_to_J                     # Convert E_i to J
+    v_i = np.sqrt((E_i_J*2)/m_n)               # Get velocity of E_i
+    t_1 = (L_1 / v_i) + T_0 * 1e-6             # Use velocity to find t_1
+    ToF_real = ToF * 62.5e-9 + (t_off * 1e-6)  # Time from source to detector
+    if E_i == 8:
         ToF_real += (16666.66666e-6) - 0.0043893
     if E_i == 21:
         ToF_real += (16666.66666e-6) - 0.01227875
@@ -549,9 +552,9 @@ def get_dE(E_i, ToF, d, T_0):
         ToF_real += (16666.66666e-6) - 0.013340625
     if E_i == 35:
         ToF_real += (16666.66666e-6) - 0.01514625
-    t_f = ToF_real - t_1                    # Time from sample to detector
-    E_J = (m_n/2) * ((d/t_f) ** 2)          # Energy E_f in Joule
-    E_f = E_J * J_to_meV                    # Convert to meV
+    t_f = ToF_real - t_1                        # Time from sample to detector
+    E_J = (m_n/2) * ((d/t_f) ** 2)              # Energy E_f in Joule
+    E_f = E_J * J_to_meV                        # Convert to meV
     return (E_i - E_f), t_f
 
 
@@ -579,9 +582,26 @@ def import_T0_table():
         t0_table.update({str(row[0]): row[1]})
     return t0_table
 
+
 def get_T0(calibration, energy):
     T0_table = import_T0_table()
     return T0_table[calibration]
+
+
+def get_t_off_table():
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/' + 'time_offset.xlsx')
+    matrix = pd.read_excel(path).values
+    t_off_table = {}
+    for row in matrix:
+        t_off_table.update({row[0]: row[1]})
+    return t_off_table
+
+
+def get_t_off(E_i):
+    t_off_table = get_t_off_table()
+    print(t_off_table)
+    return t_off_table[E_i]
     
     
 

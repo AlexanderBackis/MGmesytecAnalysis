@@ -818,10 +818,7 @@ def dE_histogram(fig, name, df, data_set, E_i):
     
 def dE_single(fig, name, df, data_set, E_i, sample, 
               left_edge=175, right_edge=220):
-        df = df[df.d != -1]
-        df = df[(df.wADC > 400) & (df.gADC > 400)]
-        df = df[(df.wM == 1) & (df.gM < 5)]
-        df = df[df.tf > 0]
+        df = filter_clusters(df)
         
         def find_nearest(array, value):
             idx = (np.abs(array - value)).argmin()
@@ -851,6 +848,7 @@ def dE_single(fig, name, df, data_set, E_i, sample,
                  zorder=5)
         M = hist[left_edge:right_edge][peak]
         HM = M / 2
+        print('Peak x-value: ' + str(bin_centers[left_edge:right_edge][peak]))
 
 
         left_idx = find_nearest(hist[left_edge:left_edge+peak[0]], HM)
@@ -971,7 +969,7 @@ def ToF_vs_d_and_dE(fig, name, df, data_set, E_i, plot_separate):
             
         color_vec = ['darkorange', 'magenta', 'blue']
         
-        dE_bins = 400
+        dE_bins = 1000
         dE_range = [-E_i, E_i]
         
         ToF_bins = 200
@@ -1249,21 +1247,55 @@ def compare_MG_and_He3(fig, name, df, data_set, E_i, MG_offset, He3_offset,
 # 17. Plotly interactive ToF
 # =============================================================================
     
-def plotly_interactive_ToF(df, data_set, E_i):
-    df = filter_clusters(df)
-    nbr_bins = 400
-    thres_range = np.arange(0, 500, 10)
+def plotly_interactive_ToF(df, data_set, E_i, test_type):
+    df = df[df.d != -1]
+   # df = df[df.tf > 0]
+    #df = df[(df.wADC > 300) & (df.gADC > 300)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+
+    nbr_bins = 1000
+    thres_range = np.arange(0, 600, 10)
+    
+    data = []
+    
+    if test_type == 'Wire ADC threshold':
+        data = [go.Histogram(visible = False,
+                             name = str(thres),
+                             x = df[df.wADC >= thres].ToF,
+                             xbins=dict(
+                                     start=0,
+                                     end=3e5,
+                                     size=(3e5)/nbr_bins
+                            ))
+                            for thres in thres_range]
+        
+    elif test_type == 'Grid ADC threshold':
+        data = [go.Histogram(visible = False,
+                             name = str(thres),
+                             x = df[df.gADC >= thres].ToF,
+                             xbins=dict(
+                                     start=0,
+                                     end=3e5,
+                                     size=(3e5)/nbr_bins
+                            ))
+                            for thres in thres_range]
+        
+   
+    elif test_type == 'Grid and Wire ADC threshold':
+        print('hej')
+        data = [go.Histogram(visible = False,
+                             name = str(thres),
+                             x = df[(df.gADC >= thres) & (df.wADC >= thres)].ToF,
+                             xbins=dict(
+                                     start=0,
+                                     end=3e5,
+                                     size=(3e5)/nbr_bins
+                            ))
+                            for thres in thres_range]
     
     
-    data = [go.Histogram(visible = False,
-                         name = str(thres),
-                         x = df[df.wADC >= thres].ToF,
-                         xbins=dict(
-                            start=0,
-                            end=3e5,
-                            size=(3e5)/nbr_bins
-                        ))
-            for thres in thres_range]
+    
+
     
     data[10]['visible'] = True
     
@@ -1284,17 +1316,17 @@ def plotly_interactive_ToF(df, data_set, E_i):
     
     
     
-    data2 = [go.Histogram(visible = False,
-                         name = str(thres),
-                         x = df[df.wADC >= thres].dE,
-                         xbins=dict(
-                            start=-E_i,
-                            end=E_i,
-                            size=2*E_i/nbr_bins),
-                        )
-            for thres in thres_range]
-    
-    data2[10]['visible'] = True
+#    data2 = [go.Histogram(visible = False,
+#                         name = str(thres),
+#                         x = df[df.wADC >= thres].dE,
+#                         xbins=dict(
+#                            start=-E_i,
+#                            end=E_i,
+#                            size=2*E_i/nbr_bins),
+#                        )
+#            for thres in thres_range]
+#    
+#    data2[10]['visible'] = True
     
 #    
 #    def exponenial_func(x, a, b, c):
@@ -1341,43 +1373,65 @@ def plotly_interactive_ToF(df, data_set, E_i):
         step = dict(
                 method = 'restyle',  
                 args = ['visible', [False] * len(data)],
-                label = str(i*500//len(data))
+                label = str(i*600//len(data))
         )
         step['args'][1][i] = True # Toggle i'th trace to "visible"
         steps.append(step)
 
     sliders = [dict(
         active = 10,
-        currentvalue = {"prefix": "Wire threshold [ADC channels]: "},
+        currentvalue = {"prefix": test_type + " [ADC channels]: "},
         pad = {"t": 50},
         steps = steps,
     )]
 
-    fig = py.tools.make_subplots(rows=1, cols=2, subplot_titles=('ToF Histogram', 
-                                'Histogram of E<sub>i</sub> - E<sub>f')) 
+#    fig = py.tools.make_subplots(rows=1, cols=2, subplot_titles=('ToF Histogram', 
+#                                'Histogram of E<sub>i</sub> - E<sub>f')) 
     
-    for trace in data:
-        fig.append_trace(trace, 1, 1)
+#    for trace in enumerate(data):
+#        fig.append_trace(trace, 1, 1)
     
-    for trace in data2:
-        fig.append_trace(trace, 1, 2)
+#    for trace in data2:
+#        fig.append_trace(trace, 1, 2)
     
 #    for trace in data3:
 #        fig.append_trace(trace, 1, 2)
         
-    fig['layout']['xaxis1'].update(title='ToF [TDC channels]', range=[0, 3e5], 
-                                   showgrid=True)
-    fig['layout']['yaxis1'].update(title='Counts', range=[.1, 5], type='log')
-    fig['layout']['xaxis2'].update(title='dE [meV]', range=[-E_i, E_i], 
-                                   showgrid=True)
-    fig['layout']['yaxis2'].update(title='Counts', range=[.1, 5], type='log')
-    fig.layout.sliders = sliders
-    fig.layout.title = ('Interactive ToF and dE Histograms, Vandadium, ' 
-                        + str(E_i) + ' meV') 
-    fig.layout.showlegend = False
+#    fig['layout']['xaxis1'].update(title='ToF [TDC channels]', range=[0, 3e5], 
+#                                   showgrid=True)
+#    fig['layout']['yaxis1'].update(title='Counts', range=[.1, 5], type='log')
+#    fig['layout']['xaxis2'].update(title='dE [meV]', range=[-E_i, E_i], 
+#                                   showgrid=True)
+#    fig['layout']['yaxis2'].update(title='Counts', range=[.1, 5], type='log')
+#    fig.layout.sliders = sliders
+#    fig.layout.title = ('Interactive ToF and dE Histograms, Vandadium, ' 
+#                        + str(E_i) + ' meV') 
+#    fig.layout.showlegend = False
     
    # fig = dict(data=data, layout=layout)
-    py.offline.plot(fig, filename='MultiGridInvestigation.html')
+   
+    layout = dict(sliders=sliders)
+    
+    layout = dict(sliders=sliders,
+                  title='Interactive ToF and dE Histograms, ' + str(E_i) + 'meV, ' + str(test_type),
+                  xaxis=dict(
+                          title='ToF [TDC channels]',
+                          range=[0, 3e5],
+                          ),
+                  yaxis=dict(
+                          title='Counts',
+                          range=[.1, 5.5],
+                          type='log')
+                  )
+
+    fig = dict(data=data, layout=layout)
+#    fig.layout.title = ('Interactive ToF and dE Histograms, ' + str(E_i) + 'meV')
+#    fig.layout.xaxis.update(title='ToF  [TDC channels]', range=[0, 3e5])
+#    fig.layout.yaxis.update(title='Counts', range=[.1, 5], type='log')
+    
+    filename = ('../Plot/PlotlyInteractive, ' + str(data_set) + ', ' + 
+                str(E_i) + ' meV, ' + str(test_type) + '.html')
+    py.offline.plot(fig, filename=filename)
     
 
 # =============================================================================
@@ -1392,23 +1446,26 @@ def de_loglog(fig, name, df_vec, data_set, E_i_vec):
     name = ('18. $C_4 H_2 I_2 S$, Histogram of $E_i$ - $E_f$' )
     plt.grid(True, which='major', zorder=0)
     plt.grid(True, which='minor', linestyle='--',zorder=0)
-        
+    
+    count = 0
     for df, E_i in zip(df_vec, E_i_vec):
         dE_range = [-E_i, E_i]
         df = filter_clusters(df)
+        weights = np.ones(df['dE'].shape[0]) * 10 ** count
         plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-                 histtype='step', zorder=2, label=str(E_i) + ' meV')
+                 histtype='step', weights=weights, zorder=2, label=str(E_i) + ' meV')
+        count += 1
     
     
     
-    plt.legend(loc='lower left')
+    plt.legend(loc='lower right')
     plt.xlabel('$\Delta E$ [meV]')
-    plt.ylabel('Counts')
-    plt.xlim(1, max(E_i_vec))
+    plt.ylabel('Intensity [a.u.]')
+    plt.xlim(6, max(E_i_vec))
     plt.xscale('log')
     plt.title(name)
         
-    plot_path = get_plot_path(data_set) + name + '.pdf'
+    plot_path = get_plot_path(data_set) + name + str(E_i_vec) + '.pdf'
         
     return fig, plot_path
     

@@ -347,6 +347,7 @@ def choose_data_set():
         
         if discard_glitch:
             ce = ce_temp
+            e = e_temp
             ce_red = ce[(ce['wM'] >= 80) & (ce['gM'] >= 40)]
             if len(ce_red.index) == 0:
                 pass
@@ -948,8 +949,16 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
         
         if analysis_type == 17:
+            test_types = ['Wire ADC threshold', 'Grid ADC threshold', 
+                          'Grid and Wire ADC threshold']
+            print('*** Select a test type ***')
+            for i, test_type in enumerate(test_types):
+                print(str(i+1) + '. ' + test_type)
+            test_ans = input('>> ')
+            test_type = test_types[int(test_ans)-1]
             print('Loading...')
-            pl.plotly_interactive_ToF(coincident_events, data_set, E_i)
+            pl.plotly_interactive_ToF(coincident_events, data_set, E_i, 
+                                      test_type)
             print('Done!')
             
         if analysis_type == 18:
