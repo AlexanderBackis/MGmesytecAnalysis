@@ -320,7 +320,7 @@ def choose_data_set():
         keep_only_ce = True 
     print('Enter incident neutron energy E_i:')
     E_i = input('E_i [meV]: ')
-    E_i = int(E_i)
+    E_i = float(E_i)
     
     print('Choose calibration: ')
     calibrations =  ['High_Resolution', 'High_Flux', 'RRM']
@@ -450,13 +450,15 @@ def choose_analysis_type(module_order, data_set):
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
                          'Timestamp and Trigger', 
-                         'Delta E Histogram (separate detectors)', 
+                         'Delta E (compare filters)', 
                          'Delta E',
                          'ToF vs d + dE',
                          'Compare cold and thermal',
                          'Compare MG and Helium-tubes',
                          'Plotly interactive ToF Histogram',
-                         'dE - loglog-plot']
+                         'dE - loglog-plot',
+                         'Neutrons vs Gammas scatter plot',
+                         'Rate Repetition Mode']
     
     figs = []
     paths = []
@@ -863,11 +865,20 @@ def choose_analysis_type(module_order, data_set):
             print('Done!')
             
         
-        if analysis_type == 12:            
-            
+        if analysis_type == 12:
+            print('Adjust ToF-filter (y/n)?')
+            adjust_ans = input('>> ')
+            ToF_min = -np.inf
+            ToF_max = np.inf
+            if adjust_ans == 'y':
+                ToF_min = input('ToF min: ')
+                ToF_max = input('ToF max: ')
+                ToF_min = int(ToF_min)
+                ToF_max = int(ToF_max)
+
             print('Loading...')
             fig, path = pl.dE_histogram(fig, name, coincident_events, 
-                                        data_set, E_i)
+                                        data_set, E_i, ToF_min, ToF_max)
 
             print('Done!')
         
@@ -993,7 +1004,41 @@ def choose_analysis_type(module_order, data_set):
             
             print('Loading...')
             fig, path = pl.de_loglog(fig, name, df_vec, data_set, E_i_vec)
-            print('Done!')    
+            print('Done!') 
+        
+        if analysis_type == 19:
+            print('Adjust peak edges (y/n)?')
+            adjust_ans = input('>> ')
+            if adjust_ans == 'y':
+                g_l = input('Gamma left edge: ')
+                g_r = input('Gamma right edge: ')
+                n_l = input('Neutron left edge: ')
+                n_r = input('Neutron right edge: ')
+                g_l = int(g_l)
+                g_r = int(g_r)
+                n_l = int(n_l)
+                n_r = int(n_r)
+            else:
+                g_l = 240
+                g_r = 253
+                n_l = 300
+                n_r = 450
+            print('Loading...')
+            fig, path = pl.neutrons_vs_gammas(fig, name, coincident_events,
+                                              data_set, g_l, g_r, n_l, n_r)
+            print('Done!') 
+            
+        
+        if analysis_type == 20:
+            print('Energies (use a space to separate): ')
+            E_i_vec = [float(x) for x in input('>> ').split()]
+            border = input('Border [us]: ')
+            border = int(border)
+            
+            print('Loading...')
+            fig, path = pl.RRM(fig, name, coincident_events, data_set, border,
+                               E_i_vec)
+            print('Done!')
             
         if (analysis_type <= len(analysis_name_vec)) and (analysis_type != 17):
             figs.append(fig)

@@ -160,8 +160,8 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
     
 #    t_d = get_td(E_i)
     T_0 = get_T0(calibration, E_i)
-    t_off = get_t_off(E_i)
-    print('t_off: ' + str(t_off))
+    t_off = get_t_off(calibration)
+#    print('t_off: ' + str(t_off))
     
     offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
     offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
@@ -600,7 +600,6 @@ def get_t_off_table():
 
 def get_t_off(E_i):
     t_off_table = get_t_off_table()
-    print(t_off_table)
     return t_off_table[E_i]
     
     

@@ -766,51 +766,55 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     return fig, plot_path
 
 # =============================================================================
-# 12. Delta E histogram (separate detectors)
+# 12. Delta E histogram (compare filters)
 # =============================================================================
     
-def dE_histogram(fig, name, df, data_set, E_i):
-        df = df[df.d != -1]
-        bus_ranges = [[0,2], [3,5], [6,8]]
-        
-        name = ('12. Histogram of $E_i$ - $E_f$, Vanadium, ' + str(E_i) + 'meV')
-        
-        fig.suptitle(name, x=0.5, y=1.05)
-        
-        detectors = ['ILL', 'ESS_1', 'ESS_2']
+def dE_histogram(fig, name, df, data_set, E_i, ToF_min, ToF_max):
+    T_0 = get_T0(calibration, E_i)
+    t_off = get_t_off(E_i)
     
-        fig.set_figheight(4)
-        fig.set_figwidth(12)
+
+    df = df[df.d != -1]
+    df = df[(df.wM == 1) & (df.gM < 5)]
         
-        color_vec = ['darkorange', 'magenta', 'blue']
+    name = ('12. Histogram of $E_i$ - $E_f$, ' + str(E_i) + 'meV')
+    fig.suptitle(name, x=0.5, y=1.05)
+    dE_bins = 500
+    dE_range = [-E_i, E_i]
+    plt.subplot(2, 1, 1)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+             color='black', histtype='step', label='Without filter', 
+             zorder=3)
+    plt.hist(df[(df.wADC >= 500) & (df.gADC >= 400) 
+                & (df.ToF >= ToF_min) & (df.ToF <= ToF_max)].dE, bins=dE_bins, 
+             range=dE_range, log=LogNorm(), color='red', histtype='step', 
+             label='With filter', zorder=3)
+    plt.legend()
+    plt.xlabel('$E_i$ - $E_f$ [meV]')
+    plt.ylabel('Intensity [Counts]')
+    plt.title('Histogram of $E_i$ - $E_f$')
+    
+    plt.subplot(2, 1, 2)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    plt.hist(df.ToF * 62.5e-9 * 1000, bins=1000, range=[0, 30], log=LogNorm(), 
+             histtype='step', color='black', zorder=2, label='Without filter')
+    plt.hist(df[(df.ToF >= ToF_min) & (df.ToF <= ToF_max)].ToF * 62.5e-9 * 1000, 
+                bins=1000, range=[0, 30], log=LogNorm(), histtype='step', 
+                color='red', zorder=2, label='With filter')
+    plt.xlabel('ToF [$\mu$s]')
+    plt.ylabel('Intensity [Counts]')
+    plt.title('ToF histogram')
+    plt.legend()
+
+    
         
-        dE_bins = 400
-        dE_range = [-E_i, E_i]
+    plt.tight_layout()
+    plot_path = get_plot_path(data_set) + name + '.pdf'
         
-        for i, bus_range in enumerate(bus_ranges):
-            title = detectors[i]
-            bus_min = bus_range[0]
-            bus_max = bus_range[1]
-            df_temp = df[(df.Bus >= bus_min) & (df.Bus <= bus_max)]
-            plt.subplot(1, 3, i+1)
-            plt.grid(True, which='major', zorder=0)
-            plt.grid(True, which='minor', linestyle='--',zorder=0)
-            plt.hist(df_temp.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-                     color=color_vec[i], histtype='step', label=title, 
-                     zorder=3)
-            plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-                     color='black', histtype='step', label='All detectors', 
-                     zorder=2)
-#            plt.ylim(1, 5e4)
-            plt.legend()
-            plt.xlabel('$E_i$ - $E_f$ [meV]')
-            plt.ylabel('Counts')
-            plt.title(title)
-        
-        plt.tight_layout()
-        plot_path = get_plot_path(data_set) + name + '.pdf'
-        
-        return fig, plot_path
+    return fig, plot_path
 
 # =============================================================================
 # 13. Delta E
@@ -841,16 +845,39 @@ def dE_single(fig, name, df, data_set, E_i, sample,
         
         bin_centers = 0.5 * (bins[1:] + bins[:-1])
         
+        # Calculate background level
+        x_l = bin_centers[left_edge]
+        y_l = hist[left_edge]
+        x_r = bin_centers[right_edge-1]
+        y_r = hist[right_edge-1]
+        par_back = np.polyfit([x_l, x_r], [y_l, y_r], deg=1)
+        f_back = np.poly1d(par_back)
+        xx_back = np.linspace(x_l, x_r, 100)
+        yy_back = f_back(xx_back)
+        
+        plt.plot(xx_back, yy_back, 'orange', label='Background')
+        
+        bins_under_peak = abs(right_edge - 1 - left_edge)
+        
+        area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2 
+                      + bins_under_peak * y_l)
+        
         area = sum(hist[left_edge:right_edge])
+        peak_area = area - area_noise
+        
+        # Calculate HM
         peak = peakutils.peak.indexes(hist[left_edge:right_edge])
         plt.plot(bin_centers[left_edge:right_edge][peak],
                  hist[left_edge:right_edge][peak], 'bx', label='Maximum', 
                  zorder=5)
         M = hist[left_edge:right_edge][peak]
-        HM = M / 2
-        print('Peak x-value: ' + str(bin_centers[left_edge:right_edge][peak]))
+        xM = bin_centers[left_edge:right_edge][peak]
+        print(xM)
+        noise_level = yy_back[find_nearest(xx_back, xM)]
+        print(noise_level)
+        HM = (M-noise_level)/2 + noise_level
 
-
+        # Calculate FWHM
         left_idx = find_nearest(hist[left_edge:left_edge+peak[0]], HM)
         right_idx = find_nearest(hist[left_edge+peak[0]:right_edge], HM)
         
@@ -904,24 +931,6 @@ def dE_single(fig, name, df, data_set, E_i, sample,
 #                     * (bin_centers[right_edge] - bin_centers[left_edge])
 #                     )
         
-        
-        x_l = bin_centers[left_edge]
-        y_l = hist[left_edge]
-        x_r = bin_centers[right_edge-1]
-        y_r = hist[right_edge-1]
-        par_back = np.polyfit([x_l, x_r], [y_l, y_r], deg=1)
-        f_back = np.poly1d(par_back)
-        xx_back = np.linspace(x_l, x_r, 100)
-        yy_back = f_back(xx_back)
-        
-        plt.plot(xx_back, yy_back, 'orange', label='Background')
-        
-        bins_under_peak = abs(right_edge - 1 - left_edge)
-        
-        area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2 
-                      + bins_under_peak * y_l)
-        
-        peak_area = area - area_noise
         
         plt.text(0, 1, 'Area: ' + str(int(peak_area)) + ' [counts]' + '\nFWHM: ' + str(round(FWHM,3)) + '  [meV]', ha='center', va='center', 
                  bbox={'facecolor':'white', 'alpha':0.8, 'pad':10})
@@ -1253,7 +1262,7 @@ def plotly_interactive_ToF(df, data_set, E_i, test_type):
     #df = df[(df.wADC > 300) & (df.gADC > 300)]
     df = df[(df.wM == 1) & (df.gM < 5)]
 
-    nbr_bins = 1000
+    nbr_bins = 500
     thres_range = np.arange(0, 600, 10)
     
     data = []
@@ -1282,7 +1291,6 @@ def plotly_interactive_ToF(df, data_set, E_i, test_type):
         
    
     elif test_type == 'Grid and Wire ADC threshold':
-        print('hej')
         data = [go.Histogram(visible = False,
                              name = str(thres),
                              x = df[(df.gADC >= thres) & (df.wADC >= thres)].ToF,
@@ -1440,7 +1448,6 @@ def plotly_interactive_ToF(df, data_set, E_i, test_type):
 
 def de_loglog(fig, name, df_vec, data_set, E_i_vec):
     
-    print(E_i_vec)
     dE_bins = 500
         
     name = ('18. $C_4 H_2 I_2 S$, Histogram of $E_i$ - $E_f$' )
@@ -1468,6 +1475,159 @@ def de_loglog(fig, name, df_vec, data_set, E_i_vec):
     plot_path = get_plot_path(data_set) + name + str(E_i_vec) + '.pdf'
         
     return fig, plot_path
+
+
+# =============================================================================
+# 19. Neutrons vs Gammas scatter plot
+# ============================================================================= 
+    
+def neutrons_vs_gammas(fig, name, df, data_set, g_l, g_r, n_l, n_r):
+    df = df[df.d != -1]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    bins = 1000
+    ToF_range = [0, 300000]
+    noise_l = 600
+    noise_r = 700
+    print('Calculating...')
+    thres_vec = np.arange(0, 1010, 10)
+    n_vec = []
+    g_vec = []
+    for i, thres in enumerate(thres_vec):
+        df_temp = df[(df.wADC >= thres) & (df.gADC >= thres)]
+        hist, __, __ = plt.hist(df_temp.ToF, bins=bins, range=ToF_range)
+        background_per_bin = sum(hist[noise_l:noise_r])/(noise_r - noise_l)
+        print('Background per bin: ' + str(background_per_bin))
+        n_counts = sum(hist[n_l:n_r]) - background_per_bin * (n_r - n_l)
+        g_counts = sum(hist[g_l:g_r]) - background_per_bin * (g_r - g_l)
+        n_vec.append(n_counts)
+        g_vec.append(g_counts)
+        plt.clf()
+        percentage_finished = str(int(round((i/len(thres_vec))*100, 1))) + '%'
+        print(percentage_finished)
+    print('Done!')
+        
+    
+    fig.set_figheight(4)
+    fig.set_figwidth(12)
+    fig.suptitle(name, x=0.5, y=1.05)
+    
+    plt.subplot(1, 3, 1)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    hist, bins, __ = plt.hist(df.ToF, bins=bins, range=ToF_range, 
+                              log=LogNorm(), 
+                              color='black', histtype='step',  
+                              zorder=3, label='All events')
+    bin_centers = 0.5 * (bins[1:] + bins[:-1])
+    plt.plot(bin_centers[g_l:g_r], hist[g_l:g_r], 'r-', label='Gamma peak', 
+             zorder=5, linewidth=3.0)
+    plt.plot(bin_centers[n_l:n_r], hist[n_l:n_r], 'b-', label='Neutron peak', 
+             zorder=5, linewidth=3.0)
+    plt.plot(bin_centers[noise_l:noise_r], hist[noise_l:noise_r], 'g-', 
+             label='Background', zorder=5, linewidth=3.0)
+    plt.legend()
+    plt.xlabel('ToF [TDC channels]')
+    plt.ylabel('Couns')
+    plt.title('ToF histogram')
+    
+    plt.subplot(1, 3, 2)
+    plt.plot(thres_vec, n_vec, 'b-',label='Neutrons', linewidth=3.0)
+    plt.plot(thres_vec, g_vec, 'r-',label='Gammas', linewidth=3.0)
+    plt.legend()
+    plt.yscale('log')
+    plt.xlabel('Threshold [ADC channels]')
+    plt.ylabel('Events [Counts]')
+    plt.title('Neutrons and Gammas vs ADC threshold')
+    
+    plt.subplot(1, 3, 3)
+    cm = plt.cm.get_cmap('jet')
+    sc = plt.scatter(n_vec, g_vec, c=thres_vec, vmin=thres_vec[0], 
+                     vmax=thres_vec[-1], cmap=cm)
+    plt.colorbar(sc)
+    plt.xlabel('Neutron events [Counts]')
+    plt.ylabel('Gamma events [Counts]')
+    plt.title('Neutrons vs Gammas scatter map')
+#    plt.xscale('log')
+#    plt.yscale('log')
+#    plt.xlim(1e5, 1e7)
+#    plt.ylim(1e2, 1e4)
+
+    plt.tight_layout()
+    
+    plot_path = get_plot_path(data_set) + name + '.pdf'
+    
+    return fig, plot_path
+
+# =============================================================================
+# 20. Rate Repetition Mode
+# =============================================================================
+    
+def RRM(fig, name, df, data_set, border, E_i_vec):
+    df = df[df.d != -1]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    dE_bins = 1000
+        
+    fig.set_figheight(12)
+    fig.set_figwidth(12)
+    ToF_bins = 1000
+    
+    fig.suptitle(name, x=0.5, y=1.07)
+    
+    df_vec = [df[df.ToF * 62.5e-9 * 1000 <= border], 
+              df[df.ToF * 62.5e-9 * 1000  > border]]
+    color_vec = ['red', 'blue']
+    
+    for i, E_i in enumerate(E_i_vec):
+        plt.subplot(2,2,i+1)
+        df_temp = df_vec[i]
+        calibration = 'Van__3x3_RRM_Calibration_' + str(E_i)
+        t_off = get_t_off(calibration) * np.ones(df_temp.shape[0])
+        T_0 = get_T0(calibration, E_i) * np.ones(df_temp.shape[0])
+        frame_shift = get_frame_shift(E_i) * np.ones(df_temp.shape[0])
+        E_i = E_i * np.ones(df_temp.shape[0])
+        ToF = df_temp.ToF.values
+        d = df_temp.d.values
+        dE, t_f = get_dE(E_i, ToF, d, T_0, t_off, frame_shift)
+        df_temp_new = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+    
+        plt.grid(True, which='major', zorder=0)
+        plt.grid(True, which='minor', linestyle='--',zorder=0)
+        plt.hist(df_temp_new[df_temp_new['t_f'] > 0].dE, 
+                 bins=dE_bins, log=LogNorm(), range=[-E_i[0], E_i[0]],
+                 histtype='step', color=color_vec[i], zorder=2, 
+                 label=str(E_i[0]) + ' meV')
+        plt.xlabel('$\Delta$E [meV]')
+        plt.ylabel('Intensity [Counts]')
+        plt.title('$E_i$ - $E_f$ histogram, ' + str(E_i[0]) + ' meV')
+        plt.legend()
+    
+    plt.subplot2grid((2, 2), (1, 0), colspan=2)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    df_temp = df[df.ToF * 62.5e-9 * 1000 <= border]
+    plt.hist(df_temp.ToF * 62.5e-9 * 1000, bins=ToF_bins, range=[0, 17],
+             log=LogNorm(), histtype='step', color='red', zorder=2, 
+             label=str(float(E_i_vec[0])) + ' meV')
+    df_temp = df[df.ToF * 62.5e-9 * 1000 > border]
+    plt.hist(df_temp.ToF * 62.5e-9 * 1000, bins=ToF_bins, range=[0, 17],
+             log=LogNorm(), histtype='step', color='blue', zorder=2, 
+             label=str(float(E_i_vec[1])) + ' meV')
+    plt.xlabel('ToF [$\mu$s]')
+    plt.ylabel('Intensity [Counts]')
+    plt.title('ToF histogram')
+    plt.legend()
+    
+    plt.tight_layout()
+    
+    plot_path = get_plot_path(data_set) + name + '.pdf'
+    
+    return fig, plot_path
+    
+    
+    
+    
+    
     
 
 # =============================================================================
@@ -1490,7 +1650,7 @@ def import_helium_tubes():
 def filter_clusters(df):
     df = df[df.d != -1]
     df = df[df.tf > 0]
-    df = df[(df.wADC > 300) & (df.gADC > 300)]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
     df = df[(df.wM == 1) & (df.gM < 5)]
     return df
 
@@ -1509,11 +1669,69 @@ def calculate_peak_norm(bin_centers, hist, left_edge, right_edge):
     peak_area = area - area_noise
     print('Peak area: ' + str(peak_area))
     return peak_area
+
+
+def get_dE(E_i, ToF, d, T_0, t_off, frame_shift):
+    # Declare parameters
+    L_1 = 20.01                                # Source to sample
+    m_n = 1.674927351e-27                      # Neutron mass
+    meV_to_J = 1.60218e-19 * 0.001             # Convert meV to J
+    J_to_meV = 6.24150913e18 * 1000            # Convert J to meV
+    # Calculate dE
+    E_i_J = E_i * meV_to_J                     # Convert E_i to J
+    v_i = np.sqrt((E_i_J*2)/m_n)               # Get velocity of E_i
+    t_1 = (L_1 / v_i) + T_0 * 1e-6             # Use velocity to find t_1
+    ToF_real = ToF * 62.5e-9 + (t_off * 1e-6)  # Time from source to detector
+#    ToF_real += frame_shift
+    t_f = ToF_real - t_1                        # Time from sample to detector
+    E_J = (m_n/2) * ((d/t_f) ** 2)              # Energy E_f in Joule
+    E_f = E_J * J_to_meV                        # Convert to meV
+    return (E_i - E_f), t_f
     
 
+def import_T0_table():
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/' + 'T0_vs_Energy.xlsx')
+    matrix = pd.read_excel(path).values
+    t0_table = {}
+    for row in matrix:
+        t0_table.update({str(row[0]): row[1]})
+    return t0_table
 
 
-    
+def get_T0(calibration, energy):
+    T0_table = import_T0_table()
+    return T0_table[calibration]
+
+
+def get_t_off_table():
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/' + 'time_offset.xlsx')
+    matrix = pd.read_excel(path).values
+    t_off_table = {}
+    for row in matrix:
+        t_off_table.update({row[0]: row[1]})
+    return t_off_table
+
+
+def get_t_off(calibration):
+    t_off_table = get_t_off_table()
+    return t_off_table[calibration]
+
+
+def get_frame_shift(E_i):
+    frame_shift = 0
+    if E_i == 8:
+        frame_shift += (16666.66666e-6) - 0.0043893
+    if E_i == 21:
+        frame_shift += (16666.66666e-6) - 0.01227875
+    if E_i == 20:
+        frame_shift += (16666.66666e-6) # - 0.01227875
+    if E_i == 25:
+        frame_shift += (16666.66666e-6) - 0.013340625
+    if E_i == 35:
+        frame_shift += (16666.66666e-6) - 0.01514625
+    return frame_shift
     
     
     
