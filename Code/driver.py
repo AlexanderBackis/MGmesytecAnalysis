@@ -202,10 +202,22 @@ def create_plot_folder(data_set):
     folder = os.path.join(dirname, '../Plot/' + data_set + '/')
     mkdir_p(folder)
     
+    
 def create_output_folder(data_set):
     dirname = os.path.dirname(__file__)
     folder = os.path.join(dirname, '../Output/' + data_set + '/')
     mkdir_p(folder)
+    
+    
+def find_He3_measurement_id(calibration):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/experiment_log.xlsx')
+    matrix = pd.read_excel(path).values
+    measurement_table = {}
+    for row in matrix:
+        measurement_table.update({row[1]: row[0]})
+    return measurement_table[calibration]
+    
     
     
 def mkdir_p(mypath):
@@ -321,6 +333,7 @@ def choose_data_set():
     print('Enter incident neutron energy E_i:')
     E_i = input('E_i [meV]: ')
     E_i = float(E_i)
+    print(E_i)
     
     print('Choose calibration: ')
     calibrations =  ['High_Resolution', 'High_Flux', 'RRM']
@@ -378,22 +391,25 @@ def choose_data_set():
                 print('No-glitch-data start: ' + str(data_start))
                 print('No-glitch-data end: ' + str(data_end))
                 print('Size ce before reduction: ' + str(ce.shape[0]))
-                ce = ce_temp[ (ce_temp['Time'] > data_start)
-                             |(ce_temp['Time'] < data_end)]
+                ce = ce_temp[  (ce_temp['Time'] > data_start)
+                             & (ce_temp['Time'] < data_end)]
                 print('Size ce after reduction: ' + str(ce.shape[0]))
                 print('Size e before reduction: ' + str(e_temp.shape[0]))
                 e = e_temp[  (e_temp['Time'] > data_start)
-                           | (e_temp['Time'] < data_end)]
+                           & (e_temp['Time'] < data_end)]
                 print('Size e after reduction: ' + str(e.shape[0]))
-                
-            start_time = ce.head(1)['Time'].values[0]
-            end_time = ce.tail(1)['Time'].values[0]
+            
+            start_time = 0
+            end_time = 0
+            if ce.shape[0] > 0:
+                start_time = ce.head(1)['Time'].values[0]
+                end_time = ce.tail(1)['Time'].values[0]
             
             coincident_events = coincident_events.append(ce)
             if not keep_only_ce:
                 events = events.append(e)
-            
             measurement_time += (end_time - start_time) * 62.5e-9
+            print('Measurement time: ' + str(measurement_time))
         else:
             start_time = ce_temp.head(1)['Time'].values[0]
             end_time = ce_temp.tail(1)['Time'].values[0]
@@ -402,8 +418,8 @@ def choose_data_set():
             if not keep_only_ce:
                 events = events.append(e_temp)
                 
-        if not keep_only_ce:
-            triggers = triggers.append(t_temp)
+
+        triggers = triggers.append(t_temp)
             
         print('len(e): ' + str(events.shape[0]))
         print('len(triggers): ' + str(triggers.shape[0]))
@@ -415,9 +431,13 @@ def choose_data_set():
     
     data_sets = str(data_sets)
     
+    coincident_events.reset_index(drop=True, inplace=True)
+    events.reset_index(drop=True, inplace=True)
+    triggers.reset_index(drop=True, inplace=True)
+    
     return (coincident_events, events, data_sets, triggers, 
             number_of_detectors, module_order, detector_types, 
-            measurement_time, E_i)
+            measurement_time, E_i, calibration)
 
 def choose_number_modules():
     modules = [0,1,2,3,4,5,6,7,8]
@@ -439,7 +459,8 @@ def choose_number_modules():
     
     return number_of_detectors, modules[0:3*number_of_detectors]
 
-def choose_analysis_type(module_order, data_set):
+def choose_analysis_type(module_order, data_set, E_i, measurement_time, 
+                         calibration):
     
     finished_with_analysis = False
     analysis_name_vec = ['PHS (1D)', 'PHS (2D)', 'PHS (3D)', 
@@ -458,7 +479,8 @@ def choose_analysis_type(module_order, data_set):
                          'Plotly interactive ToF Histogram',
                          'dE - loglog-plot',
                          'Neutrons vs Gammas scatter plot',
-                         'Rate Repetition Mode']
+                         'Rate Repetition Mode',
+                         'Plot Helium data']
     
     figs = []
     paths = []
@@ -484,6 +506,8 @@ def choose_analysis_type(module_order, data_set):
             analysis_type = int(analysis_type)
         except ValueError:
             print("That's not an int!")
+            
+        fig = None
         
         if analysis_type <= len(analysis_name_vec):
             fig = plt.figure()
@@ -1040,6 +1064,36 @@ def choose_analysis_type(module_order, data_set):
                                E_i_vec)
             print('Done!')
             
+        if analysis_type == 21:
+#            print('Enter incident neutron energy E_i:')
+#            E_i = input('E_i [meV]: ')
+#            E_i = int(E_i)
+#    
+#            print('Choose calibration: ')
+#            calibrations =  ['High_Resolution', 'High_Flux', 'RRM']
+#            for i, calibration in enumerate(calibrations):
+#                print('    ' + str(i+1) + '. ' + calibration)
+#            print('Enter a number between 1-3.')
+#            selection = input('>> ')
+#            selection = int(selection)
+#            calibration = calibrations[selection-1]
+#            calibration = 'Van__3x3_' + calibration + '_Calibration_' + str(E_i) 
+            
+            print('Adjust peak edges (y/n)?')
+            adjust_ans = input('>> ')
+            p_left = 175
+            p_right = 220
+            if adjust_ans == 'y':
+                edges = [int(x) for x in input('Insert edges (use space to separate): ').split()]
+                p_left = edges[0]
+                p_right = edges[1]
+            
+            print('Loading...')
+            fig, path = pl.plot_He3_data(fig, coincident_events, data_set, 
+                                         calibration, measurement_time, 
+                                         p_left, p_right, E_i)
+            print('Done!')
+            
         if (analysis_type <= len(analysis_name_vec)) and (analysis_type != 17):
             figs.append(fig)
             paths.append(path)
@@ -1084,7 +1138,7 @@ def main_meny(data_sets):
         print('Data set(s)      : ' + data_sets)
         print('Module order     : ' + str(module_order))
         print('Detector type(s) : ' + str(detector_types))
-        print('Measurement time : ' + str(round((measurement_time/60), 4)) + ' minutes')
+        print('Measurement time : ' + str(round((measurement_time), 4)) + ' seconds')
         print('-------------------------------------------------')
         print('1. Change module order')
         print('2. Perform an analysis')
@@ -1110,7 +1164,7 @@ def main_meny(data_sets):
 
 def save_clusters(coincident_events, events, triggers, number_of_detectors,
                   module_order, detector_types, data_set, measurement_time, 
-                  E_i):
+                  E_i, calibration):
     print('Saving...')
     print('0%')
     dirname = os.path.dirname(__file__)
@@ -1130,6 +1184,7 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     det_types  = pd.DataFrame({'detector_types': detector_types})
     da_set     = pd.DataFrame({'data_set': [data_set]})
     mt         = pd.DataFrame({'measurement_time': [measurement_time]})
+    ca         = pd.DataFrame({'calibration': [calibration]})
     ei = pd.DataFrame({'E_i': [E_i]})
         
     number_det.to_hdf(path, 'number_of_detectors', complevel = 9)
@@ -1138,6 +1193,7 @@ def save_clusters(coincident_events, events, triggers, number_of_detectors,
     da_set.to_hdf(path, 'data_set', complevel = 9)
     mt.to_hdf(path, 'measurement_time', complevel=9)
     ei.to_hdf(path, 'E_i', complevel=9)
+    ca.to_hdf(path, 'calibration', complevel=9)
     print('100%')
     print('Done!')
     
@@ -1388,7 +1444,7 @@ def animation_3D(coincident_events, data_sets, start, stop, step):
     
     
 
-def animation_menu(coincident_events, data_sets):
+def animation_menu(coincident_events, data_sets, E_i, measurement_time):
     
     analysis_name_vec = ['PHS (1D)', 'PHS (2D)', 'PHS (3D)', 
                          'Coincidence Histogram (2D)', 
@@ -1597,6 +1653,7 @@ print('   MESYTEC OUTPUT: IMPORT, CLUSTER AND ANALYSE    ')
 print()
     
 warnings.filterwarnings("ignore", module="matplotlib")
+warnings.simplefilter(action='ignore', category=FutureWarning)
 dirname = os.path.dirname(__file__)
 coincident_events = None
 events = None
@@ -1606,6 +1663,7 @@ module_order = None
 detector_types = None
 data_sets = None
 temp_events = None
+E_i = None
 
 answer = intro_meny()
 
@@ -1667,13 +1725,17 @@ if answer == 'y':
          
     data_sets = pd.read_hdf(clu_path, 'data_set')['data_set'].iloc[0]
     measurement_time = pd.read_hdf(clu_path, 'measurement_time')['measurement_time'].iloc[0]
+    calibration = pd.read_hdf(clu_path, 'calibration')['calibration'].iloc[0]
     create_plot_folder(data_sets)
+    coincident_events.reset_index(drop=True, inplace=True)
+    events.reset_index(drop=True, inplace=True)
+    triggers.reset_index(drop=True, inplace=True)
 
 else:
     folder = os.path.join(dirname, '../Data/')
     files = os.listdir(folder)
     files = [file for file in files if file[-9:] != '.DS_Store' and file != '.gitignore']
-    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types, measurement_time, E_i = choose_data_set()
+    coincident_events, events, data_sets, triggers, number_of_detectors, module_order, detector_types, measurement_time, E_i, calibration = choose_data_set()
     create_plot_folder(data_sets)
 
 create_output_folder(data_sets)
@@ -1685,13 +1747,14 @@ while not_done:
     if choice == 1:
         module_order = [int(x) for x in input('Enter module order, uses spaces to separate.\n>>').split()]
     elif choice == 2:
-        choose_analysis_type(module_order, data_sets)
+        choose_analysis_type(module_order, data_sets, E_i, measurement_time, 
+                             calibration)
     elif choice == 3:
-        animation_menu(coincident_events, data_sets)
+        animation_menu(coincident_events, data_sets, E_i, measurement_time)
     elif choice == 4:
         save_clusters(coincident_events, events, triggers, number_of_detectors,
                       module_order, detector_types, data_sets, 
-                      measurement_time, E_i)
+                      measurement_time, E_i, calibration)
     elif choice == 5:
         export_clusters(coincident_events, triggers, data_sets)
     elif choice == 6:

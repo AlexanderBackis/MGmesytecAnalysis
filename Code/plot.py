@@ -5,7 +5,8 @@ Created on Fri Jul 20 13:18:00 2018
 
 @author: alexanderbackis
 """
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 # =======  LIBRARIES  ======= #
 import os
 import pandas as pd
@@ -22,6 +23,8 @@ import plotly.graph_objs as go
 import scipy
 import peakutils
 from scipy.optimize import curve_fit
+import h5py
+
     
 # =============================================================================
 # 1. PHS (1D)
@@ -744,14 +747,17 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     
     df = coincident_events
 
-    event_number = np.arange(1, df.shape[0]+1,1)
-    trigger_number = np.arange(1,len(triggers)+1,1)
+    event_number = np.arange(0, df.shape[0],1)
+    trigger_number = np.arange(0,len(triggers),1)
     
     plt.subplot(1,2,1)
     plt.title('Timestamp vs. Event number', x=0.5, y=1.04)
     plt.xlabel('Event number')
     plt.ylabel('Timestamp')
-    plt.plot(event_number, df.Time, color='blue')
+    plt.plot(event_number, df.Time, color='blue', label='All events')
+    glitches = df[(df.wM >= 80) & (df.gM >= 40)].Time
+    plt.plot(glitches.index.tolist(), glitches, 'rx', label='Glitch events')
+    plt.legend()
     
     plt.subplot(1,2,2)
     plt.title('Trigger-time vs. Trigger number', x=0.5, y=1.04)
@@ -1451,25 +1457,39 @@ def de_loglog(fig, name, df_vec, data_set, E_i_vec):
     dE_bins = 500
         
     name = ('18. $C_4 H_2 I_2 S$, Histogram of $E_i$ - $E_f$' )
-    plt.grid(True, which='major', zorder=0)
-    plt.grid(True, which='minor', linestyle='--',zorder=0)
     
     count = 0
+    end = [440, 470, 465, 475, 470, 475, 470, 475]
+    multi = [4, 3, 3, 1, 1, 1, 1, 0.5]
+    hists = []
+    bins_vec = []
     for df, E_i in zip(df_vec, E_i_vec):
         dE_range = [-E_i, E_i]
         df = filter_clusters(df)
-        weights = np.ones(df['dE'].shape[0]) * 10 ** count
-        plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
+        weights = np.ones(df['dE'].shape[0]) * 4 ** count
+        hist, bins, __ = plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
                  histtype='step', weights=weights, zorder=2, label=str(E_i) + ' meV')
+        bin_centers = 0.5 * (bins[1:] + bins[:-1])
+        hists.append(hist)
+        bins_vec.append(bin_centers)
         count += 1
     
-    
-    
-    plt.legend(loc='lower right')
+    plt.clf()
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)
+    count = 0
+    for hist, bins in zip(hists, bins_vec):
+        plt.plot(bins[:end[count]], hist[:end[count]]*multi[count], zorder=2, 
+                 label=str(E_i_vec[count]) + ' meV')
+        count += 1
+
+    plt.legend(loc='lower left')
     plt.xlabel('$\Delta E$ [meV]')
     plt.ylabel('Intensity [a.u.]')
-    plt.xlim(6, max(E_i_vec))
+    plt.xlim(0.1, max(E_i_vec))
+    plt.ylim(1e3, 5e7)
     plt.xscale('log')
+    plt.yscale('log')
     plt.title(name)
         
     plot_path = get_plot_path(data_set) + name + str(E_i_vec) + '.pdf'
@@ -1568,14 +1588,14 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
     df = df[(df.wM == 1) & (df.gM < 5)]
     dE_bins = 1000
         
-    fig.set_figheight(12)
+    fig.set_figheight(8)
     fig.set_figwidth(12)
     ToF_bins = 1000
     
     fig.suptitle(name, x=0.5, y=1.07)
     
-    df_vec = [df[df.ToF * 62.5e-9 * 1000 <= border], 
-              df[df.ToF * 62.5e-9 * 1000  > border]]
+    df_vec = [df[df.ToF * 62.5e-9 * 1e6 <= border], 
+              df[df.ToF * 62.5e-9 * 1e6  > border]]
     color_vec = ['red', 'blue']
     
     for i, E_i in enumerate(E_i_vec):
@@ -1605,12 +1625,12 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
     plt.subplot2grid((2, 2), (1, 0), colspan=2)
     plt.grid(True, which='major', zorder=0)
     plt.grid(True, which='minor', linestyle='--',zorder=0)
-    df_temp = df[df.ToF * 62.5e-9 * 1000 <= border]
-    plt.hist(df_temp.ToF * 62.5e-9 * 1000, bins=ToF_bins, range=[0, 17],
+    df_temp = df[df.ToF * 62.5e-9 * 1e6 <= border]
+    plt.hist(df_temp.ToF * 62.5e-9 * 1e6, bins=ToF_bins, range=[0, 17e3],
              log=LogNorm(), histtype='step', color='red', zorder=2, 
              label=str(float(E_i_vec[0])) + ' meV')
-    df_temp = df[df.ToF * 62.5e-9 * 1000 > border]
-    plt.hist(df_temp.ToF * 62.5e-9 * 1000, bins=ToF_bins, range=[0, 17],
+    df_temp = df[df.ToF * 62.5e-9 * 1e6 > border]
+    plt.hist(df_temp.ToF * 62.5e-9 * 1e6, bins=ToF_bins, range=[0, 17e3],
              log=LogNorm(), histtype='step', color='blue', zorder=2, 
              label=str(float(E_i_vec[1])) + ' meV')
     plt.xlabel('ToF [$\mu$s]')
@@ -1623,8 +1643,98 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
     plot_path = get_plot_path(data_set) + name + '.pdf'
     
     return fig, plot_path
+
+
+# =============================================================================
+# 21. Helium3 data
+# =============================================================================
+    
+def plot_He3_data(fig, df, data_set, calibration, measurement_time,
+                  p_left, p_right, E_i):    
+    # Import He3 data
+    measurement_id = find_He3_measurement_id(calibration)
+    dirname = os.path.dirname(__file__)
+    folder = '../Archive/2018_06_06_SEQ_He3/'
+    nxs_file = 'SEQ_' + str(measurement_id) + '_autoreduced.nxs'
+    nxspe_file = 'SEQ_' + str(measurement_id) + '_autoreduced.nxspe'
+    nxs_path = os.path.join(dirname, folder + nxs_file)
+    nxspe_path = os.path.join(dirname, folder + nxspe_file)
+    nxs = h5py.File(nxs_path, 'r')
+    nxspe = h5py.File(nxspe_path, 'r')
+    # Extract values
+    he3_bins = nxs['mantid_workspace_1']['event_workspace']['axis1'].value
+    he3_min = he3_bins[0]
+    he3_max = he3_bins[-1]
+    He3_bin_centers = 0.5 * (he3_bins[1:] + he3_bins[:-1])
+    dE = nxs['mantid_workspace_1']['event_workspace']['tof'].value
+    He3_dE_hist, __ = np.histogram(dE, bins=390, range=[he3_min, he3_max])
+    
+    # Initial filter
+    df = df[df.d != -1]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    # Calculate MG spectrum
+    t_off = get_t_off(calibration) * np.ones(df.shape[0])
+    T_0 = get_T0(calibration, E_i) * np.ones(df.shape[0])
+    frame_shift = get_frame_shift(E_i) * np.ones(df.shape[0])
+    E_i = E_i * np.ones(df.shape[0])
+    ToF = df.ToF.values
+    d = df.d.values
+    dE, t_f = get_dE(E_i, ToF, d, T_0, t_off, frame_shift)
+    df_temp = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+    dE = df_temp[df_temp['t_f'] > 0].dE
+    # Get MG dE histogram
+    dE_bins = 390
+    dE_range = [he3_min, he3_max]
+    MG_dE_hist, MG_bins = np.histogram(dE, bins=dE_bins, range=dE_range)
+    MG_bin_centers = 0.5 * (MG_bins[1:] + MG_bins[:-1])
     
     
+    # Get MG and He3 normalisation
+    norm_MG = calculate_peak_norm(MG_bin_centers, MG_dE_hist, p_left, p_right)
+    norm_He3 = calculate_peak_norm(He3_bin_centers, He3_dE_hist, p_left, p_right)
+    
+    # Plot MG and He3
+   # MG_dE_hist = He3_dE_hist/norm_MG
+    #He3_dE_hist = MG_dE_hist/norm_He3
+    plt.plot(He3_bin_centers, He3_dE_hist)
+    plt.plot(MG_bin_centers, MG_dE_hist)
+    
+    # Visualize peak edges
+    plt.plot([MG_bin_centers[p_left], He3_bin_centers[p_left]], 
+             [MG_dE_hist[p_left], He3_dE_hist[p_left]], 'b-x', 
+             label='Peak edges', zorder=20)
+    plt.plot([MG_bin_centers[p_right], He3_bin_centers[p_right]], 
+             [MG_dE_hist[p_right], He3_dE_hist[p_right]], 'b-x', 
+             label=None, zorder=20)
+    
+
+    
+    # Plot text box
+    text_string = r"$\bf{" + 'MultiGrid' + "}$" + '\n'
+    text_string += 'Area: ' + str(int(norm_MG)) + ' [counts]\n'
+    text_string += 'FWHM: ' + '\n'
+    text_string += r"$\bf{" + 'He3' + "}$" + '\n'
+    text_string += 'Area: ' + str(round(norm_He3,3)) + ' [counts]\n'
+    text_string += 'FWHM: '
+    
+    
+    plt.text(0.6*E_i[0], 0.04, text_string, ha='center', va='center', 
+                 bbox={'facecolor':'white', 'alpha':0.8, 'pad':10}, fontsize=8)
+        
+    plt.yscale('log')
+    plt.xlabel('$\Delta$E [meV]')
+    plt.ylabel('Intensity [a.u.]')
+    plt.title('Comparrison between He3 and MG')
+    
+    plt.show()
+    
+    
+    
+    
+    path = get_plot_path(data_set) + nxs_file + '.pdf'
+    
+    return fig, path
     
     
     
@@ -1663,8 +1773,8 @@ def calculate_peak_norm(bin_centers, hist, left_edge, right_edge):
     print('Area: ' + str(area))
     bins_under_peak = abs(right_edge - 1 - left_edge)
     print('Bins under peak: ' + str(bins_under_peak))
-    area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2 
-                  + bins_under_peak * y_l)
+    area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2
+                  + bins_under_peak * min([y_l, y_r]))
     print('Area noise: ' + str(area_noise))
     peak_area = area - area_noise
     print('Peak area: ' + str(peak_area))
@@ -1682,7 +1792,7 @@ def get_dE(E_i, ToF, d, T_0, t_off, frame_shift):
     v_i = np.sqrt((E_i_J*2)/m_n)               # Get velocity of E_i
     t_1 = (L_1 / v_i) + T_0 * 1e-6             # Use velocity to find t_1
     ToF_real = ToF * 62.5e-9 + (t_off * 1e-6)  # Time from source to detector
-#    ToF_real += frame_shift
+    ToF_real += frame_shift
     t_f = ToF_real - t_1                        # Time from sample to detector
     E_J = (m_n/2) * ((d/t_f) ** 2)              # Energy E_f in Joule
     E_f = E_J * J_to_meV                        # Convert to meV
@@ -1721,17 +1831,43 @@ def get_t_off(calibration):
 
 def get_frame_shift(E_i):
     frame_shift = 0
+    if E_i == 2:
+        frame_shift += 2 * (16666.66666e-6) - 0.0004475
     if E_i == 8:
         frame_shift += (16666.66666e-6) - 0.0043893
     if E_i == 21:
         frame_shift += (16666.66666e-6) - 0.01227875
     if E_i == 20:
-        frame_shift += (16666.66666e-6) # - 0.01227875
+        frame_shift += 0
     if E_i == 25:
         frame_shift += (16666.66666e-6) - 0.013340625
     if E_i == 35:
         frame_shift += (16666.66666e-6) - 0.01514625
     return frame_shift
+
+
+def find_He3_measurement_id(calibration):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/experiment_log.xlsx')
+    matrix = pd.read_excel(path).values
+    measurement_table = {}
+    for row in matrix:
+        measurement_table.update({row[1]: row[0]})
+    return measurement_table[calibration]
+
+#
+#def get_MG_and_He3_norm(p_left, p_right, MG_bin_centers, MG_dE_hist,
+#                        He3_bin_centers, He3_dE_hist):
+#    norm_MG = calculate_peak_norm(MG_bin_centers, MG_dE_hist, p_left, p_right)
+
+
+
+
+
+
+
+
+
     
     
     
