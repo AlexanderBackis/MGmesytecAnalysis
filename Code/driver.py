@@ -279,6 +279,7 @@ def choose_data_set():
             print('\nThat is not a valid number.')
     
     data_sets = []
+    number_of_files = 1
     if file_number <= len(files):
         data_sets.append(files[int(file_number) - 1])
     elif file_number == len(files) + 1:
@@ -291,6 +292,7 @@ def choose_data_set():
         end = input('End file: ')
         start = int(start)
         end = int(end)
+        number_of_files = end - start + 1
         for choice in range(start, end+1):
             data_sets.append(files[choice-1])
     
@@ -323,8 +325,16 @@ def choose_data_set():
     discard_glitch = False
     print('Discard glitch events (y/n)?')
     glitch_ans = input('>> ')
+    glitch_mid = np.ones(number_of_files) * 0.5
     if glitch_ans == 'y':
         discard_glitch = True
+        print('Change glitch mid (y/n)?')
+        glitch_mid_ans = input('>> ')
+        if glitch_mid_ans == 'y':
+            print('Enter ' + str(number_of_files) + ' fractions of max: ')
+            glitch_mid = [float(x) for x in input('>> ').split()]
+        
+        
     print('Keep only coincident events (y/n)?')
     ce_ans = input('>> ')
     keep_only_ce = False
@@ -369,7 +379,7 @@ def choose_data_set():
                 # in two parts (f: first, s: second) and finding first 
                 # and last glitch event.
                 
-                mid_point = ce.tail(1)['Time'].values[0] // 2
+                mid_point = ce.tail(1)['Time'].values[0] * glitch_mid[i]
                 ce_f = ce_temp[(ce_temp['Time'] < mid_point)]
                 ce_s = ce_temp[(ce_temp['Time'] > mid_point)]
                 ce_red_f = ce_f[(ce_f['wM'] >= 80) & (ce_f['gM'] >= 40)]
@@ -1079,19 +1089,22 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
 #            calibration = calibrations[selection-1]
 #            calibration = 'Van__3x3_' + calibration + '_Calibration_' + str(E_i) 
             
-            print('Adjust peak edges (y/n)?')
-            adjust_ans = input('>> ')
-            p_left = 175
-            p_right = 220
-            if adjust_ans == 'y':
-                edges = [int(x) for x in input('Insert edges (use space to separate): ').split()]
-                p_left = edges[0]
-                p_right = edges[1]
+
+            print('Calculate FWHM (y/n)?')
+            FWHM = False
+            FWHM_ans = input('>> ')
+            if FWHM_ans == 'y':
+                FWHM = True
+            print('Use visualisation help (y/n)?')
+            vis_help = False
+            vis_help_ans = input('>> ')
+            if vis_help_ans == 'y':
+                vis_help = True
             
             print('Loading...')
             fig, path = pl.plot_He3_data(fig, coincident_events, data_set, 
                                          calibration, measurement_time, 
-                                         p_left, p_right, E_i)
+                                         E_i, FWHM, vis_help)
             print('Done!')
             
         if (analysis_type <= len(analysis_name_vec)) and (analysis_type != 17):

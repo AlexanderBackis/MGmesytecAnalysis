@@ -1649,8 +1649,13 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
 # 21. Helium3 data
 # =============================================================================
     
-def plot_He3_data(fig, df, data_set, calibration, measurement_time,
-                  p_left, p_right, E_i):    
+def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
+                  vis_help):
+    MG_SNR = 0
+    He3_SNR = 0
+    def find_nearest(array, value):
+        idx = (np.abs(array - value)).argmin()
+        return idx
     # Import He3 data
     measurement_id = find_He3_measurement_id(calibration)
     dirname = os.path.dirname(__file__)
@@ -1668,6 +1673,7 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time,
     He3_bin_centers = 0.5 * (he3_bins[1:] + he3_bins[:-1])
     dE = nxs['mantid_workspace_1']['event_workspace']['tof'].value
     He3_dE_hist, __ = np.histogram(dE, bins=390, range=[he3_min, he3_max])
+    He_duration = nxs['mantid_workspace_1']['logs']['duration']['value'].value[0]
     
     # Initial filter
     df = df[df.d != -1]
@@ -1688,51 +1694,77 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time,
     dE_range = [he3_min, he3_max]
     MG_dE_hist, MG_bins = np.histogram(dE, bins=dE_bins, range=dE_range)
     MG_bin_centers = 0.5 * (MG_bins[1:] + MG_bins[:-1])
-    
-    
-    # Get MG and He3 normalisation
-    norm_MG = calculate_peak_norm(MG_bin_centers, MG_dE_hist, p_left, p_right)
-    norm_He3 = calculate_peak_norm(He3_bin_centers, He3_dE_hist, p_left, p_right)
-    
-    # Plot MG and He3
-   # MG_dE_hist = He3_dE_hist/norm_MG
-    #He3_dE_hist = MG_dE_hist/norm_He3
-    plt.plot(He3_bin_centers, He3_dE_hist)
-    plt.plot(MG_bin_centers, MG_dE_hist)
-    
-    # Visualize peak edges
-    plt.plot([MG_bin_centers[p_left], He3_bin_centers[p_left]], 
-             [MG_dE_hist[p_left], He3_dE_hist[p_left]], 'b-x', 
-             label='Peak edges', zorder=20)
-    plt.plot([MG_bin_centers[p_right], He3_bin_centers[p_right]], 
-             [MG_dE_hist[p_right], He3_dE_hist[p_right]], 'b-x', 
-             label=None, zorder=20)
-    
 
     
-    # Plot text box
-    text_string = r"$\bf{" + 'MultiGrid' + "}$" + '\n'
-    text_string += 'Area: ' + str(int(norm_MG)) + ' [counts]\n'
-    text_string += 'FWHM: ' + '\n'
-    text_string += r"$\bf{" + 'He3' + "}$" + '\n'
-    text_string += 'Area: ' + str(round(norm_He3,3)) + ' [counts]\n'
-    text_string += 'FWHM: '
+    # Get He3 offset
+    He3_offset = get_He3_offset(calibration)
     
+    # Get MG and He3 peak edges
+    MG_left, MG_right, He3_left, He3_right = get_peak_edges(calibration)
     
-    plt.text(0.6*E_i[0], 0.04, text_string, ha='center', va='center', 
-                 bbox={'facecolor':'white', 'alpha':0.8, 'pad':10}, fontsize=8)
+    # Get MG and He3 normalisation
+    norm_MG = calculate_peak_norm(MG_bin_centers, MG_dE_hist, MG_left, 
+                                  MG_right)
+    norm_He3 = calculate_peak_norm(He3_bin_centers, He3_dE_hist, He3_left,
+                                   He3_right)
         
+    # Plot MG and He3
+    if vis_help is not True:
+        MG_dE_hist = MG_dE_hist/norm_MG
+        He3_dE_hist = He3_dE_hist/norm_He3
+    plt.plot(He3_bin_centers+He3_offset, He3_dE_hist, label='He3', color='teal')
+    plt.plot(MG_bin_centers, MG_dE_hist, label='Multi-Grid', color='crimson') 
+    
+    # Calculate FWHM
+    MG_FWHM = ''
+    He3_FWHM = ''
+    if FWHM:
+        MG_FWHM, MG_SNR = get_FWHM(MG_bin_centers, MG_dE_hist, MG_left, MG_right, 
+                           vis_help, b_label='Background')
+        MG_FWHM = str(round(MG_FWHM,3))
+        He3_FWHM, He3_SNR = get_FWHM(He3_bin_centers+He3_offset, He3_dE_hist, He3_left, 
+                            He3_right, vis_help, b_label=None)
+        He3_FWHM = str(round(He3_FWHM,3))
+    
+    # Plot text box
+    text_string = r"$\bf{" + '---MultiGrid---' + "}$" + '\n'
+    text_string += 'Area: ' + str(int(norm_MG)) + ' [counts]\n'
+    text_string += 'FWHM: ' + MG_FWHM + ' [meV]\n'
+    text_string += 'SNR: ' + str(round(MG_SNR, 3)) + '\n'
+    text_string += 'Duration: ' + str(round(measurement_time,1)) + ' [seconds]\n'
+    text_string += r"$\bf{" + '---He3---' + "}$" + '\n'
+    text_string += 'Area: ' + str(round(norm_He3,1)) + ' [counts]\n'
+    text_string += 'FWHM: ' + He3_FWHM + ' [meV]\n'
+    text_string += 'SNR: ' + str(round(He3_SNR, 3)) + '\n'
+    text_string += 'Duration: ' + str(round(He_duration,1)) + '  [seconds]'
+    
+    He3_hist_max = max(He3_dE_hist)
+    MG_hist_max = max(MG_dE_hist)
+    tot_max = max([He3_hist_max, MG_hist_max])
+    plt.text(0.7*E_i[0], 0.0006*tot_max, text_string, ha='center', va='center', 
+                 bbox={'facecolor':'white', 'alpha':0.9, 'pad':10}, fontsize=6)
+    
+    # Visualize peak edges
+    plt.plot([He3_bin_centers[He3_left]+He3_offset, 
+              He3_bin_centers[He3_right]+He3_offset], 
+             [He3_dE_hist[He3_left], He3_dE_hist[He3_right]], 'bx', 
+             label='Peak edges', zorder=20)
+    plt.plot([MG_bin_centers[MG_left], MG_bin_centers[MG_right]], 
+             [MG_dE_hist[MG_left], MG_dE_hist[MG_right]], 'bx', 
+             label=None, zorder=20)   
+        
+    plt.legend(loc='upper right')
     plt.yscale('log')
     plt.xlabel('$\Delta$E [meV]')
+    plt.xlim(he3_min, he3_max)
     plt.ylabel('Intensity [a.u.]')
-    plt.title('Comparrison between He3 and MG')
+    plt.title(calibration + '_meV')
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0)    
     
-    plt.show()
+    path = get_plot_path(data_set) + calibration + '_meV' + '.pdf'
     
     
-    
-    
-    path = get_plot_path(data_set) + nxs_file + '.pdf'
     
     return fig, path
     
@@ -1833,12 +1865,34 @@ def get_frame_shift(E_i):
     frame_shift = 0
     if E_i == 2:
         frame_shift += 2 * (16666.66666e-6) - 0.0004475
+    if E_i == 3:
+        frame_shift += 2 * (16666.66666e-6) - 0.00800875
+    if E_i == 4:
+        frame_shift += 2 * (16666.66666e-6) - 0.0125178125
+    if E_i == 5:
+        frame_shift += 2 * (16666.66666e-6) - 0.015595
+    if E_i == 6:
+        frame_shift += (16666.66666e-6) - 0.001190399
+    if E_i == 7:
+        frame_shift += (16666.66666e-6) - 0.002965625
     if E_i == 8:
         frame_shift += (16666.66666e-6) - 0.0043893
+    if E_i == 9:
+        frame_shift += (16666.66666e-6) - 0.0055678125
+    if E_i == 10:
+        frame_shift += (16666.66666e-6) - 0.0065653125
+    if E_i == 12:
+        frame_shift += (16666.66666e-6) - 0.00817125
+    if E_i == 14:
+        frame_shift += (16666.66666e-6) - 0.00942
+    if E_i == 16:
+        frame_shift += (16666.66666e-6) - 0.01042562499
+    if E_i == 18:
+        frame_shift += (16666.66666e-6) - 0.011259375
     if E_i == 21:
         frame_shift += (16666.66666e-6) - 0.01227875
     if E_i == 20:
-        frame_shift += 0
+        frame_shift += (16666.66666e-6) - 0.011965
     if E_i == 25:
         frame_shift += (16666.66666e-6) - 0.013340625
     if E_i == 35:
@@ -1855,11 +1909,130 @@ def find_He3_measurement_id(calibration):
         measurement_table.update({row[1]: row[0]})
     return measurement_table[calibration]
 
-#
-#def get_MG_and_He3_norm(p_left, p_right, MG_bin_centers, MG_dE_hist,
-#                        He3_bin_centers, He3_dE_hist):
-#    norm_MG = calculate_peak_norm(MG_bin_centers, MG_dE_hist, p_left, p_right)
 
+def get_He3_offset(calibration):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/He3_offset.xlsx')
+    matrix = pd.read_excel(path).values
+    He3_offset_table = {}
+    for row in matrix:
+        He3_offset_table.update({row[0]: row[1]})
+    
+    offset = float(He3_offset_table[calibration])
+    
+    return offset
+
+
+def get_FWHM(bin_centers, hist, left_edge, right_edge, vis_help,
+             b_label='Background'):
+    def find_nearest(array, value):
+        idx = (np.abs(array - value)).argmin()
+        return idx
+    # Calculate background level
+    x_l = bin_centers[left_edge]
+    y_l = hist[left_edge]
+    x_r = bin_centers[right_edge]
+    y_r = hist[right_edge]
+    par_back = np.polyfit([x_l, x_r], [y_l, y_r], deg=1)
+    f_back = np.poly1d(par_back)
+    xx_back = np.linspace(x_l, x_r, 100)
+    yy_back = f_back(xx_back)
+     
+    plt.plot(xx_back, yy_back, 'orange', label=b_label)
+     
+    bins_under_peak = abs(right_edge - 1 - left_edge)
+    
+    area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2 
+                      + bins_under_peak * y_l)
+        
+    area = sum(hist[left_edge:right_edge])
+    peak_area = area - area_noise
+        
+    # Calculate HM
+    peak = peakutils.peak.indexes(hist[left_edge:right_edge])
+    if vis_help:
+        plt.plot(bin_centers[left_edge:right_edge][peak],
+                 hist[left_edge:right_edge][peak], 'bx', label='Maximum', 
+                 zorder=5)
+    M = hist[left_edge:right_edge][peak]
+    xM = bin_centers[left_edge:right_edge][peak]
+    print(xM)
+    noise_level = yy_back[find_nearest(xx_back, xM)]
+    print(noise_level)
+    HM = (M-noise_level)/2 + noise_level
+    SNR = M/noise_level
+    SNR = SNR[0]
+
+    # Calculate FWHM
+    left_idx = find_nearest(hist[left_edge:left_edge+peak[0]], HM)
+    right_idx = find_nearest(hist[left_edge+peak[0]:right_edge], HM)
+        
+    sl = []
+    sr = []
+        
+    if hist[left_edge+left_idx] > HM:
+        sl = [-1, 0]
+    else:
+        sl = [0, 1]
+        
+    if hist[left_edge+peak[0]+right_idx] < HM:
+        rl = [-1, 0]
+    else:
+        rl = [0, 1]
+        
+    left_x = [bin_centers[left_edge+left_idx+sl[0]], 
+              bin_centers[left_edge+left_idx+sl[1]]]
+    left_y = [hist[left_edge+left_idx+sl[0]], hist[left_edge+left_idx+sl[1]]]
+    right_x = [bin_centers[left_edge+peak[0]+right_idx+rl[0]], 
+               bin_centers[left_edge+peak[0]+right_idx+rl[1]]]
+    right_y = [hist[left_edge+peak[0]+right_idx+rl[0]], 
+               hist[left_edge+peak[0]+right_idx+rl[1]]]
+
+    par_left = np.polyfit(left_x, left_y, deg=1)
+    f_left = np.poly1d(par_left)
+    par_right = np.polyfit(right_x, right_y, deg=1)
+    f_right = np.poly1d(par_right)
+        
+    xx_left = np.linspace(left_x[0], left_x[1], 100)
+    xx_right = np.linspace(right_x[0], right_x[1], 100)
+    yy_left = f_left(xx_left)
+    yy_right = f_right(xx_right)
+    if vis_help:
+        plt.plot(xx_left, yy_left, 'blue', label=None)
+        plt.plot(xx_right, yy_right, 'blue', label=None)
+        
+    left_idx = find_nearest(yy_left, HM)
+    right_idx = find_nearest(yy_right, HM)
+        
+        
+    if vis_help:
+        plt.plot([xx_left[left_idx], xx_right[right_idx]], 
+                 [HM, HM], 'g', label='FWHM')
+        
+    L = xx_left[left_idx]
+    R = xx_right[right_idx]
+    FWHM = R - L
+
+    return FWHM, SNR
+
+def get_peak_edges(calibration):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, 
+                        '../Tables/Van__3x3_He3_and_MG_peak_edges.xlsx')
+    matrix = pd.read_excel(path).values
+    He3_and_MG_peak_edges_table = {}
+    for row in matrix:
+        He3_and_MG_peak_edges_table.update({row[0]: [row[1], row[2], row[3], 
+                                            row[4]]})
+    
+    He3_and_MG_peak_edges = He3_and_MG_peak_edges_table[calibration]
+    
+    MG_left = int(He3_and_MG_peak_edges[0])
+    MG_right = int(He3_and_MG_peak_edges[1])
+    He3_left = int(He3_and_MG_peak_edges[2])
+    He3_right = int(He3_and_MG_peak_edges[3])
+    
+    return MG_left, MG_right, He3_left, He3_right
 
 
 
