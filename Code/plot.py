@@ -24,6 +24,8 @@ import scipy
 import peakutils
 from scipy.optimize import curve_fit
 import h5py
+from cluster import (create_ill_channel_to_coordinate_map,
+                     create_ess_channel_to_coordinate_map)
 
     
 # =============================================================================
@@ -668,7 +670,6 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
     
 def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
                        ADC_filter = None, log = False):
-    
     if ADC_filter != None:
         minADC = ADC_filter[0]
         maxADC = ADC_filter[1]
@@ -683,6 +684,14 @@ def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
     plt.ylabel('Counts  [a.u.]')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
+    
+    bin_centers = 0.5 * (bins[1:] + bins[:-1])
+    maximum = max(hist)
+    peak=np.where(hist == maximum)
+    peak = peak[len(peak)//2][len(peak)//2]
+    print('Prompt peak  [TDC channels]: ' + str(bin_centers[peak]))
+    print('Prompt peak  [s]: '  + str(bin_centers[peak] * 62.5e-9))
+    
              
     return fig, plot_path
 
@@ -1650,7 +1659,7 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
 # =============================================================================
     
 def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
-                  vis_help):
+                  vis_help, back_yes):
     MG_SNR = 0
     He3_SNR = 0
     def find_nearest(array, value):
@@ -1707,13 +1716,26 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
                                   MG_right)
     norm_He3 = calculate_peak_norm(He3_bin_centers, He3_dE_hist, He3_left,
                                    He3_right)
-        
+    
+    # Declare solid angle for Helium-3 and Multi-Grid
+    He3_solid_angle = 0.7449028590952331
+    MG_solid_angle = 0.01177452150905303
+    
+    
+    # Plot background level
+    hist_back = plot_dE_background(E_i[0], calibration, measurement_time, 
+                                   norm_MG, he3_min, he3_max, back_yes, 
+                                   MG_solid_angle)
+    
     # Plot MG and He3
     if vis_help is not True:
-        MG_dE_hist = MG_dE_hist/norm_MG
-        He3_dE_hist = He3_dE_hist/norm_He3
+        MG_dE_hist = MG_dE_hist/(MG_solid_angle*measurement_time)
+        He3_dE_hist = He3_dE_hist/(He3_solid_angle*He_duration)
     plt.plot(He3_bin_centers+He3_offset, He3_dE_hist, label='He3', color='teal')
-    plt.plot(MG_bin_centers, MG_dE_hist, label='Multi-Grid', color='crimson') 
+    if back_yes is not True:
+        MG_dE_hist = MG_dE_hist - hist_back
+    plt.plot(MG_bin_centers, MG_dE_hist, label='Multi-Grid'
+             , color='crimson') 
     
     # Calculate FWHM
     MG_FWHM = ''
@@ -1726,23 +1748,30 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
                             He3_right, vis_help, b_label=None)
         He3_FWHM = str(round(He3_FWHM,3))
     
+    
+    MG_peak_normalised = norm_MG/(measurement_time*MG_solid_angle)
+    He3_peak_normalised = norm_He3/(He_duration*He3_solid_angle)
+    MG_over_He3 = round(MG_peak_normalised/He3_peak_normalised,4)
     # Plot text box
     text_string = r"$\bf{" + '---MultiGrid---' + "}$" + '\n'
-    text_string += 'Area: ' + str(int(norm_MG)) + ' [counts]\n'
+    text_string += 'Area: ' + str(round(MG_peak_normalised,1)) + ' [counts/s*SR]\n'
     text_string += 'FWHM: ' + MG_FWHM + ' [meV]\n'
-    text_string += 'SNR: ' + str(round(MG_SNR, 3)) + '\n'
-    text_string += 'Duration: ' + str(round(measurement_time,1)) + ' [seconds]\n'
+    #text_string += 'SNR: ' + str(round(MG_SNR, 3)) + '\n'
+    text_string += 'Duration: ' + str(round(measurement_time,1)) + ' [s]\n'
     text_string += r"$\bf{" + '---He3---' + "}$" + '\n'
-    text_string += 'Area: ' + str(round(norm_He3,1)) + ' [counts]\n'
+    text_string += 'Area: ' + str(round(He3_peak_normalised,1)) + ' [counts/s*SR]\n'
     text_string += 'FWHM: ' + He3_FWHM + ' [meV]\n'
-    text_string += 'SNR: ' + str(round(He3_SNR, 3)) + '\n'
-    text_string += 'Duration: ' + str(round(He_duration,1)) + '  [seconds]'
+   # text_string += 'SNR: ' + str(round(He3_SNR, 3)) + '\n'
+    text_string += 'Duration: ' + str(round(He_duration,1)) + '  [s]\n'
+    text_string += r"$\bf{" + '---Comparison---' + "}$" + '\n'
+    text_string += 'Area fraction: ' + str(MG_over_He3)
     
     He3_hist_max = max(He3_dE_hist)
     MG_hist_max = max(MG_dE_hist)
     tot_max = max([He3_hist_max, MG_hist_max])
-    plt.text(0.7*E_i[0], 0.0006*tot_max, text_string, ha='center', va='center', 
-                 bbox={'facecolor':'white', 'alpha':0.9, 'pad':10}, fontsize=6)
+    plt.text(-0.7*E_i[0], tot_max * 0.07, text_string, ha='center', va='center', 
+                 bbox={'facecolor':'white', 'alpha':0.9, 'pad':10}, fontsize=6,
+                 zorder=50)
     
     # Visualize peak edges
     plt.plot([He3_bin_centers[He3_left]+He3_offset, 
@@ -1751,24 +1780,166 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
              label='Peak edges', zorder=20)
     plt.plot([MG_bin_centers[MG_left], MG_bin_centers[MG_right]], 
              [MG_dE_hist[MG_left], MG_dE_hist[MG_right]], 'bx', 
-             label=None, zorder=20)   
-        
+             label=None, zorder=20)  
+                
     plt.legend(loc='upper right')
     plt.yscale('log')
     plt.xlabel('$\Delta$E [meV]')
     plt.xlim(he3_min, he3_max)
     plt.ylabel('Intensity [a.u.]')
-    plt.title(calibration + '_meV')
+    title = calibration + '_meV' 
+    if back_yes is not True:
+        title += '\n(Background subtracted)'
+    plt.title(title)
     plt.grid(True, which='major', zorder=0)
     plt.grid(True, which='minor', linestyle='--',zorder=0)    
     
-    path = get_plot_path(data_set) + calibration + '_meV' + '.pdf'
-    
-    
+    if back_yes:
+        path = get_plot_path(data_set) + calibration + '_meV' + '.pdf'
+    else:
+        path = get_plot_path(data_set) + calibration + '_meV_background_subtracted' + '.pdf'
     
     return fig, path
+
+# =============================================================================
+# 22. ToF per voxel
+# =============================================================================
+    
+def ToF_per_voxel(df, data_set, Bus):
+    df = df[df.d != -1]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[df.Time < 1.5e12]
+    df = df[df.Bus == Bus]
+    folder = get_plot_path(data_set)
+    grids = range(80,120)
+    for i, grid in enumerate(grids):
+        fig = plt.figure()
+        df_temp = df[df.gCh == grid]
+        plt.title('ToF histogram for Grid Channel ' + str(grid) + ', Bus ' + str(Bus))
+        plt.hist2d(df_temp.wCh - 0.5, df_temp.ToF * 62.5e-9 * 1e6,
+                   bins=[80, 40], norm=LogNorm(), 
+                   range=[[-0.5, 79.5], [0, 1.666e4]], vmin=1, vmax=20, 
+                   cmap='jet')
+        plt.xlabel('Wire [Channel number]')
+        plt.ylabel('ToF [$\mu$s]')
+        plt.colorbar()
+        path = folder + 'Bus_' + str(Bus) + '_Grid_' + str(grid) + '.pdf'
+        fig.savefig(path, bbox_inches='tight')
+        percentage_finished = str(int(round((i/len(grids))*100, 1))) + '%'
+        plt.close()
+        print(percentage_finished)
+        
+# =============================================================================
+# 23. Iterate through all energies and export energies
+# =============================================================================     
+
+def plot_all_energies():
+    Van_3x3_HF_clusters = ["['mvmelst_1577_15meV_HF.zip'].h5",
+                           "['mvmelst_1578_20meV_HF.zip'].h5",
+                           "['mvmelst_1579_25meV_HF.zip', '...'].h5",
+                           "['mvmelst_1581_31p7meV_HF.zip'].h5",
+                           "['mvmelst_1582_34meV_HF.zip', '...'].h5",
+                           "['mvmelst_1586_40p8meV_HF.zip'].h5",
+                           "['mvmelst_1587_48meV_HF.zip', '...'].h5",
+                           "['mvmelst_1591_60meV_HF.zip', '...'].h5",
+                           "['mvmelst_1595_70meV_HF.zip', '...'].h5",
+                           "['mvmelst_1597_80meV_HF.zip'].h5",
+                           "['mvmelst_1598_90meV_HF.zip', '...'].h5",
+                           "['mvmelst_1600_100meV_HF.zip', '...'].h5,
+                           "['mvmelst_1602_120meV_HF.zip'].h5",
+                           "['mvmelst_1603_140meV_HF.zip', '...'].h5",
+                           "['mvmelst_1605_160meV_HF.zip'].h5",
+                           "['mvmelst_1606_180meV_HF.zip'].h5",
+                           "['mvmelst_1607_200meV_HF.zip'].h5",
+                           "['mvmelst_1608_225meV_HF.zip'].h5",
+                           "['mvmelst_1609_250meV_HF.zip'].h5",
+                           "['mvmelst_1610_275meV_HF.zip'].h5",
+                           "['mvmelst_1611_300meV_HF.zip', '...'].h5",
+                           "['mvmelst_1613_350meV_HF.zip'].h5",
+                           "['mvmelst_1614_400meV_HF.zip', '...'].h5",
+                           "['mvmelst_153.mvmelst', '...'].h5",
+                           "['mvmelst_156.mvmelst'].h5",
+                           "['mvmelst_157.mvmelst'].h5",
+                           "['mvmelst_158.mvmelst'].h5",
+                           "['mvmelst_160.mvmelst'].h5",
+                           "['mvmelst_161.mvmelst'].h5",
+                           "['mvmelst_162.mvmelst'].h5",
+                           "['mvmelst_163.mvmelst'].h5",
+                           "['mvmelst_164.mvmelst'].h5",
+                           "['mvmelst_165.mvmelst'].h5",
+                           "['mvmelst_166.mvmelst'].h5",
+                           "['mvmelst_167.mvmelst'].h5",
+                           "['mvmelst_168.mvmelst'].h5",
+                           "['mvmelst_169.mvmelst'].h5"]
+                           
+    
+
+
+# =============================================================================
+# 24. Plot dE background (test)
+# =============================================================================
+        
+def plot_dE_background_test(df, data_set):
+    df = df[df.d != -1]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[df.Time < 1.5e12]
+    folder = get_plot_path(data_set)
+    
+    offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
+    offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
+    offset_3 = {'x': -1.579114, 'y': -3.164503,  'z': 5.227986}
+    
+    corners = {'ESS_2': {1: [-1.579114, -3.164503, 5.227986],
+                         2: [-1.252877, -3.162614, 5.314108]},
+               'ESS_1': {3: [-1.246560, -3.161484, 5.317432],
+                         4: [-0.916552, -3.160360, 5.384307]},
+               'ILL':   {5: [-0.907574, -3.162949, 5.384863],
+                         6: [-0.575025, -3.162578, 5.430037]}
+                }
+    
+    ILL_C = corners['ILL']
+    ESS_1_C = corners['ESS_1']
+    ESS_2_C = corners['ESS_2']
+    
+    theta_1 = np.arctan((ILL_C[6][2]-ILL_C[5][2])/(ILL_C[6][0]-ILL_C[5][0]))
+    theta_2 = np.arctan((ESS_1_C[4][2]-ESS_1_C[3][2])/(ESS_1_C[4][0]-ESS_1_C[3][0]))
+    theta_3 = np.arctan((ESS_2_C[2][2]-ESS_2_C[1][2])/(ESS_2_C[2][0]-ESS_2_C[1][0]))
+    
+    detector_1 = create_ill_channel_to_coordinate_map(theta_1, offset_1)
+    detector_2 = create_ess_channel_to_coordinate_map(theta_2, offset_2)
+    detector_3 = create_ess_channel_to_coordinate_map(theta_3, offset_3)
+    
+    detector_vec = [detector_1, detector_2, detector_3]
+    detector_names = ['ILL', 'ESS - Natural Aluminium', 'ESS - Pure Aluminium']
+    
+    lower_bus = 0
+    upper_bus = 3
+
+    d_vec = np.zeros(80 * 40 * 9)
+    count = 0
+    for i, detector in enumerate(detector_vec):
+        count = 0
+        for bus in range(lower_bus,upper_bus):
+            for wCh in range(0,80):
+                for gCh in range(80,120):
+                    coord = detector[bus%3, gCh, wCh]
+                    d = np.sqrt(coord['x'] ** 2 + coord['y'] ** 2 + coord['z'] ** 2) 
+                    d_vec[count] = d
+                    count += 1
+    lower_bus += 3
+    upper_bus += 3
     
     
+    
+    d_vec
+    
+    ToF_vec = np.arange(0, 266600, 1600)
+    
+    
+    
+        
     
     
 
@@ -1802,32 +1973,28 @@ def calculate_peak_norm(bin_centers, hist, left_edge, right_edge):
     x_r = bin_centers[right_edge-1]
     y_r = hist[right_edge-1]
     area = sum(hist[left_edge:right_edge])
-    print('Area: ' + str(area))
     bins_under_peak = abs(right_edge - 1 - left_edge)
-    print('Bins under peak: ' + str(bins_under_peak))
     area_noise = ((abs(y_r - y_l) * bins_under_peak) / 2
                   + bins_under_peak * min([y_l, y_r]))
-    print('Area noise: ' + str(area_noise))
     peak_area = area - area_noise
-    print('Peak area: ' + str(peak_area))
     return peak_area
 
 
 def get_dE(E_i, ToF, d, T_0, t_off, frame_shift):
     # Declare parameters
-    L_1 = 20.01                                # Source to sample
-    m_n = 1.674927351e-27                      # Neutron mass
+    L_1 = 20.01                                # Target-to-sample distance
+    m_n = 1.674927351e-27                      # Neutron mass [kg]
     meV_to_J = 1.60218e-19 * 0.001             # Convert meV to J
     J_to_meV = 6.24150913e18 * 1000            # Convert J to meV
     # Calculate dE
-    E_i_J = E_i * meV_to_J                     # Convert E_i to J
+    E_i_J = E_i * meV_to_J                     # Convert E_i from meV to J
     v_i = np.sqrt((E_i_J*2)/m_n)               # Get velocity of E_i
     t_1 = (L_1 / v_i) + T_0 * 1e-6             # Use velocity to find t_1
     ToF_real = ToF * 62.5e-9 + (t_off * 1e-6)  # Time from source to detector
-    ToF_real += frame_shift
-    t_f = ToF_real - t_1                        # Time from sample to detector
-    E_J = (m_n/2) * ((d/t_f) ** 2)              # Energy E_f in Joule
-    E_f = E_J * J_to_meV                        # Convert to meV
+    ToF_real += frame_shift                    # Apply frame-shift
+    t_f = ToF_real - t_1                       # Time from sample to detector
+    E_J = (m_n/2) * ((d/t_f) ** 2)             # Energy E_f in Joule
+    E_f = E_J * J_to_meV                       # Convert to meV
     return (E_i - E_f), t_f
     
 
@@ -1885,6 +2052,8 @@ def get_frame_shift(E_i):
         frame_shift += (16666.66666e-6) - 0.00817125
     if E_i == 14:
         frame_shift += (16666.66666e-6) - 0.00942
+    if E_i == 15:
+        frame_shift += (16666.66666e-6) - 0.009948437499999999
     if E_i == 16:
         frame_shift += (16666.66666e-6) - 0.01042562499
     if E_i == 18:
@@ -1895,8 +2064,20 @@ def get_frame_shift(E_i):
         frame_shift += (16666.66666e-6) - 0.011965
     if E_i == 25:
         frame_shift += (16666.66666e-6) - 0.013340625
+    if E_i == 30:
+        frame_shift += (16666.66666e-6) - 0.01435625
+    if E_i == 32:
+        frame_shift += (16666.66666e-6) - 0.014646875
+    if E_i == 34:
+        frame_shift += (16666.66666e-6) - 0.015009375
     if E_i == 35:
         frame_shift += (16666.66666e-6) - 0.01514625
+    if E_i == 40:
+        frame_shift += (16666.66666e-6) - 0.0157828125
+    if E_i == 40.8:
+        frame_shift += (16666.66666e-6) - 0.015878125
+    if E_i == 48:
+        frame_shift += (16666.66666e-6) - 0.0165909375
     return frame_shift
 
 
@@ -1949,23 +2130,24 @@ def get_FWHM(bin_centers, hist, left_edge, right_edge, vis_help,
     peak_area = area - area_noise
         
     # Calculate HM
-    peak = peakutils.peak.indexes(hist[left_edge:right_edge])
+  #  peak = peakutils.peak.indexes(hist[left_edge:right_edge])
+    maximum = max(hist[left_edge:right_edge])
+    peak=np.where(hist[left_edge:right_edge] == maximum)
+    peak = peak[len(peak)//2][len(peak)//2]
     if vis_help:
         plt.plot(bin_centers[left_edge:right_edge][peak],
                  hist[left_edge:right_edge][peak], 'bx', label='Maximum', 
                  zorder=5)
     M = hist[left_edge:right_edge][peak]
     xM = bin_centers[left_edge:right_edge][peak]
-    print(xM)
     noise_level = yy_back[find_nearest(xx_back, xM)]
-    print(noise_level)
     HM = (M-noise_level)/2 + noise_level
     SNR = M/noise_level
-    SNR = SNR[0]
+    SNR = SNR
 
     # Calculate FWHM
-    left_idx = find_nearest(hist[left_edge:left_edge+peak[0]], HM)
-    right_idx = find_nearest(hist[left_edge+peak[0]:right_edge], HM)
+    left_idx = find_nearest(hist[left_edge:left_edge+peak], HM)
+    right_idx = find_nearest(hist[left_edge+peak:right_edge], HM)
         
     sl = []
     sr = []
@@ -1975,7 +2157,7 @@ def get_FWHM(bin_centers, hist, left_edge, right_edge, vis_help,
     else:
         sl = [0, 1]
         
-    if hist[left_edge+peak[0]+right_idx] < HM:
+    if hist[left_edge+peak+right_idx] < HM:
         rl = [-1, 0]
     else:
         rl = [0, 1]
@@ -1983,10 +2165,10 @@ def get_FWHM(bin_centers, hist, left_edge, right_edge, vis_help,
     left_x = [bin_centers[left_edge+left_idx+sl[0]], 
               bin_centers[left_edge+left_idx+sl[1]]]
     left_y = [hist[left_edge+left_idx+sl[0]], hist[left_edge+left_idx+sl[1]]]
-    right_x = [bin_centers[left_edge+peak[0]+right_idx+rl[0]], 
-               bin_centers[left_edge+peak[0]+right_idx+rl[1]]]
-    right_y = [hist[left_edge+peak[0]+right_idx+rl[0]], 
-               hist[left_edge+peak[0]+right_idx+rl[1]]]
+    right_x = [bin_centers[left_edge+peak+right_idx+rl[0]], 
+               bin_centers[left_edge+peak+right_idx+rl[1]]]
+    right_y = [hist[left_edge+peak+right_idx+rl[0]], 
+               hist[left_edge+peak+right_idx+rl[1]]]
 
     par_left = np.polyfit(left_x, left_y, deg=1)
     f_left = np.poly1d(par_left)
@@ -2015,6 +2197,7 @@ def get_FWHM(bin_centers, hist, left_edge, right_edge, vis_help,
 
     return FWHM, SNR
 
+
 def get_peak_edges(calibration):
     dirname = os.path.dirname(__file__)
     path = os.path.join(dirname, 
@@ -2035,8 +2218,63 @@ def get_peak_edges(calibration):
     return MG_left, MG_right, He3_left, He3_right
 
 
+def import_He3_coordinates():
+    dirname = os.path.dirname(__file__)
+    he_folder = os.path.join(dirname, '../Tables/Helium3_coordinates/')
+    az_path = he_folder + '145160_azimuthal.txt'
+    dis_path = he_folder + '145160_distance.txt'
+    pol_path = he_folder + '145160_polar.txt'
 
+    az = np.loadtxt(az_path)
+    dis = np.loadtxt(dis_path)
+    pol = np.loadtxt(pol_path)
 
+    x = dis*np.sin(pol * np.pi/180)*np.cos(az * np.pi/180)
+    y = dis*np.sin(az * np.pi/180)*np.sin(pol * np.pi/180)
+    z = dis*np.cos(pol * np.pi/180)
+    return x, y, z
+
+def plot_dE_background(E_i, calibration, measurement_time, 
+                       MG_norm, he_min, he_max, back_yes, MG_solid_angle):
+    # Import background data
+    dirname = os.path.dirname(__file__)
+    clu_path = os.path.join(dirname, '../Clusters/Background.h5')
+    df = pd.read_hdf(clu_path, 'coincident_events')
+    df = df[df.d != -1]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[df.Time < 1.5e12]
+    # Calculate background duration
+    start_time = df.head(1)['Time'].values[0]
+    end_time = df.tail(1)['Time'].values[0]
+    duration = (end_time - start_time) * 62.5e-9
+    # Calculate background
+    t_off = get_t_off(calibration) * np.ones(df.shape[0])
+    T_0 = get_T0(calibration, E_i) * np.ones(df.shape[0])
+    frame_shift = get_frame_shift(E_i) * np.ones(df.shape[0])
+    E_i = E_i * np.ones(df.shape[0])
+    ToF = df.ToF.values
+    d = df.d.values
+    dE, t_f = get_dE(E_i, ToF, d, T_0, t_off, frame_shift)
+    df_temp = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+    dE = df_temp[df_temp['t_f'] > 0].dE
+    # Calculate weights
+    number_of_events = len(dE)
+    events_per_s = number_of_events / duration
+    events_s_norm = events_per_s / number_of_events
+    weights = ((1/(measurement_time*MG_solid_angle)) 
+                * events_s_norm * measurement_time * np.ones(len(dE)))
+    # Histogram background
+    dE_bins = 390
+    dE_range = [he_min, he_max]
+    MG_dE_hist, MG_bins = np.histogram(dE, bins=dE_bins, range=dE_range, 
+                                       weights=weights)
+    MG_bin_centers = 0.5 * (MG_bins[1:] + MG_bins[:-1])
+    if back_yes:
+        plt.plot(MG_bin_centers, MG_dE_hist, color='green', label='MG background', 
+                    zorder=5)
+    
+    return MG_dE_hist
 
 
 

@@ -490,7 +490,8 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
                          'dE - loglog-plot',
                          'Neutrons vs Gammas scatter plot',
                          'Rate Repetition Mode',
-                         'Plot Helium data']
+                         'Plot Helium data',
+                         'ToF per voxel']
     
     figs = []
     paths = []
@@ -1075,21 +1076,6 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             print('Done!')
             
         if analysis_type == 21:
-#            print('Enter incident neutron energy E_i:')
-#            E_i = input('E_i [meV]: ')
-#            E_i = int(E_i)
-#    
-#            print('Choose calibration: ')
-#            calibrations =  ['High_Resolution', 'High_Flux', 'RRM']
-#            for i, calibration in enumerate(calibrations):
-#                print('    ' + str(i+1) + '. ' + calibration)
-#            print('Enter a number between 1-3.')
-#            selection = input('>> ')
-#            selection = int(selection)
-#            calibration = calibrations[selection-1]
-#            calibration = 'Van__3x3_' + calibration + '_Calibration_' + str(E_i) 
-            
-
             print('Calculate FWHM (y/n)?')
             FWHM = False
             FWHM_ans = input('>> ')
@@ -1100,14 +1086,27 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             vis_help_ans = input('>> ')
             if vis_help_ans == 'y':
                 vis_help = True
+            print('Plot background (y/n)?')
+            back_yes = False
+            back_yes_ans = input('>> ')
+            if back_yes_ans == 'y':
+                back_yes = True
             
             print('Loading...')
             fig, path = pl.plot_He3_data(fig, coincident_events, data_set, 
                                          calibration, measurement_time, 
-                                         E_i, FWHM, vis_help)
+                                         E_i, FWHM, vis_help, back_yes)
+            print('Done!')
+        
+        if analysis_type == 22:
+            Bus = input('Bus: ')
+            Bus = int(Bus)
+            print('Loading...')
+            pl.ToF_per_voxel(coincident_events, data_set, Bus)
             print('Done!')
             
-        if (analysis_type <= len(analysis_name_vec)) and (analysis_type != 17):
+        if ((analysis_type <= len(analysis_name_vec)) 
+            and (analysis_type != 17) and (analysis_type != 22)):
             figs.append(fig)
             paths.append(path)
         
@@ -1144,9 +1143,7 @@ def main_meny(data_sets):
     choice = None
     while (not_int or not_in_range):
         print()
-       # print('*************************************************')
         print('******************* main menu *******************')
-       # print('*************************************************')
         print('-------------------------------------------------')
         print('Data set(s)      : ' + data_sets)
         print('Module order     : ' + str(module_order))
@@ -1158,15 +1155,16 @@ def main_meny(data_sets):
         print('3. Create animation')
         print('4. Save clusters')
         print('5. Export clusters')
-        print('6. Quit')
+        print('6. Print events/s')
+        print('7. Quit')
     
         choice = input('\nChoose an alternative by entering a number \n' +
-                       'between 1-6.\n>> ')
+                       'between 1-7.\n>> ')
         
         try:
             choice = int(choice)
             not_int = False
-            not_in_range = (choice < 1) | (choice > 6)
+            not_in_range = (choice < 1) | (choice > 7)
         except ValueError:
             pass
     
@@ -1319,7 +1317,7 @@ def unzip_meny():
             
             
             source      = zip_temp_folder + source_file
-            destination = os.path.join(dirname, '../Data/') + source_file
+            destination = os.path.join(dirname, '../Data/') + zip_file
             shutil.move(source, destination)
             shutil.rmtree(zip_temp_folder, ignore_errors=True)
         
@@ -1771,6 +1769,29 @@ while not_done:
     elif choice == 5:
         export_clusters(coincident_events, triggers, data_sets)
     elif choice == 6:
+        print('---Without filter---')
+        df_nf = coincident_events
+        df_nf = df_nf[df_nf.d != -1]
+        df_nf = df_nf[df_nf.Time < 1.5e12]
+        df_nf = df_nf[(df_nf.gCh >= 80) & (df_nf.gCh <= 85)]
+        start_time = df_nf.head(1)['Time'].values[0]
+        end_time = df_nf.tail(1)['Time'].values[0]
+        duration = (end_time - start_time) * 62.5e-9
+ #       print('Duration: ' + str(duration))
+        for bus in range(0, 9):
+            df_temp = df_nf[df_nf.Bus == bus]
+          #  print('Events: ' + str(df_temp.shape[0]))
+            events_per_s = df_temp.shape[0] / duration
+            print('Bus ' + str(bus) + ': ' + str(events_per_s) + ' [events/s]')
+        print('---With filter---')
+        df_nf = df_nf[(df_nf.wM == 1) & (df_nf.gM < 5)]
+        df_nf = df_nf[(df_nf.wADC > 500) & (df_nf.gADC > 400)]
+        for bus in range(0, 9):
+            df_temp = df_nf[df_nf.Bus == bus]
+            events_per_s = df_temp.shape[0] / duration
+            print('Bus ' + str(bus) + ': ' + str(events_per_s) + ' [events/s]')
+            
+    elif choice == 7:
         print('\nBye!')
         not_done = False
     

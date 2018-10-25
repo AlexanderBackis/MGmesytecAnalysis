@@ -348,7 +348,7 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
     
     print('Done!')
     
-    return coincident_events_df, events_df, triggers_df #, detector_vec
+    return coincident_events_df, events_df, triggers_df, detector_vec
 
 # =============================================================================
 # Helper Functions
@@ -510,8 +510,6 @@ def create_ill_channel_to_coordinate_map(theta, offset):
                 z += offset['z']
                 ill_ch_to_coord[0, 122+i, 0] = {'x': x, 'y': y, 'z': z}
             
-    
-    
     return ill_ch_to_coord
 
 def get_d(Bus, WireChannel, GridChannel, detector_vec):
