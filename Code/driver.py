@@ -17,6 +17,59 @@ import zipfile
 import shutil
 import imageio
 import warnings
+from openpyxl import load_workbook
+
+def save_ToF_histogram(name, data_set, coincident_events, 
+                       measurement_time):
+    dir_name = os.path.dirname(__file__)
+    folder = os.path.join(dir_name, '../../ToF_histograms/')
+    path = folder + name + '.pdf'
+
+    
+    fig = plt.figure()
+    fig, __ = pl.plot_ToF_histogram(fig, name, coincident_events, 
+                                    data_set, measurement_time)
+    fig.savefig(path, bbox_inches='tight')
+    
+    
+    plt.close()
+
+def save_charge_norm(total_duration, glitch_free_time, 
+                     calibration, number_of_files):
+    change_time = 20
+    total_time = total_duration + (number_of_files - 1)*change_time
+    tot_switch_time = (number_of_files - 1)*change_time
+    
+    dir_name = os.path.dirname(__file__)
+    path = os.path.join(dir_name, '../Tables/Charge_normalisation.xlsx')
+    matrix = pd.read_excel(path).values
+    charge_norm_table = {}
+    for i, row in enumerate(matrix):
+        charge_norm_table.update({row[0]: [i+1, row[7], row[8]]})
+    row_index = charge_norm_table[calibration][0]   
+    MG_charge = charge_norm_table[calibration][1]
+    He3_charge = charge_norm_table[calibration][2]
+    print('He3_charge: ' + str(He3_charge))
+    print('MG_charge: ' + str(MG_charge))
+    norm_constant = (MG_charge * (glitch_free_time/total_time))/He3_charge
+    print(norm_constant)
+         
+    print(row_index)
+    print(total_duration)
+    print(glitch_free_time)
+    print(number_of_files)
+    to_save = [total_duration, glitch_free_time, number_of_files, 
+               tot_switch_time, total_time, norm_constant]
+    book = load_workbook(path)
+    writer = pd.ExcelWriter(path, engine='openpyxl') 
+    writer.book = book
+    writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
+    for i, value in enumerate(to_save):
+        temp = pd.DataFrame({'temp': [value]})
+        temp.to_excel(writer, header=False, index=False, startrow=row_index, 
+                      startcol=i+1)
+    writer.save()
+    
 
 def choose_specifications(options):
     
@@ -331,9 +384,9 @@ def choose_data_set():
         print('Change glitch mid (y/n)?')
         glitch_mid_ans = input('>> ')
         if glitch_mid_ans == 'y':
-            print('Enter ' + str(number_of_files) + ' fractions of max: ')
-            glitch_mid = [float(x) for x in input('>> ').split()]
-        
+            print('Enter fraction of max: ')
+            glitch_mid = input('>> ')
+            glitch_mid = float(glitch_mid) * np.ones(number_of_files)
         
     print('Keep only coincident events (y/n)?')
     ce_ans = input('>> ')
@@ -360,20 +413,28 @@ def choose_data_set():
     events = pd.DataFrame()
     triggers = pd.DataFrame()
     measurement_time = 0
+    total_duration = 0
     for i, data_set in enumerate(data_sets):
+        # Declare normalisation parameters
+        
         print()
         print('-- File ' + str(i+1) + '/' + str(len(data_sets)) + ' --')
         data_temp = clu.import_data(data_set, max_size)
         ce_temp, e_temp, t_temp = clu.cluster_data(data_temp, exceptions, E_i,
                                                    calibration)
-        
+        temp_duration = 0
         
         if discard_glitch:
             ce = ce_temp
             e = e_temp
             ce_red = ce[(ce['wM'] >= 80) & (ce['gM'] >= 40)]
             if len(ce_red.index) == 0:
-                pass
+                total_duration += ( ce.tail(1)['Time'].values[0]
+                                   -ce.head(1)['Time'].values[0] ) * 62.5e-9
+                print('total_duration' + str(total_duration))
+                
+                temp_duration = ( ce.tail(1)['Time'].values[0]
+                                 -ce.head(1)['Time'].values[0] ) * 62.5e-9
             else:
                 # Filter glitch events in begining and end by diving data
                 # in two parts (f: first, s: second) and finding first 
@@ -390,24 +451,32 @@ def choose_data_set():
                 if ce_red_f.shape[0] > 0:
                     data_start = ce_red_f.tail(1)['Time'].values[0]
                 else:
-                    data_start = 0
+                    data_start = ce.head(1)['Time'].values[0]
+                
                 
                 if ce_red_s.shape[0] > 0:
                     data_end = ce_red_s.head(1)['Time'].values[0]
                 else:
-                    data_end = np.inf
-                print('Data start: ' + str(ce.head(1)['Time'].values[0]))
-                print('Data end: ' + str(ce.tail(1)['Time'].values[0]))
-                print('No-glitch-data start: ' + str(data_start))
-                print('No-glitch-data end: ' + str(data_end))
-                print('Size ce before reduction: ' + str(ce.shape[0]))
+                    data_end = ce.tail(1)['Time'].values[0]
+                
+                temp_duration = ( ce.tail(1)['Time'].values[0]
+                                 -ce.head(1)['Time'].values[0] ) * 62.5e-9
+                
+                total_duration += ( ce.tail(1)['Time'].values[0]
+                                   -ce.head(1)['Time'].values[0] ) * 62.5e-9
+                print('total_duration' + str(total_duration))
+
                 ce = ce_temp[  (ce_temp['Time'] > data_start)
                              & (ce_temp['Time'] < data_end)]
-                print('Size ce after reduction: ' + str(ce.shape[0]))
-                print('Size e before reduction: ' + str(e_temp.shape[0]))
+
                 e = e_temp[  (e_temp['Time'] > data_start)
                            & (e_temp['Time'] < data_end)]
-                print('Size e after reduction: ' + str(e.shape[0]))
+            
+            
+            # Temp line to save ToF histograms
+            print('Temp duration: ' + str(temp_duration))
+           # save_ToF_histogram(data_set, data_set, ce, temp_duration)
+            
             
             start_time = 0
             end_time = 0
@@ -419,17 +488,24 @@ def choose_data_set():
             if not keep_only_ce:
                 events = events.append(e)
             measurement_time += (end_time - start_time) * 62.5e-9
+            
+            # Save relevant numbers to calculate charge norm
+            
             print('Measurement time: ' + str(measurement_time))
+            print('Total time: ')
         else:
             start_time = ce_temp.head(1)['Time'].values[0]
             end_time = ce_temp.tail(1)['Time'].values[0]
             measurement_time += (end_time - start_time) * 62.5e-9
+            total_duration += ( ce_temp.tail(1)['Time'].values[0]
+                               -ce_temp.head(1)['Time'].values[0] ) * 62.5e-9
             coincident_events = coincident_events.append(ce_temp)
             if not keep_only_ce:
                 events = events.append(e_temp)
                 
 
         triggers = triggers.append(t_temp)
+        #save_charge_norm(total_duration, measurement_time, calibration, number_of_files)
             
         print('len(e): ' + str(events.shape[0]))
         print('len(triggers): ' + str(triggers.shape[0]))
@@ -444,6 +520,10 @@ def choose_data_set():
     coincident_events.reset_index(drop=True, inplace=True)
     events.reset_index(drop=True, inplace=True)
     triggers.reset_index(drop=True, inplace=True)
+    
+    
+    
+    
     
     return (coincident_events, events, data_sets, triggers, 
             number_of_detectors, module_order, detector_types, 
@@ -491,7 +571,11 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
                          'Neutrons vs Gammas scatter plot',
                          'Rate Repetition Mode',
                          'Plot Helium data',
-                         'ToF per voxel']
+                         'ToF per voxel',
+                         'Plot all energies',
+                         'Plot overview',
+                         'Plot raw Helium 3 data',
+                         'Plot 3D histogram (plotly)']
     
     figs = []
     paths = []
@@ -810,7 +894,7 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
         if analysis_type == 9:
             choice = input('\nFurther specifications? (y/n).\n>> ')
             
-            rnge = None
+            rnge = [0, 226500]
             number_bins = 1000
             
             if choice == 'y':
@@ -833,12 +917,13 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
                 
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
-                                                  data_set, number_bins, rnge,
+                                                  data_set, measurement_time, 
+                                                  number_bins, rnge,
                                                   ADC_filter, log)
             else:
                 print('Loading...')
                 fig, path = pl.plot_ToF_histogram(fig, name, coincident_events, 
-                                                  data_set, number_bins, rnge)
+                                                  data_set, measurement_time)
             print('Done!')
         
         if analysis_type == 10:
@@ -1069,10 +1154,21 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             E_i_vec = [float(x) for x in input('>> ').split()]
             border = input('Border [us]: ')
             border = int(border)
+            print('Plot background (y/n)?')
+            back_yes = False
+            back_yes_ans = input('>> ')
+            if back_yes_ans == 'y':
+                back_yes = True
+            print('Plot only pure aluminium (y/n)?')
+            isPureAluminium = False
+            al_yes_ans = input('>> ')
+            if al_yes_ans == 'y':
+                isPureAluminium = True
             
             print('Loading...')
             fig, path = pl.RRM(fig, name, coincident_events, data_set, border,
-                               E_i_vec)
+                               E_i_vec, measurement_time, back_yes,
+                               isPureAluminium)
             print('Done!')
             
         if analysis_type == 21:
@@ -1092,10 +1188,23 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             if back_yes_ans == 'y':
                 back_yes = True
             
+            print('Plot only pure aluminium (y/n)?')
+            isPureAluminium = False
+            al_yes_ans = input('>> ')
+            if al_yes_ans == 'y':
+                isPureAluminium = True
+            print('Is V_5x5 (y/n)?')
+            isFiveByFive  = False
+            FiveByFive_ans = input('>> ')
+            if FiveByFive_ans == 'y':
+                isFiveByFive = True
+                
             print('Loading...')
-            fig, path = pl.plot_He3_data(fig, coincident_events, data_set, 
-                                         calibration, measurement_time, 
-                                         E_i, FWHM, vis_help, back_yes)
+            fig, path, __, __, __, __ = pl.plot_He3_data(fig, coincident_events, 
+                                                 data_set, 
+                                                 calibration, measurement_time, 
+                                                 E_i, FWHM, vis_help, back_yes,
+                                                 isPureAluminium, isFiveByFive)
             print('Done!')
         
         if analysis_type == 22:
@@ -1104,9 +1213,34 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             print('Loading...')
             pl.ToF_per_voxel(coincident_events, data_set, Bus)
             print('Done!')
+        
+        if analysis_type == 23:
+            print('Plot only pure aluminium (y/n)?')
+            isPureAluminium = False
+            al_yes_ans = input('>> ')
+            if al_yes_ans == 'y':
+                isPureAluminium = True
+            pl.plot_all_energies(isPureAluminium)
+            print('Done!')
+        
+        if analysis_type == 24:
+            print('Loading...')
+            fig, path = pl.plot_overview(fig)
+            print('Done!')
+            
+        if analysis_type == 25:
+            print('Loading...')
+            fig, path = pl.plot_Raw_He3(fig)
+            print('Done!')
+            
+        if analysis_type == 26:
+            print('Loading...')
+            pl.plot_plotly_3D_histogram(coincident_events)
+            print('Done!')
             
         if ((analysis_type <= len(analysis_name_vec)) 
-            and (analysis_type != 17) and (analysis_type != 22)):
+            and (analysis_type != 17) and (analysis_type != 22)
+            and (analysis_type != 23) and (analysis_type != 26)):
             figs.append(fig)
             paths.append(path)
         
@@ -1453,6 +1587,37 @@ def animation_3D(coincident_events, data_sets, start, stop, step):
     shutil.rmtree(temp_folder, ignore_errors=True)
     print('Done!')
     
+def animation_3D_plotly(coincident_events, data_sets, start, stop, step):
+    tof_vec = range(start, stop, step)
+    ce = coincident_events
+    temp_folder = get_plot_path('temp_folder')
+    mkdir_p(temp_folder)
+    print()
+    print('Animating...')
+    for i in range(0, (stop-start)//step-1):
+        print( str(round((i/(((stop-start)//step)-2))*100)) + '%')
+        min_tof = tof_vec[i]
+        max_tof = tof_vec[i+1]
+        ce_temp = ce[  (ce['ToF'] * 62.5e-9 * 1e6 >= min_tof) 
+                     & (ce['ToF'] * 62.5e-9 * 1e6 <= max_tof)]
+
+        path = temp_folder + str(i) + '.png'
+        pl.plot_plotly_3D_histogram(ce, ce_temp, path, min_tof, max_tof)
+
+    images = []
+    files = os.listdir(temp_folder)
+    files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
+             and file != '.gitignore']
+    
+    output_path = get_output_path(data_sets) + '3D_ToF_sweep_NEW.gif'
+    
+    
+    for filename in sorted(files, key=int):
+        images.append(imageio.imread(temp_folder + filename + '.png'))
+    imageio.mimsave(output_path, images)
+    
+    shutil.rmtree(temp_folder, ignore_errors=True)
+    print('Done!')
     
 
 def animation_menu(coincident_events, data_sets, E_i, measurement_time):
@@ -1461,6 +1626,7 @@ def animation_menu(coincident_events, data_sets, E_i, measurement_time):
                          'Coincidence Histogram (2D)', 
                          'Coincidence Histogram (3D)', 
                          'Coincidence Histogram (Front, Top, Side)',
+                         'Coincidence Histogram (3D) - Plotly',
                          'Multiplicity',
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
@@ -1496,12 +1662,12 @@ def ToF_menu(analysis_name_vec):
         print()
         print('*************** Choose plot type ****************')
         print('-------------------------------------------------')
-        for i in range(4, 6):
+        for i in range(4, 7):
             print(str(i+1) + '. ' + analysis_name_vec[i])
         print('-------------------------------------------------')
-        print('7. Back to previous menu.')
+        print('8. Back to previous menu.')
         print()
-        print('Enter a number between 5-6. Press 7 to go back.')
+        print('Enter a number between 5-7. Press 8 to go back.')
         selection = input('>> ')
         selection = int(selection)
         
@@ -1515,6 +1681,11 @@ def ToF_menu(analysis_name_vec):
                                    step)
             animationSelected = True
         elif selection == 7:
+            start, stop, step = get_ToF_start_stop_step()
+            animation_3D_plotly(coincident_events, data_sets, start, stop, 
+                                step)
+            animationSelected = True
+        elif selection == 8:
             animationSelected = True
 
 
@@ -1773,23 +1944,23 @@ while not_done:
         df_nf = coincident_events
         df_nf = df_nf[df_nf.d != -1]
         df_nf = df_nf[df_nf.Time < 1.5e12]
-        df_nf = df_nf[(df_nf.gCh >= 80) & (df_nf.gCh <= 85)]
         start_time = df_nf.head(1)['Time'].values[0]
         end_time = df_nf.tail(1)['Time'].values[0]
         duration = (end_time - start_time) * 62.5e-9
+        print('Duration: ' + str(duration))
  #       print('Duration: ' + str(duration))
         for bus in range(0, 9):
             df_temp = df_nf[df_nf.Bus == bus]
           #  print('Events: ' + str(df_temp.shape[0]))
             events_per_s = df_temp.shape[0] / duration
-            print('Bus ' + str(bus) + ': ' + str(events_per_s) + ' [events/s]')
+            print('Bus ' + str(bus) + ': ' + str(events_per_s) + ' [events/s], Events: ' + str(df_temp.shape[0]))
         print('---With filter---')
         df_nf = df_nf[(df_nf.wM == 1) & (df_nf.gM < 5)]
         df_nf = df_nf[(df_nf.wADC > 500) & (df_nf.gADC > 400)]
         for bus in range(0, 9):
             df_temp = df_nf[df_nf.Bus == bus]
             events_per_s = df_temp.shape[0] / duration
-            print('Bus ' + str(bus) + ': ' + str(events_per_s) + ' [events/s]')
+            print('Bus ' + str(bus) + ': ' + str(events_per_s) + ' [events/s], Events: ' + str(df_temp.shape[0]))
             
     elif choice == 7:
         print('\nBye!')

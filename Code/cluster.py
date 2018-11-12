@@ -159,8 +159,8 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
     print('Clustering...')
     
 #    t_d = get_td(E_i)
-    T_0 = get_T0(calibration, E_i)
-    t_off = get_t_off(calibration)
+#    T_0 = get_T0(calibration, E_i)
+#    t_off = get_t_off(calibration)
 #    print('t_off: ' + str(t_off))
     
     offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
@@ -194,8 +194,8 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
                                     'wADC', 'gADC', 'wM', 'gM']
     coincident_events = create_dict(size, coincident_event_parameters)
     coincident_events.update({'d': np.zeros([size], dtype=float)})
-    coincident_events.update({'dE': np.zeros([size], dtype=float)})
-    coincident_events.update({'tf': np.zeros([size], dtype=float)}) 
+#    coincident_events.update({'dE': np.zeros([size], dtype=float)})
+#    coincident_events.update({'tf': np.zeros([size], dtype=float)}) 
     
     event_parameters = ['Bus', 'Time', 'Channel', 'ADC']
     events = create_dict(size, event_parameters)
@@ -302,14 +302,14 @@ def cluster_data(data, ILL_buses = [], E_i = -1,
                     eventBus = coincident_events['Bus'][index]
                     ToF = coincident_events['ToF'][index-i]
                     d = get_d(eventBus, wCh, gCh, detector_vec)
-                    dE, t_f = get_dE(E_i, ToF, d, T_0, t_off)
+#                    dE, t_f = get_dE(E_i, ToF, d, T_0, t_off)
                     coincident_events['d'][index-i] = d
-                    coincident_events['dE'][index-i] = dE
-                    coincident_events['tf'][index-i] = t_f
+#                    coincident_events['dE'][index-i] = dE
+#                    coincident_events['tf'][index-i] = t_f
                 else:
                     coincident_events['d'][index-i] = -1
-                    coincident_events['tf'][index-i] = -1
-                    coincident_events['dE'][index-i] = np.nan
+#                    coincident_events['tf'][index-i] = -1
+#                    coincident_events['dE'][index-i] = np.nan
                 
             #Reset temporary variables
             nbrCoincidentEvents  =  0

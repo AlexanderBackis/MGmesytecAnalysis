@@ -24,8 +24,7 @@ import scipy
 import peakutils
 from scipy.optimize import curve_fit
 import h5py
-from cluster import (create_ill_channel_to_coordinate_map,
-                     create_ess_channel_to_coordinate_map)
+
 
     
 # =============================================================================
@@ -34,7 +33,7 @@ from cluster import (create_ill_channel_to_coordinate_map,
     
 def plot_PHS_bus_channel(df, bus, Channel):
     df_red = df[df.Channel == Channel]
-    plt.hist(df_red.ADC, bins=50, range=[0,4400])  
+    plt.hist(df_red.ADC, bins=50, range=[0, 4400])  
     
 def plot_PHS_several_channels(fig, name, df, bus, ChVec, data_set, 
                               loglin, count_range):
@@ -189,7 +188,7 @@ def plot_2D_hit(df_clu, bus, number_of_detectors, loc, fig, count_range,
     
 def plot_2D_hit_buses(fig, name, clusters, bus_vec, number_of_detectors, 
                       data_set, count_range, ADC_filter, m_range, ts_range):
-    
+        
     if m_range != None:
         minWM = m_range[0]
         maxWM = m_range[1]
@@ -268,8 +267,9 @@ def plot_all_sides_3D(fig, name, coincident_events, bus_order, countThres, alpha
     df_3d['y'] = y
     df_3d['z'] = z
         
-    H, edges = np.histogramdd(df_3d.values, bins=(12*number_of_detectors, 40, 20), range=((0,12*number_of_detectors), 
-                                             (0,40), (0,20)))
+    H, edges = np.histogramdd(df_3d.values, bins=(12*number_of_detectors, 40, 20), 
+                              range=((0,12*number_of_detectors), (0,40), (0,20))
+                              )
     minCount = None
     maxCount = None
     if countThres != None:
@@ -668,29 +668,93 @@ def plot_charge_scatter_buses(fig, name, df, bus_order, number_of_detectors, dat
 # 9. ToF histogram
 # =============================================================================
     
-def plot_ToF_histogram(fig, name, df, data_set, number_bins = None, rnge=None,
-                       ADC_filter = None, log = False):
+def plot_ToF_histogram(fig, name, df, data_set, duration, 
+                       number_bins = 1000, rnge=[0, 16666],
+                       ADC_filter = None, log = True):
+    def find_nearest(array, value):
+        idx = (np.abs(array - value)).argmin()
+        return idx
+    
+#    rnge = [rnge[0] * 62.5e-9 * 1e6, rnge[1] * 62.5e-9 * 1e6]
+    print('Range')
+    print(rnge)
+    
+    # Remove this line, used to only capture coincident events
+    df = df[(df.wCh != -1) & (df.gCh != -1)]
+    
     if ADC_filter != None:
         minADC = ADC_filter[0]
         maxADC = ADC_filter[1]
         df = df[  (df.wADC >= minADC) & (df.wADC <= maxADC) 
                 & (df.gADC >= minADC) & (df.gADC <= maxADC)]
+        
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0) 
+    
+    hist, bins, patches = plt.hist(df.ToF * 62.5e-9 * 1e6, 
+                                   bins=number_bins, range=rnge, 
+                                   log=log, color='darkviolet', zorder = 3, 
+                                   alpha=0.4)
     
     
-    hist, bins, patches = plt.hist(df.ToF, bins=number_bins, range=rnge, 
-                                   log=log, color='b')
+    hist, bins, patches = plt.hist(df.ToF * 62.5e-9 * 1e6, bins=number_bins, 
+                                   range=rnge, 
+                                   log=log, color='black', zorder = 4, 
+                                   histtype='step')
+#    
+    bin_centers = 0.5 * (bins[1:] + bins[:-1])
+    maximum = max(hist[50:])
+    peak=np.where(hist == maximum)
+    print(peak)
+    peak = peak[len(peak)//2][0]
+    print(peak)
+    start = find_nearest(hist[:peak], hist[peak]/2)
+    stop = find_nearest(hist[peak:], hist[peak]/2)
+    print('Bincenters')
+    print(bin_centers[start])
+    print(bin_centers[peak+stop])
+#        
+#    
+    plt.plot([bin_centers[start], bin_centers[peak+stop]], 
+             [hist[start], hist[peak+stop]], 'rx', zorder=7)
+#    
+    
+    
+    tot_events = df.shape[0]
+    print('tot_events: ' + str(tot_events))
+    events_per_s = tot_events/duration
+    print('events_per_s' + str(events_per_s))
+    
+    print('signal_events: ' + str(sum(hist[start:peak+stop])))
+    s_time = (bin_centers[peak+stop] - bin_centers[start]) * 1e-6 
+    period_time = 0.016666666666666666
+    print('S_time: ' + str(s_time))
+    s_events_per_s = sum(hist[start:peak+stop])/(duration*(s_time/period_time))
+#    
+    
+    
+    text_string = 'Average rate: ' + str(round(events_per_s,1)) + ' [Hz]'
+    text_string += '\nPeak Rate: ' + str(round(s_events_per_s, 1)) + ' [Hz]'
+    
+    plt.text(14e3, maximum/10, text_string, ha='center', va='center', 
+             bbox={'facecolor':'white', 'alpha':0.8, 'pad':10}, fontsize=8, 
+             zorder=5)
+    
+    
+#    
     plt.title(name)
-    plt.xlabel('ToF [TDC channels]')
-    plt.ylabel('Counts  [a.u.]')
+    plt.xlabel('ToF [$\mu$s]')
+    plt.ylabel('Counts')
     plot_path = (get_plot_path(data_set) + name + ' Range: ' + str(rnge) +
                  'Number of bins: ' + str(number_bins) + '.pdf')
-    
-    bin_centers = 0.5 * (bins[1:] + bins[:-1])
-    maximum = max(hist)
-    peak=np.where(hist == maximum)
-    peak = peak[len(peak)//2][len(peak)//2]
-    print('Prompt peak  [TDC channels]: ' + str(bin_centers[peak]))
-    print('Prompt peak  [s]: '  + str(bin_centers[peak] * 62.5e-9))
+#    
+
+#    bin_centers = 0.5 * (bins[1:] + bins[:-1])
+#    maximum = max(hist)
+#    peak=np.where(hist == maximum)
+#    peak = peak[len(peak)//2][len(peak)//2]
+#    print('Prompt peak  [TDC channels]: ' + str(bin_centers[peak]))
+#    print('Prompt peak  [s]: '  + str(bin_centers[peak] * 62.5e-9))
     
              
     return fig, plot_path
@@ -790,7 +854,7 @@ def dE_histogram(fig, name, df, data_set, E_i, ToF_min, ToF_max):
     
 
     df = df[df.d != -1]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
         
     name = ('12. Histogram of $E_i$ - $E_f$, ' + str(E_i) + 'meV')
     fig.suptitle(name, x=0.5, y=1.05)
@@ -1275,7 +1339,7 @@ def plotly_interactive_ToF(df, data_set, E_i, test_type):
     df = df[df.d != -1]
    # df = df[df.tf > 0]
     #df = df[(df.wADC > 300) & (df.gADC > 300)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
 
     nbr_bins = 500
     thres_range = np.arange(0, 600, 10)
@@ -1512,7 +1576,7 @@ def de_loglog(fig, name, df_vec, data_set, E_i_vec):
     
 def neutrons_vs_gammas(fig, name, df, data_set, g_l, g_r, n_l, n_r):
     df = df[df.d != -1]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
     bins = 1000
     ToF_range = [0, 300000]
     noise_l = 600
@@ -1591,11 +1655,18 @@ def neutrons_vs_gammas(fig, name, df, data_set, g_l, g_r, n_l, n_r):
 # 20. Rate Repetition Mode
 # =============================================================================
     
-def RRM(fig, name, df, data_set, border, E_i_vec):
+def RRM(fig, name, df, data_set, border, E_i_vec, measurement_time,
+        back_yes = False, isPureAluminium = False):
     df = df[df.d != -1]
     df = df[(df.wADC > 500) & (df.gADC > 400)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
-    dE_bins = 1000
+    df = df[(df.wM == 1) & (df.gM <= 5)]
+    if isPureAluminium:
+        df = df[(df.Bus <= 8) & (df.Bus >= 6)]
+        df = df[  (df.gCh != 119) & (df.gCh != 80) 
+                & (df.gCh != 99) & (df.gCh != 101)]
+        
+    
+    dE_bins = 390
         
     fig.set_figheight(8)
     fig.set_figwidth(12)
@@ -1606,6 +1677,7 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
     df_vec = [df[df.ToF * 62.5e-9 * 1e6 <= border], 
               df[df.ToF * 62.5e-9 * 1e6  > border]]
     color_vec = ['red', 'blue']
+    lim_ToF_vec = [[0, border], [border, np.inf]]
     
     for i, E_i in enumerate(E_i_vec):
         plt.subplot(2,2,i+1)
@@ -1619,17 +1691,44 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
         d = df_temp.d.values
         dE, t_f = get_dE(E_i, ToF, d, T_0, t_off, frame_shift)
         df_temp_new = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+        df_temp_new = df_temp_new[df_temp_new['t_f'] > 0]
     
         plt.grid(True, which='major', zorder=0)
         plt.grid(True, which='minor', linestyle='--',zorder=0)
-        plt.hist(df_temp_new[df_temp_new['t_f'] > 0].dE, 
-                 bins=dE_bins, log=LogNorm(), range=[-E_i[0], E_i[0]],
-                 histtype='step', color=color_vec[i], zorder=2, 
-                 label=str(E_i[0]) + ' meV')
+        
+        MG_norm = 1
+        tot_norm = 1
+ 
+        MG_back_dE_hist = plot_dE_background(E_i[0], calibration, measurement_time, 
+                                             MG_norm, -E_i[0], E_i[0], back_yes, tot_norm,
+                                             isPureAluminium, lim_ToF_vec[i])
+        
+        
+        
+        MG_dE_hist, bins = np.histogram(df_temp_new.dE, bins=dE_bins, 
+                                      range=[-E_i[0], E_i[0]])
+        bin_centers = 0.5 * (bins[1:] + bins[:-1])
+        
+        
+        if back_yes is False:
+            MG_dE_hist = MG_dE_hist - MG_back_dE_hist
+        
+        plt.plot(bin_centers, MG_dE_hist, '-', color=color_vec[i], 
+                 label = str(E_i[0]) + ' meV')
+                
+        
+        
         plt.xlabel('$\Delta$E [meV]')
+        plt.yscale('log')
         plt.ylabel('Intensity [Counts]')
-        plt.title('$E_i$ - $E_f$ histogram, ' + str(E_i[0]) + ' meV')
-        plt.legend()
+        title = 'Energy transfer, $E_i$ - $E_f$'
+        if isPureAluminium:
+            title += '\nPure Aluminium'
+        if back_yes is False:
+            title += '\n(Background subtracted)'
+            
+        plt.title(title)
+        plt.legend(loc='upper left')
     
     plt.subplot2grid((2, 2), (1, 0), colspan=2)
     plt.grid(True, which='major', zorder=0)
@@ -1659,12 +1758,14 @@ def RRM(fig, name, df, data_set, border, E_i_vec):
 # =============================================================================
     
 def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
-                  vis_help, back_yes):
+                  vis_help, back_yes, isPureAluminium = False, 
+                  isFiveByFive = False):
     MG_SNR = 0
     He3_SNR = 0
     def find_nearest(array, value):
         idx = (np.abs(array - value)).argmin()
         return idx
+    
     # Import He3 data
     measurement_id = find_He3_measurement_id(calibration)
     dirname = os.path.dirname(__file__)
@@ -1687,7 +1788,12 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
     # Initial filter
     df = df[df.d != -1]
     df = df[(df.wADC > 500) & (df.gADC > 400)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
+    if isPureAluminium:
+        df = df[(df.Bus <= 8) & (df.Bus >= 6)]
+        df = df[  (df.gCh != 119) & (df.gCh != 80) 
+                & (df.gCh != 99) & (df.gCh != 101)]
+    
     # Calculate MG spectrum
     t_off = get_t_off(calibration) * np.ones(df.shape[0])
     T_0 = get_T0(calibration, E_i) * np.ones(df.shape[0])
@@ -1719,47 +1825,78 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
     
     # Declare solid angle for Helium-3 and Multi-Grid
     He3_solid_angle = 0.7449028590952331
-    MG_solid_angle = 0.01177452150905303
+    MG_solid_angle = 0
+    MG_solid_angle_tot = 0.01660177142644554
+    MG_missing_solid_angle_1 = 0.0013837948633069277
+    MG_missing_solid_angle_2 = 0.0018453301781999457
+    print(calibration[0:30])
+    if calibration[0:30] == 'Van__3x3_High_Flux_Calibration':
+        print('High Flux')
+        print(calibration)
+        if E_i[0] < 450:
+            MG_solid_angle = (MG_solid_angle_tot - MG_missing_solid_angle_1
+                              - MG_missing_solid_angle_2)
+        else:
+            MG_solid_angle = (MG_solid_angle_tot - MG_missing_solid_angle_1)
+    else:
+        print('High Resolution')
+        print(calibration)
+        if E_i[0] > 50:
+            MG_solid_angle = (MG_solid_angle_tot - MG_missing_solid_angle_1
+                              - MG_missing_solid_angle_2)
+        else:
+            MG_solid_angle = (MG_solid_angle_tot - MG_missing_solid_angle_1)
+            
+    if isPureAluminium:
+        MG_solid_angle = 0.005518217498193907 - 0.00046026495055297194
     
+    # Get charge normalization
+    charge_norm = get_charge_norm(calibration)
+    
+    # Calculate total normalization
+    tot_norm = ((MG_solid_angle/He3_solid_angle)*charge_norm)
+    if isFiveByFive:
+        tot_norm = sum(MG_dE_hist)/sum(He3_dE_hist)
     
     # Plot background level
     hist_back = plot_dE_background(E_i[0], calibration, measurement_time, 
                                    norm_MG, he3_min, he3_max, back_yes, 
-                                   MG_solid_angle)
-    
+                                   tot_norm, isPureAluminium)
+
     # Plot MG and He3
     if vis_help is not True:
-        MG_dE_hist = MG_dE_hist/(MG_solid_angle*measurement_time)
-        He3_dE_hist = He3_dE_hist/(He3_solid_angle*He_duration)
-    plt.plot(He3_bin_centers+He3_offset, He3_dE_hist, label='He3', color='teal')
+        MG_dE_hist = MG_dE_hist/tot_norm
+        He3_dE_hist = He3_dE_hist
+    plt.plot(He3_bin_centers+He3_offset, He3_dE_hist, label='He3', color='blue')
     if back_yes is not True:
         MG_dE_hist = MG_dE_hist - hist_back
     plt.plot(MG_bin_centers, MG_dE_hist, label='Multi-Grid'
-             , color='crimson') 
+             ,color='red') 
     
     # Calculate FWHM
     MG_FWHM = ''
     He3_FWHM = ''
     if FWHM:
-        MG_FWHM, MG_SNR = get_FWHM(MG_bin_centers, MG_dE_hist, MG_left, MG_right, 
-                           vis_help, b_label='Background')
-        MG_FWHM = str(round(MG_FWHM,3))
-        He3_FWHM, He3_SNR = get_FWHM(He3_bin_centers+He3_offset, He3_dE_hist, He3_left, 
-                            He3_right, vis_help, b_label=None)
-        He3_FWHM = str(round(He3_FWHM,3))
+        MG_FWHM, MG_SNR, MG_MAX = get_FWHM(MG_bin_centers, MG_dE_hist, MG_left, MG_right, 
+                                           vis_help, b_label='Background')
+        MG_FWHM = str(round(MG_FWHM, 4))
+        He3_FWHM, He3_SNR, He3_MAX = get_FWHM(He3_bin_centers+He3_offset, He3_dE_hist, He3_left, 
+                                              He3_right, vis_help, b_label=None)
+        He3_FWHM = str(round(He3_FWHM, 4))
     
     
-    MG_peak_normalised = norm_MG/(measurement_time*MG_solid_angle)
-    He3_peak_normalised = norm_He3/(He_duration*He3_solid_angle)
-    MG_over_He3 = round(MG_peak_normalised/He3_peak_normalised,4)
+    MG_peak_normalised = norm_MG/tot_norm
+    He3_peak_normalised = norm_He3
+    MG_over_He3 = round(MG_peak_normalised/He3_peak_normalised, 4)
+    MG_over_He3_max = round((MG_MAX/He3_MAX), 4)
     # Plot text box
     text_string = r"$\bf{" + '---MultiGrid---' + "}$" + '\n'
-    text_string += 'Area: ' + str(round(MG_peak_normalised,1)) + ' [counts/s*SR]\n'
+    text_string += 'Area: ' + str(round(MG_peak_normalised,1)) + ' [counts]\n'
     text_string += 'FWHM: ' + MG_FWHM + ' [meV]\n'
     #text_string += 'SNR: ' + str(round(MG_SNR, 3)) + '\n'
     text_string += 'Duration: ' + str(round(measurement_time,1)) + ' [s]\n'
     text_string += r"$\bf{" + '---He3---' + "}$" + '\n'
-    text_string += 'Area: ' + str(round(He3_peak_normalised,1)) + ' [counts/s*SR]\n'
+    text_string += 'Area: ' + str(round(He3_peak_normalised,1)) + ' [counts]\n'
     text_string += 'FWHM: ' + He3_FWHM + ' [meV]\n'
    # text_string += 'SNR: ' + str(round(He3_SNR, 3)) + '\n'
     text_string += 'Duration: ' + str(round(He_duration,1)) + '  [s]\n'
@@ -1790,6 +1927,10 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
     title = calibration + '_meV' 
     if back_yes is not True:
         title += '\n(Background subtracted)'
+    if isPureAluminium:
+        title += '\nPure Aluminium'
+    if isFiveByFive:
+        title += '\n(Van__5x5 sample for Multi-Grid)'
     plt.title(title)
     plt.grid(True, which='major', zorder=0)
     plt.grid(True, which='minor', linestyle='--',zorder=0)    
@@ -1799,7 +1940,7 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
     else:
         path = get_plot_path(data_set) + calibration + '_meV_background_subtracted' + '.pdf'
     
-    return fig, path
+    return fig, path, MG_over_He3, MG_over_He3_max, He3_FWHM, MG_FWHM
 
 # =============================================================================
 # 22. ToF per voxel
@@ -1808,7 +1949,7 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
 def ToF_per_voxel(df, data_set, Bus):
     df = df[df.d != -1]
     df = df[(df.wADC > 500) & (df.gADC > 400)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
     df = df[df.Time < 1.5e12]
     df = df[df.Bus == Bus]
     folder = get_plot_path(data_set)
@@ -1834,7 +1975,8 @@ def ToF_per_voxel(df, data_set, Bus):
 # 23. Iterate through all energies and export energies
 # =============================================================================     
 
-def plot_all_energies():
+def plot_all_energies(isPureAluminium = False):
+    # Declare all the relevant file names
     Van_3x3_HF_clusters = ["['mvmelst_1577_15meV_HF.zip'].h5",
                            "['mvmelst_1578_20meV_HF.zip'].h5",
                            "['mvmelst_1579_25meV_HF.zip', '...'].h5",
@@ -1846,7 +1988,7 @@ def plot_all_energies():
                            "['mvmelst_1595_70meV_HF.zip', '...'].h5",
                            "['mvmelst_1597_80meV_HF.zip'].h5",
                            "['mvmelst_1598_90meV_HF.zip', '...'].h5",
-                           "['mvmelst_1600_100meV_HF.zip', '...'].h5,
+                           "['mvmelst_1600_100meV_HF.zip', '...'].h5",
                            "['mvmelst_1602_120meV_HF.zip'].h5",
                            "['mvmelst_1603_140meV_HF.zip', '...'].h5",
                            "['mvmelst_1605_160meV_HF.zip'].h5",
@@ -1872,25 +2014,234 @@ def plot_all_energies():
                            "['mvmelst_167.mvmelst'].h5",
                            "['mvmelst_168.mvmelst'].h5",
                            "['mvmelst_169.mvmelst'].h5"]
-                           
     
+    Van_3x3_HR_clusters = ["['mvmelst_125.mvmelst', '...'].h5",
+                           "['mvmelst_127.mvmelst'].h5",
+                           "['mvmelst_129.mvmelst'].h5",
+                           "['mvmelst_130.mvmelst'].h5",
+                           "['mvmelst_131.mvmelst'].h5",
+                           "['mvmelst_132.mvmelst', '...'].h5",
+                           "['mvmelst_134.mvmelst', '...'].h5",
+                           "['mvmelst_137.mvmelst'].h5",
+                           "['mvmelst_138.mvmelst'].h5",
+                           "['mvmelst_139.mvmelst'].h5",
+                           "['mvmelst_140.mvmelst'].h5",
+                           "['mvmelst_141.mvmelst'].h5",
+                           "['mvmelst_142.mvmelst', '...'].h5",
+                           "['mvmelst_145.mvmelst', '...'].h5",
+                           "['mvmelst_147.mvmelst'].h5",
+                           "['mvmelst_148.mvmelst'].h5",
+                           "['mvmelst_149.mvmelst'].h5",
+                           "['mvmelst_150.mvmelst'].h5",
+                           "['mvmelst_151.mvmelst'].h5",
+                           "['mvmelst_1556_60meV_HR.zip'].h5",
+                           "['mvmelst_1557_70meV_HR.zip', '...'].h5",
+                           "['mvmelst_1561_80meV_HR.zip'].h5",
+                           "['mvmelst_1562_90meV_HR.zip'].h5",
+                           "['mvmelst_1563_100meV_HR.zip'].h5",
+                           "['mvmelst_1564_120meV_HR.zip', '...'].h5",
+                           "['mvmelst_1566_140meV_HR.zip'].h5",
+                           "['mvmelst_1567_160meV_HR.zip', '...'].h5",
+                           "['mvmelst_1569_180meV_HR.zip'].h5",
+                           "['mvmelst_1570_200meV_HR.zip', '...'].h5",
+                           "['mvmelst_1572_225meV_HR.zip'].h5",
+                           "['mvmelst_1573_250meV_HR.zip', '...'].h5",
+                           "['mvmelst_1575_275meV_HR.zip'].h5",
+                           "['mvmelst_1576_300meV_HR.zip'].h5"]
+    
+    # Declare parameters
+    FWHM = True
+    vis_help = False
+    back_yes_vec = [True, False]
+    # Declare input-folder
+    dir_name = os.path.dirname(__file__)
+    clusters_folder = os.path.join(dir_name, '../Clusters/')
+    data_set_names = ['V_3x3_HF', 'V_3x3_HR']
+    m_data_sets = [Van_3x3_HF_clusters, Van_3x3_HR_clusters]
+    print('Choose data sets:')
+    for i, data_set_name in enumerate(data_set_names):
+        print('  ' + str(i+1) + '. ' + str(data_set_name))
+    choices = [int(x) for x in 
+               input('Enter data sets, use space(s) to separate: ').split()]
+    
+    print('Loading...')
+    for choice in choices:
+        m_type = data_set_names[choice - 1]
+        clusters = m_data_sets[choice - 1]
 
-
-# =============================================================================
-# 24. Plot dE background (test)
-# =============================================================================
+        print('---'+m_type+'---')
         
-def plot_dE_background_test(df, data_set):
+        # Declare 2D hist folder
+        hist_2D_folder = os.path.join(dir_name, '../../Histograms_2D/')
+        
+        # Declare output-folder
+        with_background_result_folder = os.path.join(dir_name, 
+                                                     '../../' + m_type + '/With_Background/')
+        without_background_result_folder = os.path.join(dir_name, 
+                                                    '../../' + m_type + '/Without_Background/')
+        folder_vec = [with_background_result_folder, 
+                      without_background_result_folder]
+        # Declare overview folder
+        overview_folder = os.path.join(dir_name,'../../' + m_type + '_overview/')
+        E_i_vec = []
+        max_frac_vec = []
+        area_frac_vec = []
+        He3_FWHM_vec = []
+        MG_FWHM_vec = []
+        for i, cluster_name in enumerate(clusters):
+            # Import clusters
+            clusters_path = clusters_folder + cluster_name
+            df = pd.read_hdf(clusters_path, 'coincident_events')
+            E_i = pd.read_hdf(clusters_path, 'E_i')['E_i'].iloc[0]
+            measurement_time = pd.read_hdf(clusters_path, 'measurement_time')['measurement_time'].iloc[0]
+            calibration = pd.read_hdf(clusters_path, 'calibration')['calibration'].iloc[0]
+            data_sets = pd.read_hdf(clusters_path, 'data_set')['data_set'].iloc[0]
+            # Plot clusters
+            for back_yes, folder in zip(back_yes_vec, folder_vec):
+                fig = plt.figure()
+                fig, __, a_frac, max_frac, He3_FWHM, MG_FWHM = plot_He3_data(fig, df, data_sets, calibration, 
+                                                                         measurement_time, E_i, FWHM, vis_help, 
+                                                                         back_yes, isPureAluminium)
+                path = folder + calibration
+                if back_yes is not True:
+                    path += '_Background_subtracted'
+                    E_i_vec.append(E_i)
+                    max_frac_vec.append(max_frac)
+                    area_frac_vec.append(a_frac)
+                    He3_FWHM_vec.append(float(He3_FWHM))
+                    MG_FWHM_vec.append(float(MG_FWHM))
+                path += '.pdf'
+                fig.savefig(path, bbox_inches='tight')
+                plt.close()
+            
+#            number_of_detectors = 3
+#            bus_vec = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+#            m_range = None
+#            count_range = [1, 5000]
+#            ADC_filter = None
+#            m_range = None
+#            ts_range = [0,np.inf]
+#            fig = plt.figure()
+#            fig, __ =plot_2D_hit_buses(fig, calibration, df, bus_vec, number_of_detectors, 
+#                                       data_sets, count_range, ADC_filter, m_range, 
+#                                       ts_range)
+#            path = hist_2D_folder + calibration + '.pdf'
+#            fig.savefig(path, bbox_inches='tight')
+#            plt.close()
+
+            
+        
+            percentage_finished = str(int(round((i/len(clusters))*100, 1))) + '%'
+            print(percentage_finished)
+
+        np.savetxt(overview_folder + 'E_i_vec.txt', E_i_vec, delimiter=",")
+        np.savetxt(overview_folder + 'max_frac_vec.txt', max_frac_vec, delimiter=",")
+        np.savetxt(overview_folder + 'area_frac_vec.txt', area_frac_vec, delimiter=",")
+        np.savetxt(overview_folder + 'He3_FWHM_vec.txt', He3_FWHM_vec, delimiter=",")
+        np.savetxt(overview_folder + 'MG_FWHM_vec.txt', MG_FWHM_vec, delimiter=",")
+                        
+
+# =============================================================================
+# 24. Plot overview of energies
+# =============================================================================
+    
+def plot_overview(fig):
+    dir_name = os.path.dirname(__file__)
+    data_set_names = ['V_3x3_HR', 'V_3x3_HF']
+   # fig.suptitle('Overview', x=0.5, y=1.02)
+#    fig.set_figheight(4)
+#    fig.set_figwidth(10)
+    color_vec = ['blue', 'red']
+    for i, data_set_name in enumerate(data_set_names):
+        overview_folder = os.path.join(dir_name,'../../' + data_set_name + '_overview/')
+        E_i = np.loadtxt(overview_folder + 'E_i_vec.txt', delimiter=",")
+        max_frac = np.loadtxt(overview_folder + 'max_frac_vec.txt', delimiter=",")
+        area_frac = np.loadtxt(overview_folder + 'area_frac_vec.txt', delimiter=",")
+        He3_FWHM = np.loadtxt(overview_folder + 'He3_FWHM_vec.txt', delimiter=",")
+        MG_FWHM = np.loadtxt(overview_folder + 'MG_FWHM_vec.txt', delimiter=",")
+      #  plt.subplot(1, 2, 1)
+#        plt.grid(True, which='major', zorder=0)
+#        plt.grid(True, which='minor', linestyle='--',zorder=0) 
+#        plt.title('Relative efficiency vs Energy\n(Peak area comparrison, MG/He3)')
+#       # plt.plot(E_i, max_frac, '-x', label='Peak maximum fraction (MG/He3)', zorder=5)
+#        plt.plot(E_i, area_frac, '-x', color=color_vec[i], label=data_set_name,
+#                 zorder=5)
+#        plt.xlabel('$E_i$ [meV]')
+#        plt.xscale('log')
+#        plt.ylabel('Relative efficiency')
+#        plt.legend()
+       # plt.subplot(1, 2, 2)
+        plt.grid(True, which='major', zorder=0)
+        plt.grid(True, which='minor', linestyle='--',zorder=0) 
+        plt.title('FWHM vs Energy')
+        plt.plot(E_i, MG_FWHM, '-x', label=data_set_name + ', MG', zorder=5)
+        plt.plot(E_i, He3_FWHM, '-x', label=data_set_name + ', He3', zorder=5)
+        plt.xlabel('$E_i$ [meV]')
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.ylabel('FWHM [meV]')
+        plt.legend()
+    
+    plt.tight_layout()
+    
+    
+    
+    
+    # Save file
+    dir_name = os.path.dirname(__file__)
+    path = os.path.join(dir_name,'../../V_3x3_Overview/V_3x3_Overview.pdf')
+    
+    return fig, path    
+
+
+# =============================================================================
+# 25. Plot raw He3 data
+# =============================================================================
+    
+def plot_Raw_He3(fig):
+    dir_name = os.path.dirname(__file__)
+    folder_name = os.path.join(dir_name,'../Archive/SEQ_raw/')
+    path = folder_name + 'SEQ_145178.nxs.h5'
+    He3_file = h5py.File(path, 'r')
+    
+    ToF_tot = []
+    pixels_tot = []
+    
+    for bank_value in range(40, 150):
+        bank = 'bank' + str(bank_value) + '_events'
+        ToF = He3_file['entry'][bank]['event_time_offset'].value
+        pixels = He3_file['entry'][bank]['event_id'].value
+        ToF_tot.extend(ToF)
+        pixels_tot.extend(pixels)
+    
+    plt.hist(ToF_tot, bins=1000)
+    plt.xlabel('ToF')
+    plt.ylabel('Counts')
+    plt.yscale('log')
+    
+    path = os.path.join(dir_name,'../RAW_HELIUM_TEST.pdf')
+    
+    return fig, path
+
+# =============================================================================
+# 26. Plot 3D plotly histogram
+# ============================================================================= 
+    
+def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
+    # Declare max and min count
+    min_count = 2
+    max_count = np.inf
+    # Calculate vertical line position
+    v_pos_x = (min_tof + max_tof)/2
+    # Perform initial filters
     df = df[df.d != -1]
     df = df[(df.wADC > 500) & (df.gADC > 400)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
-    df = df[df.Time < 1.5e12]
-    folder = get_plot_path(data_set)
-    
-    offset_1 = {'x': -0.907574, 'y': -3.162949, 'z': 5.384863}
-    offset_2 = {'x': -1.246560, 'y': -3.161484, 'z': 5.317432}
+    df = df[(df.wM == 1) & (df.gM <= 5)]
+    # Declare offsets
+    offset_1 = {'x': -0.907574, 'y': -3.162949,  'z': 5.384863}
+    offset_2 = {'x': -1.246560, 'y': -3.161484,  'z': 5.317432}
     offset_3 = {'x': -1.579114, 'y': -3.164503,  'z': 5.227986}
-    
+    # Calculate angles
     corners = {'ESS_2': {1: [-1.579114, -3.164503, 5.227986],
                          2: [-1.252877, -3.162614, 5.314108]},
                'ESS_1': {3: [-1.246560, -3.161484, 5.317432],
@@ -1898,48 +2249,266 @@ def plot_dE_background_test(df, data_set):
                'ILL':   {5: [-0.907574, -3.162949, 5.384863],
                          6: [-0.575025, -3.162578, 5.430037]}
                 }
-    
     ILL_C = corners['ILL']
     ESS_1_C = corners['ESS_1']
     ESS_2_C = corners['ESS_2']
-    
     theta_1 = np.arctan((ILL_C[6][2]-ILL_C[5][2])/(ILL_C[6][0]-ILL_C[5][0]))
     theta_2 = np.arctan((ESS_1_C[4][2]-ESS_1_C[3][2])/(ESS_1_C[4][0]-ESS_1_C[3][0]))
     theta_3 = np.arctan((ESS_2_C[2][2]-ESS_2_C[1][2])/(ESS_2_C[2][0]-ESS_2_C[1][0]))
-    
+    # Initiate detector mappings
     detector_1 = create_ill_channel_to_coordinate_map(theta_1, offset_1)
     detector_2 = create_ess_channel_to_coordinate_map(theta_2, offset_2)
     detector_3 = create_ess_channel_to_coordinate_map(theta_3, offset_3)
-    
     detector_vec = [detector_1, detector_2, detector_3]
-    detector_names = ['ILL', 'ESS - Natural Aluminium', 'ESS - Pure Aluminium']
-    
+    # Initiate all voxels
+    x_prime = []
+    y_prime = []
+    z_prime = []
     lower_bus = 0
     upper_bus = 3
-
-    d_vec = np.zeros(80 * 40 * 9)
-    count = 0
-    for i, detector in enumerate(detector_vec):
-        count = 0
-        for bus in range(lower_bus,upper_bus):
-            for wCh in range(0,80):
-                for gCh in range(80,120):
-                    coord = detector[bus%3, gCh, wCh]
-                    d = np.sqrt(coord['x'] ** 2 + coord['y'] ** 2 + coord['z'] ** 2) 
-                    d_vec[count] = d
-                    count += 1
-    lower_bus += 3
-    upper_bus += 3
     
     
+#    for i, detector in enumerate(detector_vec):
+#        for bus in range(lower_bus,upper_bus):
+#            for wCh in range(0,80):
+#                for gCh in range(80,120):
+#                    isBottom    = (gCh == 80)
+#                    isTop       = (gCh == 119)
+#                    isFrontEdge = (wCh == 0) | (wCh == 20) | (wCh == 40) | (wCh == 60)
+#                    isBackEdge  = (wCh == 19) | (wCh == 39) | (wCh == 59) | (wCh == 79)
+#                    isRightEdge = (0 <= wCh <= 19)
+#                    isLeftedge  = (60 <= wCh <= 79)
+#                    if bus >= 3:
+#                        if (((isBottom or isTop) and (isFrontEdge or isBackEdge or isRightEdge or isLeftedge))
+#                            or ((wCh == 0) or (wCh == 19) or (wCh == 60) or (wCh == 79))):
+#                            coord = detector[bus%3, gCh, wCh]
+#                            x_prime.append(coord['x'])
+#                            y_prime.append(coord['y'])
+#                            z_prime.append(coord['z']) 
+#                    else:
+#                        if bus == 0:
+#                            if (((isBottom or isTop) and (isFrontEdge or isBackEdge or isRightEdge))
+#                                or ((wCh == 0) or (wCh == 19))):
+#                                coord = detector[bus%3, gCh, wCh]
+#                                x_prime.append(coord['x'])
+#                                y_prime.append(coord['y'])
+#                                z_prime.append(coord['z'])
+#                        if bus == 1:
+#                            if (((isBottom or isTop) and (isFrontEdge or isBackEdge))):
+#                                coord = detector[bus%3, gCh, wCh]
+#                                x_prime.append(coord['x'])
+#                                y_prime.append(coord['y'])
+#                                z_prime.append(coord['z'])
+#                        if bus == 2:
+#                            if (((isBottom or isTop) and (isFrontEdge or isBackEdge or isLeftedge))
+#                                or ((wCh == 60) or (wCh == 79))):
+#                                coord = detector[bus%3, gCh, wCh]
+#                                x_prime.append(coord['x'])
+#                                y_prime.append(coord['y'])
+#                                z_prime.append(coord['z']) 
+#                            
+#                            
+#        lower_bus += 3
+#        upper_bus += 3
     
-    d_vec
+    pairs = [[[80, 0], [80, 60]],
+             [[80, 0], [80, 19]],
+             [[80, 79], [80, 60]],
+             [[80, 79], [80, 19]],
+             [[119, 0], [119, 60]],
+             [[119, 0], [119, 19]],
+             [[119, 79], [119, 60]],
+             [[119, 79], [119, 19]],
+             [[80, 0], [119, 0]],
+             [[80, 19], [119, 19]],
+             [[80, 60], [119, 60]],
+             [[80, 79], [119, 79]]
+            ]
     
-    ToF_vec = np.arange(0, 266600, 1600)
-    
-    
-    
+    b_traces = []
+    for bus in range(3, 9):
+        detector = detector_vec[bus//3]
+        for pair in pairs:
+            x_vec = []
+            y_vec = []
+            z_vec = []
+            for loc in pair:
+                gCh = loc[0]
+                wCh = loc[1]
+                coord = detector[bus%3, gCh, wCh]
+                x_vec.append(coord['x'])
+                y_vec.append(coord['y'])
+                z_vec.append(coord['z'])
+                
+      
+            b_trace = go.Scatter3d(x=z_vec,
+                                   y=x_vec,
+                                   z=y_vec,
+                                   mode='lines',
+                                   line = dict(
+                                                color='rgba(0, 0, 0, 0.5)',
+                                                width=5)
+                                    )
+            b_traces.append(b_trace)
+       
+    detector = detector_vec[0]
+    pairs_2 = [[[80, 0, 0], [80, 60, 2]],
+               [[80, 0, 0], [80, 19, 0]],
+               [[80, 79, 2], [80, 60, 2]],
+               [[80, 79, 2], [80, 19, 0]],
+               [[119, 0, 0], [119, 60, 2]],
+               [[119, 0, 0], [119, 19, 0]],
+               [[119, 79, 2], [119, 60, 2]],
+               [[119, 79, 2], [119, 19, 0]],
+               [[80, 0, 0], [119, 0, 0]],
+               [[80, 19, 0], [119, 19, 0]],
+               [[80, 60, 2], [119, 60, 2]],
+               [[80, 79, 2], [119, 79, 2]]
+               ]
+    for pair in pairs_2:
+        x_vec = []
+        y_vec = []
+        z_vec = []
+        for loc in pair:
+            gCh = loc[0]
+            wCh = loc[1]
+            bus = loc[2]
+            coord = detector[bus%3, gCh, wCh]
+            x_vec.append(coord['x'])
+            y_vec.append(coord['y'])
+            z_vec.append(coord['z'])
+                
+      
+        b_trace = go.Scatter3d(x=z_vec,
+                               y=x_vec,
+                               z=y_vec,
+                               mode='lines',
+                               line = dict(
+                                       color='rgba(0, 0, 0, 0.5)',
+                                       width=5)
+                                           )
+        b_traces.append(b_trace)
         
+    # Calculate 3D histogram
+    H, edges = np.histogramdd(df[['wCh','gCh', 'Bus']].values, 
+                              bins=(80, 40, 9), 
+                              range=((0, 80), (80, 120), (0,9))
+                             )
+    # Insert results into an array
+    flip_bus = {0: 2, 1: 1, 2: 0}
+    hist = [[], [], [], []]
+    loc = 0
+    for wCh in range(0, 80):
+        for gCh in range(80, 120):
+            for bus in range(0, 9):
+                detector = detector_vec[bus//3]
+                if H[wCh, gCh-80, bus] > min_count and H[wCh, gCh-80, bus] <= max_count:
+                    coord = detector[flip_bus[bus%3], gCh, wCh]
+                    hist[0].append(coord['x'])
+                    hist[1].append(coord['y'])
+                    hist[2].append(coord['z'])
+                    hist[3].append(H[wCh, gCh-80, bus])
+                    loc = loc + 1
+#    for coord in [[-3.5, -1.6, 5.1, 1], [-3.5, -1.6, 5.1, 100]]:
+#        for index in range(4):
+#            hist[index].append(coord[index])
+    # Produce 3D histogram plot
+    MG_3D_trace = go.Scatter3d(x=hist[2],
+                               y=hist[0],
+                               z=hist[1],
+                               mode='markers',
+                               marker=dict(
+                                       size=5,
+                                       color = hist[3],
+                                       colorscale = 'Jet',
+                                       opacity=1.0,
+#                                       colorbar=dict(thickness=20,
+#                                                     title = 'Intensity [a.u.]',
+#                                                     tickmode = 'array',
+#                                                     tickvals = [1, 25, 50],
+#                                                     ticktext = ['Low','Medium','High'],
+#                                                     ticks = 'outside'
+#                                                     ),
+#                                       cmin = 1,
+#                                       cmax = 50
+                                       ),
+                               name='Multi-Grid',
+                               scene='scene1'
+                               )
+                        
+    color_lim_trace = go.Scatter3d(x=[5.5, 5.5],
+                                   y=[-1, -1],
+                                   z=[-2.5, -2.5],
+                                   mode='markers',
+                                   marker=dict(
+                                           size=0.01,
+                                           color = [0, 50000],
+                                           colorscale = 'Jet',
+                                           opacity=0,
+                                           colorbar=dict(thickness=20,
+                                                         title = 'Intensity [a.u.]',
+                                                         tickmode = 'array',
+                                                         tickvals = [0, 25000, 50000],
+                                                         ticktext = ['Low','Medium','High'],
+                                                         ticks = 'outside'
+                                                         ),
+                                        ),
+                                    )
+                                       
+    
+                                     
+    # Produce histogram
+    ToF_hist, ToF_bins = np.histogram(df_tot.ToF * 62.5e-9 * 1e6, bins = 1000)
+    ToF_bin_centers = 0.5 * (ToF_bins[1:] + ToF_bins[:-1])
+    ToF_trace = go.Scatter(
+                           x = ToF_bin_centers,
+                           y = ToF_hist,
+                           fill = 'tozerox',
+                           marker = dict(
+                                         color = 'rgb(0, 0, 0)'
+                                        ),
+                           fillcolor = 'rgba(0, 0, 255, .5)',
+                           opacity = 0.5,
+                           line = dict(
+                                       width = 2
+                                       )
+                           )
+    # Introduce figure and put everything together
+    fig = py.tools.make_subplots(rows=1, cols=2, 
+                             specs=[[{'is_3d': False}, 
+                                     {'is_3d': True}]]
+                                 )
+    
+    for b_trace in b_traces:
+        fig.append_trace(b_trace, 1, 2)
+    fig.append_trace(color_lim_trace, 1, 2)
+    fig.append_trace(MG_3D_trace, 1, 2)
+    fig.append_trace(ToF_trace, 1, 1)
+    a = 0.92
+    camera = dict(
+                 up=dict(x=0, y=0, z=1),
+                 center=dict(x=0, y=0, z=0),
+                 eye=dict(x=-2*a, y=-0.5*a, z=1.3*a)
+                 )
+    fig['layout']['scene1']['xaxis'].update(title='z [m]') # range=[5.28, 5.66]
+    fig['layout']['scene1']['yaxis'].update(title='x [m]') # range=[-1.64, -0.6]
+    fig['layout']['scene1']['zaxis'].update(title='y [m]') # range=[-3.13, -2.2]
+    fig['layout']['scene1']['camera'].update(camera)
+    fig['layout']['xaxis1'].update(title='ToF [µs]', showgrid=True,
+                                   range=[0, 9.1e3])
+    fig['layout']['yaxis1'].update(title='Intensity [a.u.]', range=[5, 13e3], 
+                                   showgrid=True)
+    fig['layout'].update(title='White beam on Silicon Crystal',
+                         height=600, width=1300)
+    fig.layout.showlegend = False
+    shapes = [
+            {'type': 'line', 'x0': v_pos_x, 'y0': 0, 'x1': v_pos_x, 'y1': 20000,
+             'line':  {'color': 'rgb(500, 0, 0)', 'width': 5}} 
+            ]
+    fig['layout'].update(shapes=shapes)
+    pio.write_image(fig, path)
+    #py.offline.plot(fig, filename='simple-3d-scatter.html', auto_open=True)
+                                
     
     
 
@@ -1964,7 +2533,7 @@ def filter_clusters(df):
     df = df[df.d != -1]
     df = df[df.tf > 0]
     df = df[(df.wADC > 500) & (df.gADC > 400)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
     return df
 
 def calculate_peak_norm(bin_centers, hist, left_edge, right_edge):
@@ -2195,7 +2764,7 @@ def get_FWHM(bin_centers, hist, left_edge, right_edge, vis_help,
     R = xx_right[right_idx]
     FWHM = R - L
 
-    return FWHM, SNR
+    return FWHM, SNR, maximum
 
 
 def get_peak_edges(calibration):
@@ -2235,15 +2804,29 @@ def import_He3_coordinates():
     return x, y, z
 
 def plot_dE_background(E_i, calibration, measurement_time, 
-                       MG_norm, he_min, he_max, back_yes, MG_solid_angle):
+                       MG_norm, he_min, he_max, back_yes, tot_norm,
+                       isPureAluminium = False, lim_ToF_vec = None):
+    print('Lim ToF vec: ' + str(lim_ToF_vec))
+    print('TOT NORM: ' + str(tot_norm))
     # Import background data
     dirname = os.path.dirname(__file__)
     clu_path = os.path.join(dirname, '../Clusters/Background.h5')
     df = pd.read_hdf(clu_path, 'coincident_events')
     df = df[df.d != -1]
     df = df[(df.wADC > 500) & (df.gADC > 400)]
-    df = df[(df.wM == 1) & (df.gM < 5)]
+    df = df[(df.wM == 1) & (df.gM <= 5)]
     df = df[df.Time < 1.5e12]
+    print('Length of df before: ' + str(df.shape[0]))
+    if lim_ToF_vec is not None:
+        print('Hello')
+        df = df[  (df.ToF * 62.5e-9 * 1e6 >= lim_ToF_vec[0])
+                & (df.ToF * 62.5e-9 * 1e6 <= lim_ToF_vec[1])]
+    print('Length of df after: ' + str(df.shape[0]))
+    
+    if isPureAluminium:
+        df = df[(df.Bus <= 8) & (df.Bus >= 6)]
+        df = df[  (df.gCh != 119) & (df.gCh != 80) 
+                & (df.gCh != 99) & (df.gCh != 101)]
     # Calculate background duration
     start_time = df.head(1)['Time'].values[0]
     end_time = df.tail(1)['Time'].values[0]
@@ -2262,7 +2845,7 @@ def plot_dE_background(E_i, calibration, measurement_time,
     number_of_events = len(dE)
     events_per_s = number_of_events / duration
     events_s_norm = events_per_s / number_of_events
-    weights = ((1/(measurement_time*MG_solid_angle)) 
+    weights = ((1/tot_norm) 
                 * events_s_norm * measurement_time * np.ones(len(dE)))
     # Histogram background
     dE_bins = 390
@@ -2277,8 +2860,191 @@ def plot_dE_background(E_i, calibration, measurement_time,
     return MG_dE_hist
 
 
+def mkdir_p(mypath):
+    '''Creates a directory. equivalent to using mkdir -p on the command line'''
+
+    from errno import EEXIST
+    from os import makedirs,path
+
+    try:
+        makedirs(mypath)
+    except OSError as exc: # Python >2.5
+        if exc.errno == EEXIST and path.isdir(mypath):
+            pass
+        else: raise
 
 
+def get_charge_norm(calibration):
+    dir_name = os.path.dirname(__file__)
+    path = os.path.join(dir_name, '../Tables/Charge_normalisation.xlsx')
+    matrix = pd.read_excel(path).values
+    charge_norm_table = {}
+    for i, row in enumerate(matrix):
+        charge_norm_table.update({row[0]: [row[2], row[5], row[7], row[8]]})
     
+    no_glitch_time = charge_norm_table[calibration][0]
+    total_time = charge_norm_table[calibration][1]
+    MG_charge = charge_norm_table[calibration][2]
+    He3_charge = charge_norm_table[calibration][3]
+    charge_norm = ((MG_charge * (no_glitch_time/total_time)) / He3_charge)
+    print(charge_norm)
     
+    return charge_norm
+
+def create_ess_channel_to_coordinate_map(theta, offset):
+    dirname = os.path.dirname(__file__)
+    file_path = os.path.join(dirname, 
+                             '../Tables/Coordinates_MG_SEQ_ESS.xlsx')
+    matrix = pd.read_excel(file_path).values
+    coordinates = matrix[1:801]
+    ess_ch_to_coord = np.empty((3,124,80),dtype='object')
+    coordinate = {'x': -1, 'y': -1, 'z': -1}
+    axises =  ['x','y','z']
+    
+    c_offset = [[-1, 1, -1], [-1, -1, 1], [-1, 1, 1]]
+    c_count = 0
+    
+    for i, row in enumerate(coordinates):
+        grid_ch = i // 20 + 80
+        for j, col in enumerate(row):
+            module = j // 12
+            layer = (j // 3) % 4
+            wire_ch = (19 - (i % 20)) + (layer * 20)
+            coordinate_count = j % 3
+            coordinate[axises[coordinate_count]] = col
+            if coordinate_count == 2:
+                x = coordinate['x']
+                y = coordinate['y']
+                z = coordinate['z']
+                # Convert from [mm] to [m]
+                x = x/1000
+                y = y/1000
+                z = z/1000
+                # Insert corners of vessels
+                if wire_ch == 0 and grid_ch == 80 and module == 0:
+                    ess_ch_to_coord[0][120][0] = {'x': offset['x'], 'y': offset['y'], 'z': offset['z']}
+                if (  (wire_ch == 0 and grid_ch == 119 and module == 0)
+                    | (wire_ch == 60 and grid_ch == 80 and module == 2)
+                    | (wire_ch == 60 and grid_ch == 119 and module == 2)
+                    ):
+                    x_temp = x + 46.514/1000 * c_offset[c_count][0] + np.finfo(float).eps
+                    y_temp = y + 37.912/1000 * c_offset[c_count][1] + np.finfo(float).eps
+                    z_temp = z + 37.95/1000 * c_offset[c_count][2] + np.finfo(float).eps
+                    z_temp, x_temp, y_temp = x_temp, y_temp, z_temp
+                    x_temp, z_temp = get_new_x(x_temp, z_temp, theta), get_new_y(x_temp, z_temp, theta)
+                    # Apply translation
+                    x_temp += offset['x']
+                    y_temp += offset['y']
+                    z_temp += offset['z']
+                    ess_ch_to_coord[0][121+c_count][0] = {'x': x_temp, 
+                                                          'y': y_temp,
+                                                          'z': z_temp}
+                    c_count += 1
+                
+                # Shift to match internal and external coordinate system
+                z, x, y = x, y, z
+                # Apply rotation
+                x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                # Apply translation
+                x += offset['x']
+                y += offset['y']
+                z += offset['z']
+
+                ess_ch_to_coord[module, grid_ch, wire_ch] = {'x': x, 'y': y,
+                                                             'z': z}
+                coordinate = {'x': -1, 'y': -1, 'z': -1}
+
+    return ess_ch_to_coord
+    
+def create_ill_channel_to_coordinate_map(theta, offset):
+        
+    WireSpacing  = 10     #  [mm]
+    LayerSpacing = 23.5   #  [mm]
+    GridSpacing  = 23.5   #  [mm]
+    
+    x_offset = 46.514     #  [mm]
+    y_offset = 37.912     #  [mm]
+    z_offset = 37.95      #  [mm]
+    
+    corners =   [[0, 80], [0, 119], [60, 80], [60, 119]]
+    corner_offset = [[-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1]]
+    
+    # Make for longer to include the for corners of the vessel
+    ill_ch_to_coord = np.empty((3,124,80),dtype='object')
+    for Bus in range(0,3):
+        for GridChannel in range(80,120):
+            for WireChannel in range(0,80):
+                    x = (WireChannel % 20)*WireSpacing + x_offset
+                    y = ((WireChannel // 20)*LayerSpacing 
+                         + (Bus*4*LayerSpacing) + y_offset)
+                    z = ((GridChannel-80)*GridSpacing) + z_offset 
+                    # Convert from [mm] to [m]
+                    x = x/1000
+                    y = y/1000
+                    z = z/1000
+                    # Shift to match internal and external coordinate system
+                    z, x, y = x, y, z
+                    # Apply rotation
+                    x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                    # Apply translation
+                    x += offset['x']
+                    y += offset['y']
+                    z += offset['z']
+                                        
+                    ill_ch_to_coord[Bus,GridChannel,WireChannel] = {'x': x,
+                                                                    'y': y,
+                                                                    'z': z}
+        if Bus == 0:
+            for i, corner in enumerate(corners[1:2]):
+                WireChannel = corner[0]
+                GridChannel = corner[1]
+                x = (WireChannel % 20)*WireSpacing + x_offset
+                y = ((WireChannel // 20)*LayerSpacing + (Bus*4*LayerSpacing) + y_offset)
+                z = ((GridChannel-80)*GridSpacing) + z_offset 
+                x += corner_offset[i+1][0] * x_offset
+                y += corner_offset[i+1][1] * y_offset
+                z += corner_offset[i+1][2] * z_offset
+                x = x/1000 + np.finfo(float).eps
+                y = y/1000 + np.finfo(float).eps
+                z = z/1000 + np.finfo(float).eps
+                z, x, y = x, y, z
+
+                x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                x += offset['x']
+                y += offset['y']
+                z += offset['z']
+                ill_ch_to_coord[0, 121+i, 0] = {'x': x, 'y': y, 'z': z}
+        
+            ill_ch_to_coord[Bus, 120, 0] = {'x': offset['x'], 'y': offset['y'], 'z': offset['z']}
+
+            
+        if Bus == 2:
+            for i, corner in enumerate(corners[2:]):
+                WireChannel = corner[0]
+                GridChannel = corner[1]
+                x = (WireChannel % 20)*WireSpacing + x_offset
+                y = ((WireChannel // 20)*LayerSpacing + (Bus*4*LayerSpacing) + y_offset)
+                z = ((GridChannel-80)*GridSpacing) + z_offset 
+                x += corner_offset[i+2][0] * x_offset
+                y += corner_offset[i+2][1] * y_offset
+                z += corner_offset[i+2][2] * z_offset
+                x = x/1000
+                y = y/1000
+                z = z/1000
+                z, x, y = x, y, z
+                x, z = get_new_x(x, z, theta), get_new_y(x, z, theta)
+                x += offset['x']
+                y += offset['y']
+                z += offset['z']
+                ill_ch_to_coord[0, 122+i, 0] = {'x': x, 'y': y, 'z': z}
+            
+    return ill_ch_to_coord
+
+
+def get_new_x(x, y, theta):
+    return np.cos(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
+    
+
+def get_new_y(x, y, theta):
+    return np.sin(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
     
