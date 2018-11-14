@@ -561,7 +561,7 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
                          'Scatter Map (collected charge in wires and grids)', 
                          'ToF Histogram', 'Events per channel', 
                          'Timestamp and Trigger', 
-                         'Delta E (compare filters)', 
+                         'Standard Delta E histogram', 
                          'Delta E',
                          'ToF vs d + dE',
                          'Compare cold and thermal',
@@ -986,20 +986,15 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             
         
         if analysis_type == 12:
-            print('Adjust ToF-filter (y/n)?')
-            adjust_ans = input('>> ')
-            ToF_min = -np.inf
-            ToF_max = np.inf
-            if adjust_ans == 'y':
-                ToF_min = input('ToF min: ')
-                ToF_max = input('ToF max: ')
-                ToF_min = int(ToF_min)
-                ToF_max = int(ToF_max)
-
             print('Loading...')
+            print('Plot background (y/n)?')
+            back_yes = False
+            back_yes_ans = input('>> ')
+            if back_yes_ans == 'y':
+                back_yes = True
             fig, path = pl.dE_histogram(fig, name, coincident_events, 
-                                        data_set, E_i, ToF_min, ToF_max)
-
+                                        data_set, E_i, calibration,
+                                        measurement_time, back_yes)
             print('Done!')
         
         if analysis_type == 13:
@@ -1198,12 +1193,18 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             FiveByFive_ans = input('>> ')
             if FiveByFive_ans == 'y':
                 isFiveByFive = True
+            print('Use the raw He3 files (y/n)?')
+            isRaw = False
+            isRaw_ans = input('>> ')
+            if isRaw_ans == 'y':
+                isRaw = True
                 
             print('Loading...')
             fig, path, __, __, __, __ = pl.plot_He3_data(fig, coincident_events, 
                                                  data_set, 
                                                  calibration, measurement_time, 
                                                  E_i, FWHM, vis_help, back_yes,
+                                                 isRaw,
                                                  isPureAluminium, isFiveByFive)
             print('Done!')
         
@@ -1220,7 +1221,12 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             al_yes_ans = input('>> ')
             if al_yes_ans == 'y':
                 isPureAluminium = True
-            pl.plot_all_energies(isPureAluminium)
+            print('Use the raw He3 files (y/n)?')
+            isRaw = False
+            isRaw_ans = input('>> ')
+            if isRaw_ans == 'y':
+                isRaw = True
+            pl.plot_all_energies(isPureAluminium, isRaw)
             print('Done!')
         
         if analysis_type == 24:
@@ -1229,13 +1235,26 @@ def choose_analysis_type(module_order, data_set, E_i, measurement_time,
             print('Done!')
             
         if analysis_type == 25:
+            print('Enter incident neutron energy E_i:')
+            E_i = input('E_i [meV]: ')
+            E_i = float(E_i)  
+            print('Choose calibration: ')
+            calibrations =  ['High_Resolution', 'High_Flux', 'RRM']
+            for i, calibration in enumerate(calibrations):
+                print('    ' + str(i+1) + '. ' + calibration)
+            print('Enter a number between 1-3.')
+            selection = input('>> ')
+            selection = int(selection)
+            calibration = calibrations[selection-1]
+            calibration = 'Van__3x3_' + calibration + '_Calibration_' + str(E_i)
             print('Loading...')
-            fig, path = pl.plot_Raw_He3(fig)
+            fig, path = pl.plot_Raw_He3(fig, E_i, calibration)
             print('Done!')
             
         if analysis_type == 26:
             print('Loading...')
-            pl.plot_plotly_3D_histogram(coincident_events)
+            pl.plot_plotly_3D_histogram(coincident_events, coincident_events,
+                                        'hej', data_set)
             print('Done!')
             
         if ((analysis_type <= len(analysis_name_vec)) 
@@ -1602,14 +1621,15 @@ def animation_3D_plotly(coincident_events, data_sets, start, stop, step):
                      & (ce['ToF'] * 62.5e-9 * 1e6 <= max_tof)]
 
         path = temp_folder + str(i) + '.png'
-        pl.plot_plotly_3D_histogram(ce, ce_temp, path, min_tof, max_tof)
+        pl.plot_plotly_3D_histogram(ce, ce_temp, path, data_sets,
+                                    min_tof, max_tof)
 
     images = []
     files = os.listdir(temp_folder)
     files = [file[:-4] for file in files if file[-9:] != '.DS_Store' 
              and file != '.gitignore']
     
-    output_path = get_output_path(data_sets) + '3D_ToF_sweep_NEW.gif'
+    output_path = get_output_path(data_sets) + '3D_ToF_sweep_NEW_3.gif'
     
     
     for filename in sorted(files, key=int):

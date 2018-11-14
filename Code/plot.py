@@ -675,12 +675,15 @@ def plot_ToF_histogram(fig, name, df, data_set, duration,
         idx = (np.abs(array - value)).argmin()
         return idx
     
+    
 #    rnge = [rnge[0] * 62.5e-9 * 1e6, rnge[1] * 62.5e-9 * 1e6]
     print('Range')
     print(rnge)
     
     # Remove this line, used to only capture coincident events
     df = df[(df.wCh != -1) & (df.gCh != -1)]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    df = df[(df.wM == 1) & (df.gM <= 5) & (df.gM >= 1)]
     
     if ADC_filter != None:
         minADC = ADC_filter[0]
@@ -702,44 +705,44 @@ def plot_ToF_histogram(fig, name, df, data_set, duration,
                                    log=log, color='black', zorder = 4, 
                                    histtype='step')
 #    
-    bin_centers = 0.5 * (bins[1:] + bins[:-1])
-    maximum = max(hist[50:])
-    peak=np.where(hist == maximum)
-    print(peak)
-    peak = peak[len(peak)//2][0]
-    print(peak)
-    start = find_nearest(hist[:peak], hist[peak]/2)
-    stop = find_nearest(hist[peak:], hist[peak]/2)
-    print('Bincenters')
-    print(bin_centers[start])
-    print(bin_centers[peak+stop])
-#        
+#    bin_centers = 0.5 * (bins[1:] + bins[:-1])
+#    maximum = max(hist[50:])
+#    peak=np.where(hist == maximum)
+#    print(peak)
+#    peak = peak[len(peak)//2][0]
+#    print(peak)
+#    start = find_nearest(hist[:peak], hist[peak]/2)
+#    stop = find_nearest(hist[peak:], hist[peak]/2)
+#    print('Bincenters')
+#    print(bin_centers[start])
+#    print(bin_centers[peak+stop])
+##        
+##    
+#    plt.plot([bin_centers[start], bin_centers[peak+stop]], 
+#             [hist[start], hist[peak+stop]], 'rx', zorder=7)
+##    
 #    
-    plt.plot([bin_centers[start], bin_centers[peak+stop]], 
-             [hist[start], hist[peak+stop]], 'rx', zorder=7)
 #    
-    
-    
-    tot_events = df.shape[0]
-    print('tot_events: ' + str(tot_events))
-    events_per_s = tot_events/duration
-    print('events_per_s' + str(events_per_s))
-    
-    print('signal_events: ' + str(sum(hist[start:peak+stop])))
-    s_time = (bin_centers[peak+stop] - bin_centers[start]) * 1e-6 
-    period_time = 0.016666666666666666
-    print('S_time: ' + str(s_time))
-    s_events_per_s = sum(hist[start:peak+stop])/(duration*(s_time/period_time))
+#    tot_events = df.shape[0]
+#    print('tot_events: ' + str(tot_events))
+#    events_per_s = tot_events/duration
+#    print('events_per_s' + str(events_per_s))
 #    
-    
-    
-    text_string = 'Average rate: ' + str(round(events_per_s,1)) + ' [Hz]'
-    text_string += '\nPeak Rate: ' + str(round(s_events_per_s, 1)) + ' [Hz]'
-    
-    plt.text(14e3, maximum/10, text_string, ha='center', va='center', 
-             bbox={'facecolor':'white', 'alpha':0.8, 'pad':10}, fontsize=8, 
-             zorder=5)
-    
+#    print('signal_events: ' + str(sum(hist[start:peak+stop])))
+#    s_time = (bin_centers[peak+stop] - bin_centers[start]) * 1e-6 
+#    period_time = 0.016666666666666666
+#    print('S_time: ' + str(s_time))
+#    s_events_per_s = sum(hist[start:peak+stop])/(duration*(s_time/period_time))
+##    
+#    
+#    
+#    text_string = 'Average rate: ' + str(round(events_per_s,1)) + ' [Hz]'
+#    text_string += '\nPeak Rate: ' + str(round(s_events_per_s, 1)) + ' [Hz]'
+#    
+#    plt.text(14e3, maximum/10, text_string, ha='center', va='center', 
+#             bbox={'facecolor':'white', 'alpha':0.8, 'pad':10}, fontsize=8, 
+#             zorder=5)
+#    
     
 #    
     plt.title(name)
@@ -845,51 +848,57 @@ def plot_timestamp_and_trigger(fig, name, data_set, coincident_events,
     return fig, plot_path
 
 # =============================================================================
-# 12. Delta E histogram (compare filters)
+# 12. Delta E histogram 
 # =============================================================================
     
-def dE_histogram(fig, name, df, data_set, E_i, ToF_min, ToF_max):
+def dE_histogram(fig, name, df, data_set, E_i, calibration, measurement_time,
+                 back_yes):
     T_0 = get_T0(calibration, E_i)
-    t_off = get_t_off(E_i)
+    t_off = get_t_off(calibration)
     
 
     df = df[df.d != -1]
-    df = df[(df.wM == 1) & (df.gM <= 5)]
-        
-    name = ('12. Histogram of $E_i$ - $E_f$, ' + str(E_i) + 'meV')
-    fig.suptitle(name, x=0.5, y=1.05)
-    dE_bins = 500
+    df = df[(df.wM == 1) & (df.gM <= 5) & (df.gM >= 1)]
+    df = df[(df.wADC > 500) & (df.gADC > 400)]
+    
+    name = 'Histogram of $E_i$ - $E_f$'
+    name += ('\nData_set: ' + str(data_set))
+    dE_bins = 390
     dE_range = [-E_i, E_i]
-    plt.subplot(2, 1, 1)
     plt.grid(True, which='major', zorder=0)
     plt.grid(True, which='minor', linestyle='--',zorder=0)
-    plt.hist(df.dE, bins=dE_bins, range=dE_range, log=LogNorm(), 
-             color='black', histtype='step', label='Without filter', 
-             zorder=3)
-    plt.hist(df[(df.wADC >= 500) & (df.gADC >= 400) 
-                & (df.ToF >= ToF_min) & (df.ToF <= ToF_max)].dE, bins=dE_bins, 
-             range=dE_range, log=LogNorm(), color='red', histtype='step', 
-             label='With filter', zorder=3)
-    plt.legend()
-    plt.xlabel('$E_i$ - $E_f$ [meV]')
-    plt.ylabel('Intensity [Counts]')
-    plt.title('Histogram of $E_i$ - $E_f$')
+    t_off = get_t_off(calibration) * np.ones(df.shape[0])
+    T_0 = get_T0(calibration, E_i) * np.ones(df.shape[0])
+    frame_shift = get_frame_shift(E_i) * np.ones(df.shape[0])
+    E_i = E_i * np.ones(df.shape[0])
+    ToF = df.ToF.values
+    d = df.d.values
+    dE, t_f = get_dE(E_i, ToF, d, T_0, t_off, frame_shift)
+    df_temp_new = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+    df_temp_new = df_temp_new[df_temp_new['t_f'] > 0]
+    hist_MG, bins = np.histogram(df_temp_new.dE, bins=dE_bins, range=dE_range)
+    bin_centers = 0.5 * (bins[1:] + bins[:-1])
     
-    plt.subplot(2, 1, 2)
-    plt.grid(True, which='major', zorder=0)
-    plt.grid(True, which='minor', linestyle='--',zorder=0)
-    plt.hist(df.ToF * 62.5e-9 * 1000, bins=1000, range=[0, 30], log=LogNorm(), 
-             histtype='step', color='black', zorder=2, label='Without filter')
-    plt.hist(df[(df.ToF >= ToF_min) & (df.ToF <= ToF_max)].ToF * 62.5e-9 * 1000, 
-                bins=1000, range=[0, 30], log=LogNorm(), histtype='step', 
-                color='red', zorder=2, label='With filter')
-    plt.xlabel('ToF [$\mu$s]')
-    plt.ylabel('Intensity [Counts]')
-    plt.title('ToF histogram')
-    plt.legend()
-
+    plt.xlabel('$\Delta$E [meV]')
+    plt.xlim([-E_i[0], E_i[0]])
+    plt.ylim([1, 1.2 * max(hist_MG)])
+    plt.ylabel('Counts')
+    plt.yscale('log')
     
-        
+    lim_ToF_vec = None
+    isPureAluminium = False
+    
+    hist_background = plot_dE_background(E_i[0], calibration, measurement_time, 
+                                         1, -E_i[0], E_i[0], back_yes, 1,
+                                         isPureAluminium, lim_ToF_vec)
+    
+    if back_yes is False:
+        hist_MG = hist_MG - hist_background
+        name += '\n(Background subtracted)'
+    
+    plt.plot(bin_centers, hist_MG, color='black', label='Data', zorder=5)
+    plt.title(name)
+    plt.legend()
     plt.tight_layout()
     plot_path = get_plot_path(data_set) + name + '.pdf'
         
@@ -1758,7 +1767,7 @@ def RRM(fig, name, df, data_set, border, E_i_vec, measurement_time,
 # =============================================================================
     
 def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
-                  vis_help, back_yes, isPureAluminium = False, 
+                  vis_help, back_yes, isRaw = False, isPureAluminium = False, 
                   isFiveByFive = False):
     MG_SNR = 0
     He3_SNR = 0
@@ -1781,8 +1790,35 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
     he3_min = he3_bins[0]
     he3_max = he3_bins[-1]
     He3_bin_centers = 0.5 * (he3_bins[1:] + he3_bins[:-1])
-    dE = nxs['mantid_workspace_1']['event_workspace']['tof'].value
-    He3_dE_hist, __ = np.histogram(dE, bins=390, range=[he3_min, he3_max])
+    He3_dE_hist = None
+    if isRaw:
+        path = os.path.join(dirname,'../Archive/SEQ_raw/SEQ_' 
+                            + str(measurement_id) + '.nxs.h5')
+        He3_file = h5py.File(path, 'r')
+        ToF_tot = []
+        pixels_tot = []
+        for bank_value in range(40, 151):
+            bank = 'bank' + str(bank_value) + '_events'
+            ToF = He3_file['entry'][bank]['event_time_offset'].value
+            pixels = He3_file['entry'][bank]['event_id'].value
+            if ToF != []:
+                ToF_tot.extend(ToF)
+                pixels_tot.extend(pixels)
+        distance = np.zeros([len(pixels_tot)], dtype=float)
+        __, __, __, d = import_He3_coordinates_NEW()
+        for i, pixel in enumerate(pixels_tot):
+            distance[i] = d[pixel-39936]
+        T_0 = get_T0(calibration, E_i) * np.ones(len(ToF_tot))
+        t_off = get_t_off_He3(calibration) * np.ones(len(ToF_tot))
+        E_i_vec_raw = E_i * np.ones(len(ToF_tot))
+        dE, t_f = get_dE_He3(E_i_vec_raw, np.array(ToF_tot), distance, T_0, t_off)
+        df_temp_He3 = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+        dE = df_temp_He3[df_temp_He3['t_f'] > 0].dE
+        He3_dE_hist, __ = np.histogram(dE, bins=390, range=[he3_min, he3_max])
+    else:
+        dE = nxs['mantid_workspace_1']['event_workspace']['tof'].value
+        He3_dE_hist, __ = np.histogram(dE, bins=390, range=[he3_min, he3_max])
+    
     He_duration = nxs['mantid_workspace_1']['logs']['duration']['value'].value[0]
     
     # Initial filter
@@ -1812,10 +1848,15 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
 
     
     # Get He3 offset
-    He3_offset = get_He3_offset(calibration)
+    He3_offset = 0
+    if isRaw is False:
+        He3_offset = get_He3_offset(calibration)
     
     # Get MG and He3 peak edges
     MG_left, MG_right, He3_left, He3_right = get_peak_edges(calibration)
+    if isRaw:
+        He3_left = MG_left
+        He3_right = MG_right
     
     # Get MG and He3 normalisation
     norm_MG = calculate_peak_norm(MG_bin_centers, MG_dE_hist, MG_left, 
@@ -1888,7 +1929,9 @@ def plot_He3_data(fig, df, data_set, calibration, measurement_time, E_i, FWHM,
     MG_peak_normalised = norm_MG/tot_norm
     He3_peak_normalised = norm_He3
     MG_over_He3 = round(MG_peak_normalised/He3_peak_normalised, 4)
-    MG_over_He3_max = round((MG_MAX/He3_MAX), 4)
+    MG_over_He3_max = 0
+    if FWHM:  
+        MG_over_He3_max = round((MG_MAX/He3_MAX), 4)
     # Plot text box
     text_string = r"$\bf{" + '---MultiGrid---' + "}$" + '\n'
     text_string += 'Area: ' + str(round(MG_peak_normalised,1)) + ' [counts]\n'
@@ -1975,7 +2018,7 @@ def ToF_per_voxel(df, data_set, Bus):
 # 23. Iterate through all energies and export energies
 # =============================================================================     
 
-def plot_all_energies(isPureAluminium = False):
+def plot_all_energies(isPureAluminium = False, isRaw = False):
     # Declare all the relevant file names
     Van_3x3_HF_clusters = ["['mvmelst_1577_15meV_HF.zip'].h5",
                            "['mvmelst_1578_20meV_HF.zip'].h5",
@@ -2100,8 +2143,10 @@ def plot_all_energies(isPureAluminium = False):
             for back_yes, folder in zip(back_yes_vec, folder_vec):
                 fig = plt.figure()
                 fig, __, a_frac, max_frac, He3_FWHM, MG_FWHM = plot_He3_data(fig, df, data_sets, calibration, 
-                                                                         measurement_time, E_i, FWHM, vis_help, 
-                                                                         back_yes, isPureAluminium)
+                                                                             measurement_time, E_i, FWHM, 
+                                                                             vis_help, 
+                                                                             back_yes, isRaw, 
+                                                                             isPureAluminium)
                 path = folder + calibration
                 if back_yes is not True:
                     path += '_Background_subtracted'
@@ -2162,18 +2207,18 @@ def plot_overview(fig):
       #  plt.subplot(1, 2, 1)
 #        plt.grid(True, which='major', zorder=0)
 #        plt.grid(True, which='minor', linestyle='--',zorder=0) 
-#        plt.title('Relative efficiency vs Energy\n(Peak area comparrison, MG/He3)')
+#        plt.title('Relative efficiency vs Energy\n(Peak area comparrison, MG/He3)\n(Raw He3 data used)')
 #       # plt.plot(E_i, max_frac, '-x', label='Peak maximum fraction (MG/He3)', zorder=5)
 #        plt.plot(E_i, area_frac, '-x', color=color_vec[i], label=data_set_name,
 #                 zorder=5)
 #        plt.xlabel('$E_i$ [meV]')
 #        plt.xscale('log')
 #        plt.ylabel('Relative efficiency')
-#        plt.legend()
+        plt.legend()
        # plt.subplot(1, 2, 2)
         plt.grid(True, which='major', zorder=0)
         plt.grid(True, which='minor', linestyle='--',zorder=0) 
-        plt.title('FWHM vs Energy')
+        plt.title('FWHM vs Energy\n(Raw He3 data used)')
         plt.plot(E_i, MG_FWHM, '-x', label=data_set_name + ', MG', zorder=5)
         plt.plot(E_i, He3_FWHM, '-x', label=data_set_name + ', He3', zorder=5)
         plt.xlabel('$E_i$ [meV]')
@@ -2198,28 +2243,44 @@ def plot_overview(fig):
 # 25. Plot raw He3 data
 # =============================================================================
     
-def plot_Raw_He3(fig):
+def plot_Raw_He3(fig, E_i, calibration):
+    # Declare parameters
+    m_id = str(find_He3_measurement_id(calibration))
+    # Import raw He3 data
     dir_name = os.path.dirname(__file__)
-    folder_name = os.path.join(dir_name,'../Archive/SEQ_raw/')
-    path = folder_name + 'SEQ_145178.nxs.h5'
+    path = os.path.join(dir_name,'../Archive/SEQ_raw/SEQ_' + m_id + '.nxs.h5')
     He3_file = h5py.File(path, 'r')
-    
     ToF_tot = []
     pixels_tot = []
-    
-    for bank_value in range(40, 150):
+    for bank_value in range(40, 151):
         bank = 'bank' + str(bank_value) + '_events'
         ToF = He3_file['entry'][bank]['event_time_offset'].value
         pixels = He3_file['entry'][bank]['event_id'].value
-        ToF_tot.extend(ToF)
-        pixels_tot.extend(pixels)
+        if ToF != []:
+            ToF_tot.extend(ToF)
+            pixels_tot.extend(pixels)
+    pixels_tot = np.array(pixels_tot)
+    distance = np.zeros([len(pixels_tot)], dtype=float)
+    __, __, __, d = import_He3_coordinates_NEW()
+    for i, pixel in enumerate(pixels_tot):
+        distance[i] = d[pixel-39936]
     
-    plt.hist(ToF_tot, bins=1000)
-    plt.xlabel('ToF')
+    T_0 = get_T0(calibration, E_i) * np.ones(len(ToF_tot))
+    t_off = get_t_off_He3(calibration) * np.ones(len(ToF_tot))
+    E_i = E_i * np.ones(len(ToF_tot))
+    dE, t_f = get_dE_He3(E_i, np.array(ToF_tot), distance, T_0, t_off)
+    df_temp = pd.DataFrame(data={'dE': dE, 't_f': t_f})
+    dE = df_temp[df_temp['t_f'] > 0].dE
+    plt.hist(dE, bins=390, range=[-E_i[0], E_i[0]], histtype='step', 
+             color='black', zorder=5)
+    plt.xlabel('$\Delta$E')
     plt.ylabel('Counts')
     plt.yscale('log')
+    plt.title('Raw Helium data\n' + calibration)
+    plt.grid(True, which='major', zorder=0)
+    plt.grid(True, which='minor', linestyle='--',zorder=0) 
     
-    path = os.path.join(dir_name,'../RAW_HELIUM_TEST.pdf')
+    path = os.path.join(dir_name,'../RAW_HELIUM_TEST.pdf')   
     
     return fig, path
 
@@ -2227,7 +2288,7 @@ def plot_Raw_He3(fig):
 # 26. Plot 3D plotly histogram
 # ============================================================================= 
     
-def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
+def plot_plotly_3D_histogram(df_tot, df, path, data_set, min_tof=0, max_tof=9100):
     # Declare max and min count
     min_count = 2
     max_count = np.inf
@@ -2260,57 +2321,7 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
     detector_2 = create_ess_channel_to_coordinate_map(theta_2, offset_2)
     detector_3 = create_ess_channel_to_coordinate_map(theta_3, offset_3)
     detector_vec = [detector_1, detector_2, detector_3]
-    # Initiate all voxels
-    x_prime = []
-    y_prime = []
-    z_prime = []
-    lower_bus = 0
-    upper_bus = 3
-    
-    
-#    for i, detector in enumerate(detector_vec):
-#        for bus in range(lower_bus,upper_bus):
-#            for wCh in range(0,80):
-#                for gCh in range(80,120):
-#                    isBottom    = (gCh == 80)
-#                    isTop       = (gCh == 119)
-#                    isFrontEdge = (wCh == 0) | (wCh == 20) | (wCh == 40) | (wCh == 60)
-#                    isBackEdge  = (wCh == 19) | (wCh == 39) | (wCh == 59) | (wCh == 79)
-#                    isRightEdge = (0 <= wCh <= 19)
-#                    isLeftedge  = (60 <= wCh <= 79)
-#                    if bus >= 3:
-#                        if (((isBottom or isTop) and (isFrontEdge or isBackEdge or isRightEdge or isLeftedge))
-#                            or ((wCh == 0) or (wCh == 19) or (wCh == 60) or (wCh == 79))):
-#                            coord = detector[bus%3, gCh, wCh]
-#                            x_prime.append(coord['x'])
-#                            y_prime.append(coord['y'])
-#                            z_prime.append(coord['z']) 
-#                    else:
-#                        if bus == 0:
-#                            if (((isBottom or isTop) and (isFrontEdge or isBackEdge or isRightEdge))
-#                                or ((wCh == 0) or (wCh == 19))):
-#                                coord = detector[bus%3, gCh, wCh]
-#                                x_prime.append(coord['x'])
-#                                y_prime.append(coord['y'])
-#                                z_prime.append(coord['z'])
-#                        if bus == 1:
-#                            if (((isBottom or isTop) and (isFrontEdge or isBackEdge))):
-#                                coord = detector[bus%3, gCh, wCh]
-#                                x_prime.append(coord['x'])
-#                                y_prime.append(coord['y'])
-#                                z_prime.append(coord['z'])
-#                        if bus == 2:
-#                            if (((isBottom or isTop) and (isFrontEdge or isBackEdge or isLeftedge))
-#                                or ((wCh == 60) or (wCh == 79))):
-#                                coord = detector[bus%3, gCh, wCh]
-#                                x_prime.append(coord['x'])
-#                                y_prime.append(coord['y'])
-#                                z_prime.append(coord['z']) 
-#                            
-#                            
-#        lower_bus += 3
-#        upper_bus += 3
-    
+    # Initiate border lines   
     pairs = [[[80, 0], [80, 60]],
              [[80, 0], [80, 19]],
              [[80, 79], [80, 60]],
@@ -2396,6 +2407,17 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
                              )
     # Insert results into an array
     flip_bus = {0: 2, 1: 1, 2: 0}
+    def flip_wire(wCh):
+        if 0 <= wCh <= 19:
+            wCh += 60
+        elif 20 <= wCh <= 39:
+            wCh += 20
+        elif 40 <= wCh <= 59:
+            wCh -= 20
+        elif 60 <= wCh <= 79:
+            wCh -= 60
+        return wCh
+            
     hist = [[], [], [], []]
     loc = 0
     for wCh in range(0, 80):
@@ -2403,7 +2425,7 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
             for bus in range(0, 9):
                 detector = detector_vec[bus//3]
                 if H[wCh, gCh-80, bus] > min_count and H[wCh, gCh-80, bus] <= max_count:
-                    coord = detector[flip_bus[bus%3], gCh, wCh]
+                    coord = detector[flip_bus[bus%3], gCh, flip_wire(wCh)]
                     hist[0].append(coord['x'])
                     hist[1].append(coord['y'])
                     hist[2].append(coord['z'])
@@ -2412,6 +2434,25 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
 #    for coord in [[-3.5, -1.6, 5.1, 1], [-3.5, -1.6, 5.1, 100]]:
 #        for index in range(4):
 #            hist[index].append(coord[index])
+                    
+    max_val = 50
+    min_val = 1
+    
+    max_val_log = np.log10(max_val)
+    min_val_log = np.log10(min_val)
+    
+    
+    for lim_value in [min_val_log, max_val_log]:
+        print(lim_value)
+        hist[2].append(5.35)
+        hist[0].append(-0.9)
+        hist[1].append(-3.07)
+        hist[3].append(lim_value)
+    
+    for i in range(4):
+        hist[i] = np.array(hist[i])
+    
+    
     # Produce 3D histogram plot
     MG_3D_trace = go.Scatter3d(x=hist[2],
                                y=hist[0],
@@ -2419,56 +2460,56 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
                                mode='markers',
                                marker=dict(
                                        size=5,
-                                       color = hist[3],
+                                       color = np.log10(hist[3]),
                                        colorscale = 'Jet',
-                                       opacity=1.0,
-#                                       colorbar=dict(thickness=20,
-#                                                     title = 'Intensity [a.u.]',
-#                                                     tickmode = 'array',
-#                                                     tickvals = [1, 25, 50],
-#                                                     ticktext = ['Low','Medium','High'],
-#                                                     ticks = 'outside'
-#                                                     ),
-#                                       cmin = 1,
-#                                       cmax = 50
+                                       opacity=1,
+                                       colorbar=dict(thickness=20,
+                                                     title = 'Intensity [a.u.]',
+                                                     tickmode = 'array',
+                                                     tickvals = [min_val_log, 
+                                                                 (max_val_log - min_val_log)/2, 
+                                                                 max_val_log],
+                                                     ticktext = ['Low','Medium','High'],
+                                                     ticks = 'outside'
+                                                     ),
+                              cmin = min_val_log,
+                              cmax = max_val_log,
                                        ),
+
                                name='Multi-Grid',
                                scene='scene1'
                                )
                         
-    color_lim_trace = go.Scatter3d(x=[5.5, 5.5],
-                                   y=[-1, -1],
-                                   z=[-2.5, -2.5],
+    color_lim_trace = go.Scatter3d(x=[5.35],
+                                   y=[-0.9],
+                                   z=[-3.07],
                                    mode='markers',
                                    marker=dict(
-                                           size=0.01,
-                                           color = [0, 50000],
-                                           colorscale = 'Jet',
-                                           opacity=0,
-                                           colorbar=dict(thickness=20,
-                                                         title = 'Intensity [a.u.]',
-                                                         tickmode = 'array',
-                                                         tickvals = [0, 25000, 50000],
-                                                         ticktext = ['Low','Medium','High'],
-                                                         ticks = 'outside'
-                                                         ),
+                                           size=5,
+                                           color = 'rgb(255,255,255)',
+                                           opacity=1,
+                                           line = dict(
+                                                   color = 'rgb(255,255,255)',
+                                                   width = 1
+                                                   )
                                         ),
                                     )
                                        
     
                                      
     # Produce histogram
-    ToF_hist, ToF_bins = np.histogram(df_tot.ToF * 62.5e-9 * 1e6, bins = 1000)
+    ToF_hist, ToF_bins = np.histogram(df_tot.ToF * 62.5e-9 * 1e6, bins = 1000, 
+                                      range=[0, 16667])
     ToF_bin_centers = 0.5 * (ToF_bins[1:] + ToF_bins[:-1])
     ToF_trace = go.Scatter(
                            x = ToF_bin_centers,
                            y = ToF_hist,
-                           fill = 'tozerox',
+                           #fill = 'tozerox',
                            marker = dict(
                                          color = 'rgb(0, 0, 0)'
                                         ),
                            fillcolor = 'rgba(0, 0, 255, .5)',
-                           opacity = 0.5,
+                           #opacity = 0.5,
                            line = dict(
                                        width = 2
                                        )
@@ -2479,11 +2520,12 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
                                      {'is_3d': True}]]
                                  )
     
+    fig.append_trace(ToF_trace, 1, 1)
+    fig.append_trace(MG_3D_trace, 1, 2)
+    fig.append_trace(color_lim_trace, 1, 2)
     for b_trace in b_traces:
         fig.append_trace(b_trace, 1, 2)
-    fig.append_trace(color_lim_trace, 1, 2)
-    fig.append_trace(MG_3D_trace, 1, 2)
-    fig.append_trace(ToF_trace, 1, 1)
+  
     a = 0.92
     camera = dict(
                  up=dict(x=0, y=0, z=1),
@@ -2495,19 +2537,23 @@ def plot_plotly_3D_histogram(df_tot, df, path, min_tof=0, max_tof=9100):
     fig['layout']['scene1']['zaxis'].update(title='y [m]') # range=[-3.13, -2.2]
     fig['layout']['scene1']['camera'].update(camera)
     fig['layout']['xaxis1'].update(title='ToF [µs]', showgrid=True,
-                                   range=[0, 9.1e3])
-    fig['layout']['yaxis1'].update(title='Intensity [a.u.]', range=[5, 13e3], 
-                                   showgrid=True)
-    fig['layout'].update(title='White beam on Silicon Crystal',
+                                   range=[0, 16000])
+    fig['layout']['yaxis1'].update(title='Intensity [a.u.]', range=[1.7, 5.2], 
+                                   showgrid=True, type='log')
+    fig['layout'].update(title=str(data_set),
                          height=600, width=1300)
     fig.layout.showlegend = False
     shapes = [
-            {'type': 'line', 'x0': v_pos_x, 'y0': 0, 'x1': v_pos_x, 'y1': 20000,
-             'line':  {'color': 'rgb(500, 0, 0)', 'width': 5}} 
+            {'type': 'line', 'x0': v_pos_x, 'y0': -1000, 
+             'x1': v_pos_x, 'y1': 20000000,
+             'line':  {'color': 'rgb(500, 0, 0)', 'width': 5}, 'opacity': 0.7}
             ]
     fig['layout'].update(shapes=shapes)
-    pio.write_image(fig, path)
-    #py.offline.plot(fig, filename='simple-3d-scatter.html', auto_open=True)
+    if path == 'hej':
+        py.offline.plot(fig, filename='simple-3d-scatter.html', auto_open=True)
+    else:
+        pio.write_image(fig, path)
+
                                 
     
     
@@ -2548,6 +2594,23 @@ def calculate_peak_norm(bin_centers, hist, left_edge, right_edge):
     peak_area = area - area_noise
     return peak_area
 
+def get_dE_He3(E_i, ToF, d, T_0, t_off):
+    # Declare parameters
+    L_1 = 20.01                                # Target-to-sample distance
+    m_n = 1.674927351e-27                      # Neutron mass [kg]
+    meV_to_J = 1.60218e-19 * 0.001             # Convert meV to J
+    J_to_meV = 6.24150913e18 * 1000            # Convert J to meV
+    # Calculate dE
+    E_i_J = E_i * meV_to_J                     # Convert E_i from meV to J
+    v_i = np.sqrt((E_i_J*2)/m_n)               # Get velocity of E_i
+    t_1 = (L_1 / v_i) + T_0 * 1e-6             # Use velocity to find t_1
+    ToF_real = ToF * 1e-6 + (t_off * 1e-6)     # Time from source to detector
+    t_f = ToF_real - t_1                       # Time from sample to detector
+    E_J = (m_n/2) * ((d/t_f) ** 2)             # Energy E_f in Joule
+    E_f = E_J * J_to_meV                       # Convert to meV
+    return (E_i - E_f), t_f
+    
+
 
 def get_dE(E_i, ToF, d, T_0, t_off, frame_shift):
     # Declare parameters
@@ -2580,6 +2643,17 @@ def import_T0_table():
 def get_T0(calibration, energy):
     T0_table = import_T0_table()
     return T0_table[calibration]
+
+
+def get_t_off_He3(calibration):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, '../Tables/He3_offset.xlsx')
+    matrix = pd.read_excel(path).values
+    He3_offset_table = {}
+    for row in matrix:
+        He3_offset_table.update({row[0]: row[2]})
+    offset = float(He3_offset_table[calibration])
+    return offset
 
 
 def get_t_off_table():
@@ -3047,4 +3121,32 @@ def get_new_x(x, y, theta):
 
 def get_new_y(x, y, theta):
     return np.sin(np.arctan(y/x)+theta)*np.sqrt(x ** 2 + y ** 2)
+
+def import_He3_coordinates_NEW():
+    dirname = os.path.dirname(__file__)
+    he_folder = os.path.join(dirname, '../Tables/Helium3_coordinates/')
+    az_path = he_folder + '145160_azimuthal.txt'
+    dis_path = he_folder + '145160_distance.txt'
+    pol_path = he_folder + '145160_polar.txt'
+
+    az = np.loadtxt(az_path)
+    dis = np.loadtxt(dis_path)
+    pol = np.loadtxt(pol_path)
+    distance = np.ones(len(dis) * 2)
+    count = 0
+    for d in dis:
+        for i in range(2):
+            distance[count] = d
+            count += 1
+
+    x = dis*np.sin(pol * np.pi/180)*np.cos(az * np.pi/180)
+    y = dis*np.sin(az * np.pi/180)*np.sin(pol * np.pi/180)
+    z = dis*np.cos(pol * np.pi/180)
+    d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    
+    
+    labels = []
+    for i in range(0, len(x)):
+        labels.append('Number: ' + str(i) + '<br>Distance: ' + str(round(d[i], 4)))
+    return x, y, z, distance
     
